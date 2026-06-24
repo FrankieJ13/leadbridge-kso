@@ -5,6 +5,7 @@
 - Added responsive smartphone layout across forms, panels, actions, result tables and deal tables.
 - Added PWA manifest, service worker and app icons for installable GitHub Pages usage.
 - Added smartphone memory safeguards for heavy CSV/JSON/ZIP/folder inputs and batched mobile result rendering.
+- Tightened the initial mobile screen with a compact ready state instead of an empty results area.
 - Prepared GitHub-ready repository structure for GitHub Pages and GitHub Releases.
 - Added native build ZIP packages for Windows WPF/WebView2 and macOS AppKit/WKWebView DMG wrappers.
 - Added `releases/manifest.json` for version and package discovery from the Pages app.
