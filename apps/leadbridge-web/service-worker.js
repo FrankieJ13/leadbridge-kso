@@ -1,4 +1,4 @@
-const CACHE_NAME = 'leadbridge-kso-pwa-v6.4.24.1144-1';
+const CACHE_NAME = 'leadbridge-kso-pwa-v6.4.24.1144-2';
 const APP_SHELL = [
   './',
   './index.html',

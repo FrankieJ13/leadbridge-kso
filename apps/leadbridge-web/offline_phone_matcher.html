@@ -236,7 +236,7 @@
       </div>
     </section>
     <div class="local-policy"><strong>Данные остаются на этом компьютере.</strong> GitHub Pages только открывает LeadBridge. Выбранные JSON/CSV/ZIP/папки читаются локально браузером и не отправляются на сервер.</div>
-    <div id="mobileAdvice" class="mobile-advice"><strong>Смартфон-режим:</strong> большие amoCRM CSV, MAX JSON и ZIP с картинками могут не открыться из-за памяти браузера. Для тяжёлых баз используй компьютер или дели выгрузку на меньшие файлы; на телефоне результаты показываются порциями.</div>
+    <div id="mobileAdvice" class="mobile-advice"><strong>Смартфон-режим:</strong> amoCRM CSV читается чанками после выбора файла. Большие MAX JSON и ZIP с картинками всё ещё могут упереться в память браузера; результаты на телефоне показываются порциями.</div>
     <div id="releaseHint" class="release-hint hidden" aria-live="polite"></div>
     <div id="notice" class="notice">Загрузи MAX и amoCRM. Для поиска номеров из обычных текстовых сообщений MAX используй messages_ocr.json. Всё считается локально в браузере.</div>
     <div id="loader" class="loader hidden"></div>
@@ -333,11 +333,17 @@ function checkMobileFileBudget(kind, file){
   if(!isMobileConstrained() || !file) return true;
   const budget = mobileBudget(kind);
   const label = mobileFileLabel(kind);
+  if(kind === 'amo' && file.size > budget.hard){
+    const ok = window.confirm(`${label} весит ${formatBytes(file.size)}. Прочитаю CSV чанками внутри браузера, без загрузки на сервер. На смартфоне это может занять время. Продолжить?`);
+    if(ok) setNotice(`${label} будет прочитан чанками: ${formatBytes(file.size)}. Не закрывай вкладку до завершения.`);
+    return ok;
+  }
   if(file.size > budget.hard){
     setNotice(`${label} слишком большой для смартфона: ${formatBytes(file.size)}. Чтобы не завис браузер, открой этот файл на компьютере или раздели выгрузку на части.`, true);
     return false;
   }
   if(file.size > budget.soft){
+    if(kind === 'amo') return window.confirm(`${label} весит ${formatBytes(file.size)}. Прочитать CSV чанками внутри браузера?`);
     return window.confirm(`${label} весит ${formatBytes(file.size)}. На смартфоне браузер может закрыть вкладку при чтении такого файла. Продолжить?`);
   }
   return true;
@@ -523,12 +529,10 @@ function splitCsvLine(line, delimiter){
   }
   arr.push(cur); return arr;
 }
-function parseCsv(text){
-  text = String(text || '').replace(/^\uFEFF/, '').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
-  if(!text.trim()) return {headers:[], rows:[], delimiter:','};
-
-  const firstLineEnd = text.indexOf('\n') === -1 ? text.length : text.indexOf('\n');
-  const firstLine = text.slice(0, firstLineEnd);
+function detectCsvDelimiterFromText(text){
+  const value = String(text || '').replace(/^\uFEFF/, '');
+  const firstLineEnd = value.indexOf('\n') === -1 ? value.length : value.indexOf('\n');
+  const firstLine = value.slice(0, firstLineEnd).replace(/\r$/, '');
   const counts = {',':0, ';':0, '\t':0};
   let q0=false;
   for(let i=0;i<firstLine.length;i++){
@@ -538,7 +542,13 @@ function parseCsv(text){
       else q0=!q0;
     } else if(!q0 && Object.prototype.hasOwnProperty.call(counts,ch)) counts[ch]++;
   }
-  const delimiter = counts['\t'] > counts[','] && counts['\t'] > counts[';'] ? '\t' : (counts[';'] > counts[','] ? ';' : ',');
+  return counts['\t'] > counts[','] && counts['\t'] > counts[';'] ? '\t' : (counts[';'] > counts[','] ? ';' : ',');
+}
+function parseCsv(text){
+  text = String(text || '').replace(/^\uFEFF/, '').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  if(!text.trim()) return {headers:[], rows:[], delimiter:','};
+
+  const delimiter = detectCsvDelimiterFromText(text);
 
   const records=[];
   let row=[], cur='', q=false;
@@ -589,9 +599,16 @@ function rowGetAllPhoneValues(parsed, row, fallbackIndexes=[]){
 
 function findHeaderIndexExact(parsed, names, fallbackIndex=null){
   const wanted = (Array.isArray(names)?names:[names]).map(compactKey);
+  const cacheKey = wanted.join('|') + '::' + String(fallbackIndex);
+  if(!parsed.__exactIndexCache) parsed.__exactIndexCache = new Map();
+  if(parsed.__exactIndexCache.has(cacheKey)) return parsed.__exactIndexCache.get(cacheKey);
   for(let i=0;i<(parsed.headers||[]).length;i++){
-    if(wanted.includes(compactKey(parsed.headers[i]))) return i;
+    if(wanted.includes(compactKey(parsed.headers[i]))){
+      parsed.__exactIndexCache.set(cacheKey, i);
+      return i;
+    }
   }
+  parsed.__exactIndexCache.set(cacheKey, fallbackIndex);
   return fallbackIndex;
 }
 function rowGetExact(parsed, row, names, fallbackIndex=null){
@@ -607,6 +624,151 @@ function debugColumnSample(parsed, rows, label, idx){
 }
 
 async function readFile(file){ return await file.text(); }
+async function readBlobArrayBuffer(blob){
+  if(blob.arrayBuffer) return await blob.arrayBuffer();
+  return await new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>resolve(reader.result);
+    reader.onerror = ()=>reject(reader.error || new Error('не удалось прочитать файл'));
+    reader.readAsArrayBuffer(blob);
+  });
+}
+async function readBlobText(blob){
+  if(blob.text) return await blob.text();
+  if(typeof TextDecoder !== 'undefined') return new TextDecoder('utf-8').decode(await readBlobArrayBuffer(blob));
+  return await new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>resolve(String(reader.result || ''));
+    reader.onerror = ()=>reject(reader.error || new Error('не удалось прочитать текст'));
+    reader.readAsText(blob);
+  });
+}
+function csvStreamChunkSize(){
+  return isMobileConstrained() ? 512 * 1024 : 2 * MB;
+}
+async function* fileTextChunks(file, chunkSize){
+  const decoder = typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-8') : null;
+  let offset = 0;
+  while(offset < file.size){
+    const end = Math.min(file.size, offset + chunkSize);
+    const blob = file.slice(offset, end);
+    let text;
+    if(decoder){
+      text = decoder.decode(await readBlobArrayBuffer(blob), {stream:end < file.size});
+    } else {
+      text = await readBlobText(blob);
+    }
+    yield {text, loaded:end};
+    offset = end;
+    await sleep(0);
+  }
+  if(decoder){
+    const tail = decoder.decode();
+    if(tail) yield {text:tail, loaded:file.size};
+  }
+}
+async function parseCsvFileStream(file, handlers={}){
+  const sample = await readBlobText(file.slice(0, Math.min(file.size, 256 * 1024)));
+  const delimiter = detectCsvDelimiterFromText(sample);
+  const chunkSize = handlers.chunkSize || csvStreamChunkSize();
+  let headers = null;
+  let dataRows = 0;
+  let row = [];
+  let cur = '';
+  let q = false;
+  let pendingQuote = false;
+
+  const emitRecord = (cells)=>{
+    if(!cells.some(v=>String(v).trim()!=='')) return;
+    if(!headers){
+      headers = cells.map(h=>clean(h));
+      if(handlers.onHeaders) handlers.onHeaders(headers, delimiter);
+      return;
+    }
+    const cleaned = cells.map(v=>clean(v));
+    if(!cleaned.some(Boolean)) return;
+    const rowObj = {__cells:cleaned, __rownum:dataRows + 2};
+    if(handlers.onRow) handlers.onRow(rowObj, dataRows);
+    dataRows++;
+  };
+
+  for await (const chunk of fileTextChunks(file, chunkSize)){
+    const text = String(chunk.text || '');
+    for(let i=0;i<text.length;i++){
+      const ch=text[i], nx=text[i+1];
+      if(pendingQuote){
+        if(ch==='"'){
+          cur+='"';
+          pendingQuote = false;
+          continue;
+        }
+        pendingQuote = false;
+        q = false;
+      }
+      if(ch==='"'){
+        if(q && nx==='"') { cur+='"'; i++; }
+        else if(q && i===text.length-1) pendingQuote = true;
+        else q=!q;
+      } else if(ch===delimiter && !q){
+        row.push(cur); cur='';
+      } else if((ch==='\n' || ch==='\r') && !q){
+        row.push(cur); cur='';
+        emitRecord(row);
+        row=[];
+        if(ch==='\r' && nx==='\n') i++;
+      } else {
+        cur+=ch;
+      }
+    }
+    if(handlers.onProgress) handlers.onProgress({loaded:chunk.loaded, total:file.size, rows:dataRows});
+  }
+  if(pendingQuote){
+    pendingQuote = false;
+    q = false;
+  }
+  row.push(cur);
+  emitRecord(row);
+  return {headers:headers || [], delimiter, rows:dataRows};
+}
+function shouldStreamAmoFile(file){
+  if(!file) return false;
+  const name = String(file.name || '').toLowerCase();
+  return (name.endsWith('.csv') || name.endsWith('.txt')) && (isMobileConstrained() || file.size > 20 * MB);
+}
+async function normalizeAmoCsvFile(file){
+  const parsed = {headers:[], delimiter:','};
+  const rows = [];
+  const debugRows = [];
+  let seen = 0;
+  let lastPct = -10;
+  logLine(`amocrm_csv_stream: start ${formatBytes(file.size)}, chunk=${formatBytes(csvStreamChunkSize())}`);
+  await parseCsvFileStream(file, {
+    chunkSize: csvStreamChunkSize(),
+    onHeaders(headers, delimiter){
+      parsed.headers = headers;
+      parsed.delimiter = delimiter;
+      logLine(`amocrm_csv_stream: delimiter=${JSON.stringify(delimiter)}, cols=${headers.length}`);
+    },
+    onRow(row, i){
+      seen++;
+      if(debugRows.length < 80) debugRows.push(row);
+      const normalized = normalizeAmoRow(parsed, row, i, {keepRaw:false});
+      if(normalized.id || normalized.phones.length || normalized.fullName) rows.push(normalized);
+    },
+    onProgress({loaded,total,rows:parsedRows}){
+      const pct = total ? Math.floor((loaded / total) * 100) : 100;
+      if(pct >= lastPct + 10 || (loaded >= total && lastPct < 100)){
+        logLine(`amocrm_csv_stream: ${Math.min(100,pct)}%, rows=${parsedRows}`);
+        lastPct = pct;
+      }
+    }
+  });
+  logLine(`amocrm_csv: delimiter=${JSON.stringify(parsed.delimiter)}, rows=${seen}, kept=${rows.length}, cols=${parsed.headers.length}`);
+  debugColumnSample(parsed, debugRows, 'amo_col Дата визита', findHeaderIndexExact(parsed, 'Дата визита', 78));
+  debugColumnSample(parsed, debugRows, 'amo_col Дата создания сделки', findHeaderIndexExact(parsed, 'Дата создания сделки', 4));
+  debugColumnSample(parsed, debugRows, 'amo_col Причина закрытия карточки', findHeaderIndexExact(parsed, 'Причина закрытия карточки', 65));
+  return rows;
+}
 function sleep(ms){ return new Promise(resolve=>setTimeout(resolve,ms)); }
 function svgCheck(){ return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"></path></svg>'; }
 function setPickButtonState(id, ok, label){
@@ -842,10 +1004,10 @@ function detectExpectedZipFromText(text){
 async function loadSource(kind, file){
   try{
     if(!checkMobileFileBudget(kind, file)) return;
-    logLine(`read_file: ${file.name}`);
-    const text = await readFile(file);
-    if(kind==='max') detectExpectedZipFromText(text);
     if(kind==='max'){
+      logLine(`read_file: ${file.name}`);
+      const text = await readFile(file);
+      detectExpectedZipFromText(text);
       state.maxFileName = file.name;
       state.maxRaw = text;
       state.maxRows = normalizeMaxSource(file.name, text);
@@ -853,9 +1015,20 @@ async function loadSource(kind, file){
       setPickButtonState('btnMaxFile', true, 'MAX выбран');
       logLine(`max_schema: rows=${state.maxRows.length}, phones=${countPhones(state.maxRows)}`);
     } else {
+      const streamAmo = shouldStreamAmoFile(file);
       state.amoFileName = file.name;
-      state.amoRaw = text;
-      state.amoRows = normalizeAmoSource(file.name, text);
+      if(streamAmo){
+        state.amoRaw = '';
+        $('infoAmo').innerHTML = `Читаю чанками: <span class="ok">${esc(file.name)}</span>; размер: <b>${formatBytes(file.size)}</b>`;
+        logLine(`read_file_chunks: ${file.name}`);
+        await sleep(20);
+        state.amoRows = await normalizeAmoCsvFile(file);
+      } else {
+        logLine(`read_file: ${file.name}`);
+        const text = await readFile(file);
+        state.amoRaw = text;
+        state.amoRows = normalizeAmoSource(file.name, text);
+      }
       $('infoAmo').innerHTML = `OK: <span class="ok">${esc(file.name)}</span>; сделок/строк: <b>${state.amoRows.length}</b>; телефонов: <b>${countPhones(state.amoRows)}</b>`;
       setPickButtonState('btnAmoFile', true, 'amoCRM выбран');
       logLine(`amocrm_schema: rows=${state.amoRows.length}, phones=${countPhones(state.amoRows)}`);
@@ -1158,7 +1331,7 @@ function normalizeAmoSource(fileName, text){
   debugColumnSample(parsed, parsed.rows, 'amo_col Причина закрытия карточки', findHeaderIndexExact(parsed, 'Причина закрытия карточки', 65));
   return parsed.rows.map((row,i)=>normalizeAmoRow(parsed,row,i)).filter(r=>r.id || r.phones.length || r.fullName);
 }
-function normalizeAmoRow(parsed,row,i){
+function normalizeAmoRow(parsed,row,i, opts={}){
   // amoCRM CSV: сначала ищем нужные колонки по точному заголовку, потом fallback на известные индексы.
   // A=ID, D=Ответственный, E=Дата создания сделки, I=Дата закрытия, V:AA=телефоны, CA=Дата визита, BV=Город.
   const id = rowGetExact(parsed,row,'ID',0) || String(i+1);
@@ -1185,7 +1358,9 @@ function normalizeAmoRow(parsed,row,i){
   phoneVals.push(safeCell(row,30), safeCell(row,100));
   const phones = uniquePhones(phoneVals);
   const dealUrl = id ? AMO_BASE + encodeURIComponent(id) : '';
-  return {source:'amo', raw:row, phones, id, dealUrl, otherLeadsUrl:dealUrl ? dealUrl + '?tab_id=amo_other_leads' : '', responsible, createdAt, createdAtMs:dateKey(createdAt), closedAt, fullName, visitDate, visitDateMs:dateKey(visitDate), city, region, stage, pipeline, tags, closeReason, closeReasonOld, isExcludedCloseReason, isDuplicate, comment};
+  const result = {source:'amo', phones, id, dealUrl, otherLeadsUrl:dealUrl ? dealUrl + '?tab_id=amo_other_leads' : '', responsible, createdAt, createdAtMs:dateKey(createdAt), closedAt, fullName, visitDate, visitDateMs:dateKey(visitDate), city, region, stage, pipeline, tags, closeReason, closeReasonOld, isExcludedCloseReason, isDuplicate, comment};
+  if(opts.keepRaw !== false) result.raw = row;
+  return result;
 }
 
 function buildGroups(){
