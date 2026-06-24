@@ -46,6 +46,8 @@ Upload these files from `releases/packages/` to a GitHub Release:
 
 - `leadbridge-kso-tools-macos-v6.4.24.1144.zip`
 - `leadbridge-kso-tools-windows-v6.4.24.1144.zip`
+- `leadbridge-kso-native-macos-dmg-build-v6.4.24.1144.zip`
+- `leadbridge-kso-native-windows-wpf-build-v6.4.24.1144.zip`
 - `max-chat-local-exporter-v0.4.1.zip`
 - `max-chat-ocr-postprocessor-v0.3.1.zip`
 - `leadbridge-offline-html-v6.4.24.1104.zip`
@@ -68,3 +70,12 @@ https://github.com/YOUR_GITHUB_USER/leadbridge-kso/releases/download/v6.4.24.114
 6. Select the MAX ZIP or extracted `attachments` folder for image previews and HTML reports.
 
 See [docs/workflow.md](docs/workflow.md) for the operator workflow and [docs/macos.md](docs/macos.md) / [docs/windows.md](docs/windows.md) for installation notes.
+
+## Native Build Packages
+
+Native wrapper build packages are generated into `releases/packages/`:
+
+- `leadbridge-kso-native-windows-wpf-build-v6.4.24.1144.zip` builds a Windows WPF + WebView2 desktop app.
+- `leadbridge-kso-native-macos-dmg-build-v6.4.24.1144.zip` builds a macOS AppKit + WKWebView `.app` and `.dmg`.
+
+Both wrappers open the GitHub Pages URL by default and include a bundled offline HTML copy as fallback. They do not add server-side processing.

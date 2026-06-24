@@ -137,6 +137,37 @@ def copy_repo_for_github_ready(target: Path) -> None:
             shutil.copy2(item, dst)
 
 
+def copy_web_assets(target: Path) -> None:
+    reset_dir(target)
+    copy_file(ROOT / "index.html", target / "index.html")
+    manifest = ROOT / "releases" / "manifest.json"
+    if manifest.exists():
+        copy_file(manifest, target / "releases" / "manifest.json")
+
+
+def build_native_source_zip(kind: str) -> Path:
+    if kind == "windows-wpf":
+        source = ROOT / "native" / "windows-wpf"
+        package = BUILD / f"leadbridge-kso-native-windows-wpf-build-{PACKAGE_VERSION}"
+        reset_dir(package)
+        shutil.copytree(source, package, dirs_exist_ok=True, ignore=shutil.ignore_patterns("bin", "obj", "dist", "Web", ".DS_Store"))
+        copy_web_assets(package / "LeadBridgeKSO.Windows" / "Web")
+        out = PACKAGES / f"leadbridge-kso-native-windows-wpf-build-{PACKAGE_VERSION}.zip"
+    elif kind == "macos-dmg":
+        source = ROOT / "native" / "macos-dmg"
+        package = BUILD / f"leadbridge-kso-native-macos-dmg-build-{PACKAGE_VERSION}"
+        reset_dir(package)
+        shutil.copytree(source, package, dirs_exist_ok=True, ignore=shutil.ignore_patterns("build", "dist", "Web", ".DS_Store"))
+        copy_web_assets(package / "Web")
+        ensure_executable(package / "build_dmg.sh")
+        out = PACKAGES / f"leadbridge-kso-native-macos-dmg-build-{PACKAGE_VERSION}.zip"
+    else:
+        raise ValueError(f"Unknown native source package kind: {kind}")
+
+    zip_path(package, out)
+    return out
+
+
 def build_github_ready_zip() -> Path:
     ready_root = BUILD / "leadbridge-kso"
     copy_repo_for_github_ready(ready_root)
@@ -154,6 +185,8 @@ def main() -> int:
     outputs = component_zips[:]
     outputs.append(build_tools_pack("macos", component_zips))
     outputs.append(build_tools_pack("windows", component_zips))
+    outputs.append(build_native_source_zip("windows-wpf"))
+    outputs.append(build_native_source_zip("macos-dmg"))
     outputs.append(build_github_ready_zip())
 
     print("Built:")

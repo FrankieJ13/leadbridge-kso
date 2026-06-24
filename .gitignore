@@ -3,3 +3,10 @@ __pycache__/
 *.pyc
 dist/
 *.log
+native/windows-wpf/dist/
+native/windows-wpf/LeadBridgeKSO.Windows/bin/
+native/windows-wpf/LeadBridgeKSO.Windows/obj/
+native/windows-wpf/LeadBridgeKSO.Windows/Web/
+native/macos-dmg/build/
+native/macos-dmg/dist/
+native/macos-dmg/Web/

@@ -1,0 +1,28 @@
+<Window x:Class="LeadBridgeKSO.Windows.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="LeadBridge KSO"
+        Width="1360"
+        Height="860"
+        MinWidth="960"
+        MinHeight="640"
+        Background="#05070a">
+  <DockPanel>
+    <ToolBar DockPanel.Dock="Top" Background="#0b0f14" Foreground="#d9f5e6">
+      <Button Click="OpenGitHubPages_Click" Padding="12,4" Margin="2">GitHub Pages</Button>
+      <Button Click="OpenOffline_Click" Padding="12,4" Margin="2">Offline copy</Button>
+      <Separator />
+      <Button Click="Reload_Click" Padding="12,4" Margin="2">Reload</Button>
+      <TextBlock x:Name="StatusText"
+                 Margin="12,0,0,0"
+                 VerticalAlignment="Center"
+                 Foreground="#8293a3"
+                 Text="Loading GitHub Pages..." />
+    </ToolBar>
+
+    <Grid>
+      <wv2:WebView2 x:Name="Browser" />
+    </Grid>
+  </DockPanel>
+</Window>

@@ -45,6 +45,22 @@
         "github_release_asset": "max-chat-ocr-postprocessor-v0.3.1.zip",
         "download_url": "releases/packages/max-chat-ocr-postprocessor-v0.3.1.zip"
       }
+    },
+    "native_builds": {
+      "windows_wpf": {
+        "label": "LeadBridge KSO native Windows WPF build package",
+        "version": "v6.4.24.1144",
+        "file": "leadbridge-kso-native-windows-wpf-build-v6.4.24.1144.zip",
+        "github_release_asset": "leadbridge-kso-native-windows-wpf-build-v6.4.24.1144.zip",
+        "download_url": "releases/packages/leadbridge-kso-native-windows-wpf-build-v6.4.24.1144.zip"
+      },
+      "macos_dmg": {
+        "label": "LeadBridge KSO native macOS DMG build package",
+        "version": "v6.4.24.1144",
+        "file": "leadbridge-kso-native-macos-dmg-build-v6.4.24.1144.zip",
+        "github_release_asset": "leadbridge-kso-native-macos-dmg-build-v6.4.24.1144.zip",
+        "download_url": "releases/packages/leadbridge-kso-native-macos-dmg-build-v6.4.24.1144.zip"
+      }
     }
   }
 }
