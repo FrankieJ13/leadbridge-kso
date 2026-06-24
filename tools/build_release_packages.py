@@ -140,6 +140,13 @@ def copy_repo_for_github_ready(target: Path) -> None:
 def copy_web_assets(target: Path) -> None:
     reset_dir(target)
     copy_file(ROOT / "index.html", target / "index.html")
+    for name in ("manifest.webmanifest", "service-worker.js"):
+        source = ROOT / name
+        if source.exists():
+            copy_file(source, target / name)
+    icons = ROOT / "icons"
+    if icons.exists():
+        shutil.copytree(icons, target / "icons", ignore=shutil.ignore_patterns(".DS_Store"))
     manifest = ROOT / "releases" / "manifest.json"
     if manifest.exists():
         copy_file(manifest, target / "releases" / "manifest.json")

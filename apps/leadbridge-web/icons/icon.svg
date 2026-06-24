@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="LeadBridge KSO">
+  <rect width="512" height="512" rx="112" fill="#05070a"/>
+  <rect x="48" y="48" width="416" height="416" rx="88" fill="#0b0f14" stroke="#2fd176" stroke-width="18"/>
+  <path d="M128 338h256" fill="none" stroke="#69d7ff" stroke-width="30" stroke-linecap="round"/>
+  <path d="M156 338c16-76 53-114 100-114s84 38 100 114" fill="none" stroke="#62ff9c" stroke-width="30" stroke-linecap="round"/>
+  <path d="M156 338v-92M356 338v-92" fill="none" stroke="#62ff9c" stroke-width="26" stroke-linecap="round"/>
+  <text x="256" y="176" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="92" font-weight="800" fill="#d9f5e6">LB</text>
+</svg>

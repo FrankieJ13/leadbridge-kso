@@ -14,6 +14,12 @@ https://YOUR_GITHUB_USER.github.io/leadbridge-kso/
 
 The same app is also kept in `apps/leadbridge-web/index.html` for a clean repo layout.
 
+## PWA And Mobile
+
+LeadBridge includes a PWA manifest and service worker, so supported mobile browsers can install the GitHub Pages app to the home screen. The app shell can open offline after the first load, but selected MAX, amoCRM and attachment files still live on the user's device and must be selected manually.
+
+On smartphones the UI switches to a compact layout: forms become single/two-column touch controls, tables become cards, results render in batches, and large CSV/JSON/ZIP inputs are warned or blocked before the browser tries to read them into memory.
+
 ## Repository Layout
 
 ```text
