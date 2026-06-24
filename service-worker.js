@@ -1,6 +1,5 @@
-const CACHE_NAME = 'leadbridge-kso-pwa-v6.4.24.1144-2';
+const CACHE_NAME = 'leadbridge-kso-pwa-v6.4.24.1144-3';
 const APP_SHELL = [
-  './',
   './index.html',
   './manifest.webmanifest',
   './icons/icon.svg',
@@ -12,7 +11,12 @@ const APP_SHELL = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
+      .then((cache) => Promise.all(APP_SHELL.map((url) =>
+        fetch(url, {cache: 'reload'}).then((response) => {
+          if (!response.ok) throw new Error(`failed to cache ${url}`);
+          return cache.put(url, response);
+        })
+      )))
       .then(() => self.skipWaiting())
   );
 });
@@ -25,6 +29,10 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('fetch', (event) => {
   const {request} = event;
   if (request.method !== 'GET') return;
@@ -35,7 +43,7 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
+      fetch(new Request(request, {cache: 'reload'}))
         .then((response) => {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy));

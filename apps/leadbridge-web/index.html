@@ -2021,7 +2021,25 @@ async function installPwa(){
 }
 function registerServiceWorker(){
   if(!('serviceWorker' in navigator) || location.protocol === 'file:') return;
-  navigator.serviceWorker.register(repoAssetUrl('service-worker.js')).catch(err=>{
+  let reloadingForSw = false;
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    if(reloadingForSw) return;
+    reloadingForSw = true;
+    if(!state.maxRows.length && !state.amoRows.length && !state.imageFiles.size) location.reload();
+    else setNotice('LeadBridge обновился. Когда закончишь текущую работу, закрой и снова открой PWA, чтобы применить новую версию.');
+  });
+  navigator.serviceWorker.register(repoAssetUrl('service-worker.js'), {updateViaCache:'none'}).then(reg=>{
+    reg.addEventListener('updatefound', ()=>{
+      const worker = reg.installing;
+      if(!worker) return;
+      worker.addEventListener('statechange', ()=>{
+        if(worker.state === 'installed' && navigator.serviceWorker.controller){
+          worker.postMessage({type:'SKIP_WAITING'});
+        }
+      });
+    });
+    reg.update().catch(()=>null);
+  }).catch(err=>{
     console.info('LeadBridge service worker registration failed', err);
   });
 }
