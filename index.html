@@ -1,0 +1,1704 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LeadBridge: поиск сделок по анкетам КСО v6.4.24.1104</title>
+  <style>
+    :root{
+      --bg:#05070a;--panel:#0b0f14;--panel2:#0f1720;--panel3:#121b25;--line:#22303d;
+      --text:#d9f5e6;--muted:#8293a3;--green:#62ff9c;--green2:#2fd176;--cyan:#69d7ff;
+      --yellow:#ffd166;--red:#ff6b6b;--blue:#83a9ff;--chip:#172331;--shadow:0 12px 40px rgba(0,0,0,.45);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--text);font-family:"Cascadia Code","JetBrains Mono","Fira Code",Consolas,"SFMono-Regular",Menlo,monospace;font-size:13px;line-height:1.45;overflow-x:hidden}
+    body:before{content:"";position:fixed;inset:0;pointer-events:none;background:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px);background-size:100% 4px;mix-blend-mode:screen;opacity:.32;z-index:10000}
+    a{color:var(--cyan);text-decoration:none;overflow-wrap:anywhere} a:hover{text-decoration:underline}
+    .hidden{display:none!important}.muted{color:var(--muted)}.small{font-size:12px}.nowrap{white-space:nowrap}.ok{color:var(--green)}.warntext{color:var(--yellow)}.badtext{color:var(--red)}
+
+    .top{position:fixed;top:0;left:0;right:0;z-index:9999;background:rgba(5,7,10,.985);border-bottom:1px solid var(--line);box-shadow:var(--shadow);backdrop-filter:blur(8px)}
+    .top-inner{max-width:1760px;margin:0 auto;padding:12px 14px 10px;max-height:var(--top-max,58vh);overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#385268 #091018}
+    .brand{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:start;margin-bottom:8px}
+    h1{font-size:18px;margin:0;color:var(--green);letter-spacing:.02em;text-transform:uppercase;line-height:1.2}.version{color:var(--yellow)}
+    .sub{color:var(--muted);margin-top:3px;font-size:12px}.author{color:#d8ffd8}.top-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center}.report-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.report-actions.hidden{display:none!important}.icon-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px}.icon-btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:round}.theme-icon{width:38px;height:34px;padding:7px}.theme-icon svg{width:18px;height:18px}
+
+    .file-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 10px}.drop{border:1px dashed #345064;background:linear-gradient(180deg,var(--panel2),#0b1118);border-radius:12px;padding:10px;min-height:78px;display:flex;gap:10px;align-items:center;justify-content:space-between}.drop.drag{border-color:var(--green);box-shadow:0 0 0 2px rgba(98,255,156,.12)}
+    .drop strong{color:#fff}.drop .hint{color:var(--muted);font-size:11px}.drop input{display:none}.file-info{margin-top:5px;color:var(--muted);font-size:11px;min-height:16px}
+    .btn{border:1px solid #2b4355;background:#111b26;color:var(--text);border-radius:8px;padding:8px 10px;cursor:pointer;font-family:inherit;font-weight:700;white-space:nowrap}.btn:hover{border-color:var(--green);color:#fff}.btn.primary{background:#113824;border-color:#286f47;color:#baffd2}.btn.danger{background:#35141a;border-color:#772b37;color:#ffc4cc}.btn.warn{background:#3b3113;border-color:#7c6623;color:#ffe9a6}.btn.cyan{background:#102f3b;border-color:#276b80;color:#bdefff}.btn.file-ok{background:#0c3a25;border-color:#2fd176;color:#caffdc;box-shadow:0 0 0 1px rgba(47,209,118,.18),0 0 16px rgba(47,209,118,.12)}.btn.file-ok svg{width:14px;height:14px;vertical-align:-2px;margin-right:6px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+
+    .filter-panel{margin-top:10px;border:1px solid var(--line);background:linear-gradient(180deg,#091018,#070b10);border-radius:14px;padding:8px;display:grid;grid-template-columns:minmax(138px,1.05fr) minmax(118px,.9fr) 116px 116px minmax(130px,1fr) 122px 122px minmax(360px,1.8fr);gap:8px;align-items:end}
+    .ctrl{display:flex;flex-direction:column;gap:4px;min-width:0}.ctrl label{color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.055em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}select,input[type="date"],input[type="text"]{width:100%;border:1px solid var(--line);background:#070c11;color:var(--text);border-radius:8px;padding:6px 7px;font-family:inherit;min-width:0;height:34px}input[type="checkbox"]{accent-color:var(--green)}
+    .span2,.span3,.span4,.span6,.span10,.span12{grid-column:auto}.right{display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
+    .checkbar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;align-self:end}.switch-chip{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #273747;background:#0a1118;border-radius:9px;padding:6px 8px;color:#cbd8e3;min-width:0;height:34px}.switch-chip span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}.switch-chip input{width:15px;height:15px;flex:0 0 auto}
+
+    .sticky-board{margin-top:8px;display:block}.stats{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.stat{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:linear-gradient(180deg,var(--panel),#080d12);border-radius:999px;padding:5px 9px;min-width:0;white-space:nowrap}.stat .n{font-size:13px;color:#fff;font-weight:900;line-height:1}.stat .t{color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0;line-height:1}
+    .downloadbar{border:1px solid var(--line);border-radius:12px;padding:8px;background:rgba(9,15,22,.92);display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}.downloadbar .left,.downloadbar .downloads{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 8px;background:var(--chip);border:1px solid #253749;color:#c9d8e6;font-size:12px;white-space:nowrap}.pill.ok{background:#064e2b;color:#d1fae5;border-color:#16a34a}
+    .pill.max{background:#0c2a1a;border-color:#1f7546;color:#a4ffc5}.pill.amo{background:#11243e;border-color:#2f5d94;color:#c7e0ff}.pill.warn{background:#3e3112;border-color:#6f5821;color:#ffe19d}.pill.red{background:#431820;border-color:#7b2d39;color:#ffc5ce}
+
+    .top-spacer{height:var(--top-offset,0px)}.wrap{max-width:1760px;margin:0 auto;padding:14px 14px 80px}.setup-drawer.collapsed{display:none!important}.drawer-toggle{max-width:1760px;margin:0 auto;padding:8px 14px 0;position:sticky;top:var(--top-offset,0px);z-index:9998;pointer-events:none}.drawer-toggle.hidden{display:none!important}.drawer-btn{pointer-events:auto;border:1px solid var(--line);background:linear-gradient(180deg,var(--panel2),var(--panel));color:var(--text);border-radius:999px;padding:7px 12px;font-family:inherit;font-weight:900;box-shadow:var(--shadow);display:inline-flex;align-items:center;gap:8px}.drawer-btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.drawer-btn:hover{border-color:var(--green);color:var(--green)}.wrap{max-width:1760px;margin:0 auto;padding:14px 14px 80px}.notice{border:1px solid #274a38;background:#09170f;border-left:4px solid var(--green2);padding:12px;border-radius:10px;color:#bdeccf;margin-bottom:12px}.notice.bad{border-color:#5a2530;border-left-color:var(--red);background:#17090c;color:#ffd6dc}.local-policy,.release-hint{border:1px solid #24455a;background:linear-gradient(180deg,#081420,#071018);border-left:4px solid var(--cyan);padding:12px;border-radius:10px;color:#d6eef8;margin-bottom:12px}.local-policy strong,.release-title{color:#fff}.release-hint.hidden{display:none!important}.release-row{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}.release-copy{min-width:260px;flex:1}.release-title{font-weight:900;margin-bottom:3px}.release-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.release-actions .btn{text-decoration:none}.loader{color:var(--green);white-space:pre-wrap;border:1px solid var(--line);background:#030504;border-radius:10px;padding:10px;max-height:160px;overflow:auto;margin-bottom:12px}
+
+    .match{border:1px solid var(--line);background:linear-gradient(180deg,var(--panel),#080d12);border-radius:14px;margin-bottom:14px;overflow:hidden;scroll-margin-top:calc(var(--top-offset,0px) + 14px)}.match-head{padding:12px 14px;border-bottom:1px solid var(--line);background:#0d141c;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}.phone{font-size:18px;color:var(--green);font-weight:900}.head-main{min-width:0}.head-line{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.head-title{font-size:14px;color:#fff;font-weight:800;overflow-wrap:anywhere}.head-sub{display:flex;gap:8px;align-items:center;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:4px}.head-meta{display:flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap}.source-cell{width:7%}.id-cell{width:9%}.phone-cell{width:9%}.fio-cell{width:13%}.mop-cell{width:8%}.city-cell{width:12%}.date-cell{width:8%}.link-cell{width:6%}.comment-cell{width:12%}
+    .anketa-preview-cell{display:flex;align-items:flex-start;gap:8px;min-width:0}.anketa-preview-stack{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}.anketa-thumb{width:78px;height:58px;object-fit:cover;border-radius:8px;border:1px solid var(--line);background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18);cursor:pointer}.anketa-thumb:hover{outline:2px solid var(--cyan)}.review-chips{display:flex;flex-wrap:wrap;gap:3px;max-width:96px}.review-chip{display:inline-flex;align-items:center;border-radius:999px;padding:2px 6px;font-size:9px;font-weight:900;letter-spacing:.02em;line-height:1.1;animation:reviewBlink 1.05s ease-in-out infinite}.review-chip.manual{background:#ffe4e9;border:1px solid #fb7185;color:#9f1239}.review-chip.partial{background:#dff7ff;border:1px solid #38bdf8;color:#075985;animation-delay:.18s}@keyframes reviewBlink{0%,100%{opacity:1;filter:saturate(1.15)}50%{opacity:.45;filter:saturate(.75)}}.anketa-missing{display:inline-flex;align-items:center;border:1px dashed var(--line);border-radius:8px;padding:6px 8px;color:var(--muted);font-size:11px}.anketa-noimage{color:var(--muted);font-size:11px}.tablebox{overflow:visible;width:100%}.match table{width:100%;border-collapse:collapse;table-layout:fixed;min-width:0}.match th,.match td{border-bottom:1px solid #172431;padding:8px 8px;vertical-align:top;overflow-wrap:anywhere;word-break:break-word}.match th{background:#111b26;color:#d5e6f3;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em}.match tr:hover td{background:#0f1822}.comment{white-space:pre-wrap}.empty{padding:48px 18px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:14px;background:#080d12}
+    body.hide-crm-visit .crm-visit-col{display:none!important}
+    .image-source-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .image-source-drop.needs-images{border-color:#7c6623;box-shadow:0 0 0 1px rgba(255,209,102,.18),0 0 18px rgba(255,209,102,.12)}
+    .warn-blink{color:#ffe19d;animation:softBlink 1.35s ease-in-out infinite}
+    @keyframes softBlink{0%,100%{opacity:1}50%{opacity:.42}}
+    .modal{position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.72);padding:18px;display:flex;align-items:center;justify-content:center}
+    .modal.hidden{display:none!important}
+    .modal-card{width:min(1200px,96vw);height:min(96vh,980px);background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+    .modal-head{padding:10px 12px;border-bottom:1px solid var(--line);background:var(--panel2);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex:0 0 auto}
+    .modal-body{flex:1;min-height:0;overflow:hidden;padding:10px;text-align:center;background:#05070a;display:flex;align-items:center;justify-content:center}
+    .modal-body img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:10px}
+    .preview-warn{margin-top:6px;color:#ffe19d}
+    .dup-chip{display:inline-flex;margin-top:6px;align-items:center;gap:5px;border:1px solid #a96918;background:#3a2506;color:#ffe2a7;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:900;animation:alarmShake 1.05s infinite}
+    @keyframes alarmShake{0%,86%,100%{transform:translateX(0) rotate(0)}88%{transform:translateX(-1px) rotate(-1deg)}90%{transform:translateX(1px) rotate(1deg)}92%{transform:translateX(-1px) rotate(-1deg)}94%{transform:translateX(1px) rotate(1deg)}}
+    .eject-btn{width:38px;height:34px;padding:7px}.eject-btn svg{width:17px;height:17px}
+    .deals-toggle{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 8px;background:var(--chip);border:1px solid #253749;color:#c9d8e6;font-size:12px;font-family:inherit;font-weight:900;cursor:pointer;white-space:nowrap}.deals-toggle:hover{border-color:var(--cyan);color:#fff}.deals-toggle svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;transition:transform .16s ease}.deals-toggle.open svg{transform:rotate(180deg)}
+    .deals-panel{border-bottom:1px solid var(--line);background:#081018;padding:10px 14px}.deals-panel.hidden{display:none!important}.deals-title{font-weight:900;margin-bottom:8px;color:#fff}.deals-table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}.deals-table{width:100%;border-collapse:collapse;min-width:920px}.deals-table th,.deals-table td{border-bottom:1px solid #172431;padding:7px 8px;vertical-align:top;text-align:left}.deals-table th{background:#111b26;color:#d5e6f3;font-size:10px;text-transform:uppercase;letter-spacing:.04em}.deals-table tr:last-child td{border-bottom:0}.deals-table tr.selected td{background:rgba(47,209,118,.08)}
+
+
+    /* Светлая тема */
+    html[data-theme="light"],
+    body[data-theme="light"]{
+      --bg:#f4f7fb;--panel:#ffffff;--panel2:#f8fbff;--panel3:#eef5fb;--line:#cbd8e4;
+      --text:#142033;--muted:#637386;--green:#087947;--green2:#10935b;--cyan:#0b7195;
+      --yellow:#8a6200;--red:#c2414b;--blue:#305ccf;--chip:#eef4fb;--shadow:0 12px 34px rgba(31,45,61,.16);
+    }
+    html[data-theme="light"],
+    html[data-theme="light"] body,
+    body[data-theme="light"]{background:var(--bg)!important;color:var(--text)}
+    body[data-theme="light"]:before{background:linear-gradient(rgba(10,20,35,.035) 1px,transparent 1px);mix-blend-mode:multiply;opacity:.22}
+    body[data-theme="light"] .top{background:rgba(246,249,252,.985);border-bottom-color:#bdcad8}
+    body[data-theme="light"] .top-inner{scrollbar-color:#9fb2c4 #eef3f8}
+    body[data-theme="light"] h1{color:#087947} body[data-theme="light"] .version{color:#8a6200} body[data-theme="light"] .author{color:#166534}
+    body[data-theme="light"] .drop{background:linear-gradient(180deg,#ffffff,#f4f8fc);border-color:#a9bdcf;box-shadow:0 1px 0 rgba(255,255,255,.8) inset}
+    body[data-theme="light"] .drop strong,body[data-theme="light"] .head-title,body[data-theme="light"] .stat .n{color:#0f172a}
+    body[data-theme="light"] .btn{background:#ffffff;color:#142033;border-color:#b5c7d8;box-shadow:0 1px 0 rgba(255,255,255,.75) inset}
+    body[data-theme="light"] .btn:hover{background:#f6fafc;border-color:#087947;color:#0f172a}
+    body[data-theme="light"] .btn.primary{background:#e7f8ee;border-color:#31a66a;color:#065f3c}
+    body[data-theme="light"] .btn.danger{background:#fff1f2;border-color:#e59aa3;color:#9f2532}
+    body[data-theme="light"] .btn.warn{background:#fff7d6;border-color:#d6aa2b;color:#6f4d00}
+    body[data-theme="light"] .btn.cyan{background:#e8f7fb;border-color:#58aeca;color:#075a77}
+    body[data-theme="light"] .btn.theme{background:#f1f5f9;border-color:#9eb2c5;color:#1e293b}
+    body[data-theme="light"] .filter-panel{background:linear-gradient(180deg,#ffffff,#f5f8fc);border-color:#c6d4e1}
+    body[data-theme="light"] .modal-body{background:#eef3f8}
+    body[data-theme="light"] .dup-chip{background:#fff3d7;border-color:#d5961f;color:#754c00}
+    body[data-theme="light"] select,body[data-theme="light"] input[type="date"],body[data-theme="light"] input[type="text"]{background:#ffffff;color:#142033;border-color:#bac9d8}
+    body[data-theme="light"] .switch-chip{background:#ffffff;border-color:#c1d0de;color:#1f3347}
+    body[data-theme="light"] .stat{background:linear-gradient(180deg,#ffffff,#f3f7fb);border-color:#ccd8e4}
+    body[data-theme="light"] .downloadbar{background:rgba(255,255,255,.94);border-color:#cbd8e4}
+    body[data-theme="light"] .pill{background:#eef4fb;border-color:#c3d0de;color:#22364a}
+    body[data-theme="light"] .pill.ok{background:#064e2b;color:#d1fae5;border-color:#16a34a}
+    body[data-theme="light"] .pill.max{background:#e8f8ef;border-color:#61bd83;color:#0a6a42}
+    body[data-theme="light"] .pill.amo{background:#eaf2ff;border-color:#7aa5df;color:#174a8b}
+    body[data-theme="light"] .pill.warn{background:#fff3cb;border-color:#d4a828;color:#725000}
+    body[data-theme="light"] .pill.red{background:#ffe6ea;border-color:#d98a95;color:#9a2230}
+    body[data-theme="light"] .notice{background:#eefaf3;border-color:#96d7ae;border-left-color:#10935b;color:#165c37}
+    body[data-theme="light"] .notice.bad{background:#fff1f2;border-color:#e9a4ad;border-left-color:#c2414b;color:#932430}
+    body[data-theme="light"] .local-policy,body[data-theme="light"] .release-hint{background:linear-gradient(180deg,#f3fbff,#eef8fc);border-color:#a7cddd;border-left-color:#0b7195;color:#184154}
+    body[data-theme="light"] .loader{background:#ffffff;border-color:#cbd8e4;color:#087947}
+    body[data-theme="light"] .match{background:linear-gradient(180deg,#ffffff,#f6f9fc);border-color:#cbd8e4}
+    body[data-theme="light"] .match-head{background:#f3f7fb;border-bottom-color:#cbd8e4}
+    body[data-theme="light"] .phone{color:#087947}
+    body[data-theme="light"] .match th{background:#eaf1f8;color:#263d55;border-bottom-color:#c5d4e2}
+    body[data-theme="light"] .match th,body[data-theme="light"] .match td{border-bottom-color:#d9e3ed}
+    body[data-theme="light"] .match tr:hover td{background:#eef6fb}
+    body[data-theme="light"] .empty{background:#ffffff;border-color:#cbd8e4;color:#637386}
+
+    /* Светлая тема: добивка фонов, чтобы нигде не оставались тёмные прямоугольники */
+    body[data-theme="light"] main,
+    body[data-theme="light"] .wrap,
+    body[data-theme="light"] #results,
+    body[data-theme="light"] .top-spacer{background:var(--bg);}
+    body[data-theme="light"] .tablebox{background:#ffffff;}
+    body[data-theme="light"] .modal-card{background:#ffffff;border-color:#cbd8e4;}
+    body[data-theme="light"] .modal-head{background:#f3f7fb;border-bottom-color:#cbd8e4;}
+    body[data-theme="light"] .comment{color:#142033;}
+    body[data-theme="light"] .review-chip.manual{background:#ffe4e9;border-color:#fb7185;color:#9f1239;}
+    body[data-theme="light"] .review-chip.partial{background:#dff7ff;border-color:#38bdf8;color:#075985;}
+    body[data-theme="light"] #infoImages.warn-blink{color:#c2414b;font-weight:900;animation:none}
+    body[data-theme="light"] .deals-toggle{background:#ffffff;border-color:#c3d0de;color:#22364a}
+    body[data-theme="light"] .deals-toggle:hover{border-color:#087947;color:#0f172a;background:#f6fafc}
+    body[data-theme="light"] .deals-panel{background:#f7fbff;border-bottom-color:#cbd8e4}
+    body[data-theme="light"] .deals-title{color:#0f172a}
+    body[data-theme="light"] .deals-table-wrap{border-color:#cbd8e4}
+    body[data-theme="light"] .deals-table th{background:#eaf1f8;color:#263d55;border-bottom-color:#c5d4e2}
+    body[data-theme="light"] .deals-table td{border-bottom-color:#d9e3ed}
+    body[data-theme="light"] .deals-table tr.selected td{background:#e8f8ef}
+
+
+    .compact-filters{grid-template-columns:minmax(180px,1.25fr) minmax(145px,.9fr) minmax(130px,.8fr) minmax(120px,.75fr) minmax(120px,.75fr) minmax(118px,.7fr) minmax(118px,.7fr) minmax(520px,2.4fr);align-items:end}
+    .compact-filters .checkbar{grid-column:auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;align-self:end}
+    .compact-filters .switch-chip{min-height:32px;padding:4px 8px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .compact-filters .ctrl input,.compact-filters .ctrl select{height:32px;padding:6px 9px;font-size:12px}
+    .compact-filters .ctrl label{font-size:9px}
+    .compact-filters .date-ctrl input{min-width:0}
+
+    @media(max-width:1380px){.compact-filters{grid-template-columns:repeat(4,minmax(0,1fr))}.compact-filters .checkbar{grid-column:1 / -1}}
+    @media(max-width:1180px){
+      .file-grid{grid-template-columns:1fr}.filter-panel{grid-template-columns:repeat(6,minmax(0,1fr))}.span2{grid-column:span 3}.span3{grid-column:span 3}.span4{grid-column:span 6}.span10{grid-column:span 6}.checkbar{grid-template-columns:1fr}.match-head{grid-template-columns:1fr}.head-meta{justify-content:flex-start}.top-actions{justify-content:flex-start}.brand{grid-template-columns:1fr}.match table{font-size:12px}.match th,.match td{padding:6px 6px}
+    }
+    @media(max-width:1180px){.filter-panel{grid-template-columns:repeat(4,minmax(0,1fr))}.checkbar{grid-column:1 / -1}}@media(max-width:720px){.filter-panel{grid-template-columns:1fr}.span2,.span3,.span4,.span6,.span10,.span12,.checkbar{grid-column:span 1}.checkbar{grid-template-columns:1fr}.drop{flex-direction:column;align-items:flex-start}.btn{white-space:normal}.match th{font-size:9px}.match table{font-size:11px}}
+  </style>
+</head>
+<body>
+  <section class="top">
+    <div class="top-inner">
+      <div class="brand">
+        <div>
+          <h1>LeadBridge: поиск сделок по анкетам КСО <span class="version">v6.4.24.1104</span></h1>
+          <div class="sub">Офлайн HTML. Два файла → все OCR-анкеты и текстовые сообщения MAX против всех сделок amoCRM → нормализация телефонов до 10 цифр → один блок совпадения на один телефон → отчёт CSV / MD / HTML. <span class="author">Авторство и идея разработки: Бочаров Ю.С.</span></div>
+        </div>
+        <div class="top-actions">
+          <div id="reportActions" class="report-actions hidden">
+            <button class="btn icon-btn" onclick="downloadUnifiedCsv()" title="Скачать единый CSV со всеми совпадениями"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>.CSV</button>
+            <button class="btn icon-btn" onclick="downloadMarkdown()" title="Скачать Markdown-отчёт по совпадениям"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>.MD</button>
+            <button class="btn icon-btn" onclick="downloadHtmlReport()" title="Скачать ZIP: HTML-отчёт и папка images с анкетами"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>.HTML-отчёт ZIP</button>
+            <button class="btn warn icon-btn" onclick="downloadUnmatchedCsv('max')" title="Скачать MAX .csv: анкеты/сообщения MAX без совпадения в amoCRM"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>MAX .csv</button>
+            <button class="btn warn icon-btn" onclick="downloadUnmatchedCsv('amo')" title="Скачать amoCRM .csv: сделки amoCRM без совпадения в MAX"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>amoCRM .csv</button>
+          </div>
+          <button class="btn primary" onclick="run()">ЗАПУСК</button>
+          <button class="btn danger icon-btn eject-btn" onclick="resetAll()" title="Сброс" aria-label="Сброс"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5 5 14h14L12 5z"/><path d="M5 19h14"/></svg></button>
+          <button id="themeToggleBtn" class="btn theme theme-icon icon-btn" onclick="toggleTheme()" title="Переключить тему" aria-label="Переключить тему"></button>
+        </div>
+      </div>
+      <div class="filter-panel compact-filters">
+        <div class="ctrl search-ctrl"><label>Поиск</label><input id="filterSearch" type="text" placeholder="телефон / ФИО / ID" /></div>
+        <div class="ctrl"><label>Ответственный amoCRM</label><select id="filterResponsible"><option value="">Все</option></select></div>
+        <div class="ctrl"><label>Город amoCRM</label><select id="filterCity"><option value="">Все</option></select></div>
+        <div class="ctrl"><label>Сортировка</label><select id="sortBy"><option value="phone">Телефон</option><option value="maxDate">Анкета</option><option value="responsible">Ответственный</option><option value="city">Город</option><option value="crmVisitDate">Визит CRM</option><option value="crmCreatedDate">Создание CRM</option><option value="amoCount">Кол-во сделок</option><option value="maxCount">Кол-во анкет</option></select></div>
+        <div class="ctrl order-ctrl"><label>Порядок</label><select id="sortDir"><option value="asc">По возрастанию</option><option value="desc">По убыванию</option></select></div>
+        <div class="ctrl date-ctrl"><label>Анкета от</label><input id="filterDateFrom" type="date" /></div>
+        <div class="ctrl date-ctrl"><label>Анкета до</label><input id="filterDateTo" type="date" /></div>
+        <div class="checkbar">
+          <label class="switch-chip" title="Скрывает телефоны, где среди найденных сделок amoCRM уже есть визит текущего месяца"><span>Без визита в CRM</span><input id="onlyNoCrmVisit" type="checkbox" checked /></label>
+          <label class="switch-chip" title="Показывать / скрывать колонку Визит CRM"><span>Колонка Визит CRM</span><input id="showCrmVisitCol" type="checkbox" checked /></label>
+          <label class="switch-chip" title="Мягко предпочитать CURRENT-анкеты MAX, но не скрывать телефон из MAX. Телефон — главный ключ матчинга; SUPERSEDED помечается для ручной сверки."><span>MAX CURRENT</span><input id="onlyCurrentMax" type="checkbox" checked /></label>
+        </div>
+      </div>
+      <div id="stickyBoard" class="sticky-board hidden"></div>
+    </div>
+  </section>
+  <div id="topSpacer" class="top-spacer" aria-hidden="true"></div>
+  <div id="drawerToggle" class="drawer-toggle hidden"><button class="drawer-btn" onclick="toggleSetupDrawer()" title="Показать/скрыть исходники и лог"><svg id="drawerIcon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg><span id="drawerToggleText">Показать исходники / лог</span></button></div>
+
+  <main class="wrap">
+    <div id="setupDrawer" class="setup-drawer">
+    <section class="source-files" aria-label="Загрузка исходных файлов">
+      <div class="file-grid">
+        <div>
+          <div id="dropMax" class="drop">
+            <div><strong>Источник 1: MAX — анкеты OCR + текстовые сообщения</strong><div class="hint">Лучше messages_ocr.json — внутри OCR-анкеты и обычные текстовые сообщения. forms_structured.json/forms_flat.csv — только OCR-анкеты</div></div>
+            <button id="btnMaxFile" class="btn cyan" onclick="document.getElementById('fileMax').click()">Выбрать файл MAX</button>
+            <input id="fileMax" type="file" accept=".json,.csv,.txt" />
+          </div>
+          <div id="infoMax" class="file-info">файл не загружен</div>
+        </div>
+        <div>
+          <div id="dropAmo" class="drop">
+            <div><strong>Источник 2: amoCRM CSV</strong><div class="hint">ID=A, Ответственный=D, Создание=E, телефоны V:AA, Визит=CA, Город=BV</div></div>
+            <button id="btnAmoFile" class="btn cyan" onclick="document.getElementById('fileAmo').click()">Выбрать amoCRM</button>
+            <input id="fileAmo" type="file" accept=".csv,.json,.txt" />
+          </div>
+          <div id="infoAmo" class="file-info">файл не загружен</div>
+        </div>
+        <div style="grid-column:1 / -1">
+          <div id="dropImages" class="drop image-source-drop needs-images">
+            <div><strong>Дополнительно: исходный ZIP MAX или папка с анкетами</strong><div class="hint">Пример исходника: <b>MAX_CHAT_EXPORT_1201msg_1166att_23-06-26_01-11.zip</b>. Выбери этот ZIP целиком или распакуй его и выбери папку <b>attachments</b>. Нужно для попап-превью именно OCR-картинки и HTML-отчёта ZIP с images/.</div></div>
+            <div class="image-source-actions">
+              <button id="btnZipFile" class="btn cyan" onclick="document.getElementById('fileZip').click()">Выбрать ZIP MAX</button>
+              <button id="btnImagesFolder" class="btn cyan" onclick="document.getElementById('fileImages').click()">Выбрать папку</button>
+            </div>
+            <input id="fileZip" type="file" accept=".zip" />
+            <input id="fileImages" type="file" webkitdirectory directory multiple />
+          </div>
+          <div id="infoImages" class="file-info warn-blink">ZIP/папка не загружены. Ожидаемый стандартный путь: <code>C:\LeadBridgeKSO\exports\MAX_CHAT_EXPORT_1201msg_1166att_23-06-26_01-11.zip</code>. Браузер не может сам открыть файл по пути — выбери ZIP или папку вручную.</div>
+        </div>
+      </div>
+    </section>
+    <div class="local-policy"><strong>Данные остаются на этом компьютере.</strong> GitHub Pages только открывает LeadBridge. Выбранные JSON/CSV/ZIP/папки читаются локально браузером и не отправляются на сервер.</div>
+    <div id="releaseHint" class="release-hint hidden" aria-live="polite"></div>
+    <div id="notice" class="notice">Загрузи MAX и amoCRM. Для поиска номеров из обычных текстовых сообщений MAX используй messages_ocr.json. Всё считается локально в браузере.</div>
+    <div id="loader" class="loader hidden"></div>
+    </div>
+    <section id="results"></section>
+  </main>
+
+  <div id="anketaPreviewModal" class="modal hidden" onclick="if(event.target===this) closeAnketaPreview()">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <strong id="previewTitle">Анкета</strong>
+          <div id="previewPath" class="muted small"></div>
+          <div id="previewWarn" class="preview-warn hidden"></div>
+        </div>
+        <button class="btn danger" onclick="closeAnketaPreview()">Закрыть</button>
+      </div>
+      <div class="modal-body"><img id="previewImg" alt="Анкета"></div>
+    </div>
+  </div>
+
+<script>
+'use strict';
+
+const AMO_BASE = 'https://ksocm66.amocrm.ru/leads/detail/';
+const PACKAGE_VERSION = 'v6.4.24.1144';
+const state = {
+  maxRaw:null, amoRaw:null,
+  maxRows:[], amoRows:[], groups:[], filtered:[],
+  maxFileName:'', amoFileName:'',
+  imageFiles:new Map(), imageObjectUrls:new Map(), imageFolderName:'', imageKeyCounts:new Map(), setupCollapsed:false, expectedZipName:'MAX_CHAT_EXPORT_1201msg_1166att_23-06-26_01-11.zip', expectedZipPath:'C:\\LeadBridgeKSO\\exports\\MAX_CHAT_EXPORT_1201msg_1166att_23-06-26_01-11.zip',
+};
+
+const $ = (id)=>document.getElementById(id);
+const esc = (s)=>String(s ?? '').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const escAttr = (s)=>esc(s).replace(/'/g,'&#39;');
+const jsArg = (s)=>escAttr(JSON.stringify(String(s ?? '')));
+const clean = (s)=>String(s ?? '').replace(/^[\s'"`]+|[\s'"`]+$/g,'').trim();
+const lowerKey = (s)=>String(s ?? '').toLowerCase().replace(/ё/g,'е').replace(/[^a-zа-я0-9]+/g,' ').trim();
+const compactKey = (s)=>lowerKey(s).replace(/\s+/g,'');
+
+function logLine(text){
+  const el = $('loader'); el.classList.remove('hidden');
+  const time = new Date().toLocaleTimeString('ru-RU');
+  el.textContent += `[${time}] ${text}\n`;
+  el.scrollTop = el.scrollHeight;
+}
+function setNotice(text, bad=false){ $('notice').className = bad ? 'notice bad' : 'notice'; $('notice').textContent = text; }
+function repoAssetUrl(path){
+  const value = String(path || '');
+  if(!value) return '';
+  if(/^(https?:|file:|data:)/i.test(value)) return value;
+  const prefix = location.pathname.includes('/apps/leadbridge-web/') ? '../../' : '';
+  return new URL(prefix + value.replace(/^\/+/, ''), location.href).href;
+}
+function detectPlatform(){
+  const ua = navigator.userAgent || '';
+  const platform = navigator.platform || '';
+  if(/Win/i.test(platform) || /Windows/i.test(ua)) return 'windows';
+  if(/Mac/i.test(platform) || /Mac OS X/i.test(ua)) return 'macos';
+  return 'macos';
+}
+function renderReleaseHint(manifest){
+  const box = $('releaseHint');
+  if(!box || !manifest) return;
+  const os = detectPlatform();
+  const labels = {macos:'macOS', windows:'Windows'};
+  const tools = manifest.downloads && manifest.downloads.tools && manifest.downloads.tools[os];
+  if(!tools || !tools.download_url) return;
+
+  box.textContent = '';
+  const row = document.createElement('div');
+  row.className = 'release-row';
+  const copy = document.createElement('div');
+  copy.className = 'release-copy';
+  const title = document.createElement('div');
+  title.className = 'release-title';
+  title.textContent = `Пакет тулзов LeadBridge KSO ${manifest.package_version || PACKAGE_VERSION} для ${labels[os] || 'вашей ОС'}`;
+  const details = document.createElement('div');
+  details.className = 'small muted';
+  details.textContent = `Сайт не устанавливает программы сам: скачай ZIP, распакуй и запусти ${tools.installer || 'установщик'} вручную.`;
+  copy.append(title, details);
+
+  const actions = document.createElement('div');
+  actions.className = 'release-actions';
+  const download = document.createElement('a');
+  download.className = 'btn primary';
+  download.href = repoAssetUrl(tools.download_url);
+  download.target = '_blank';
+  download.rel = 'noopener';
+  download.textContent = `Скачать пакет для ${labels[os] || 'ОС'}`;
+  actions.append(download);
+
+  row.append(copy, actions);
+  box.append(row);
+  box.classList.remove('hidden');
+  syncFixedTop();
+}
+async function checkReleaseManifest(){
+  if(!window.fetch) return;
+  try{
+    const res = await fetch(repoAssetUrl('releases/manifest.json'), {cache:'no-store'});
+    if(!res.ok) return;
+    renderReleaseHint(await res.json());
+  } catch (err) {
+    console.info('LeadBridge release manifest is unavailable', err);
+  }
+}
+function setSetupDrawer(collapsed, showToggle=true){
+  state.setupCollapsed = !!collapsed;
+  const drawer = $('setupDrawer');
+  const toggle = $('drawerToggle');
+  const text = $('drawerToggleText');
+  const icon = $('drawerIcon');
+  if(drawer) drawer.classList.toggle('collapsed', state.setupCollapsed);
+  if(toggle) toggle.classList.toggle('hidden', !showToggle);
+  if(text) text.textContent = state.setupCollapsed ? 'Показать исходники / лог' : 'Скрыть исходники / лог';
+  if(icon) icon.innerHTML = state.setupCollapsed ? '<path d="m6 9 6 6 6-6"/>' : '<path d="m18 15-6-6-6 6"/>';
+}
+function toggleSetupDrawer(){ setSetupDrawer(!state.setupCollapsed, true); }
+
+function normalizePhone(raw){
+  const d = String(raw ?? '').replace(/\D/g,'');
+  if (!d) return '';
+  // Только полное совпадение номера: 10 цифр или 11 цифр с 7/8 в начале.
+  // Больше НЕ берём last10 из длинных числовых строк: это давало ложные совпадения
+  // по обрывкам паспорта/дат/сумм/OCR-мусора и ломало CURRENT/SUPERSEDED.
+  if (d.length === 11 && (d[0] === '7' || d[0] === '8')) return d.slice(1);
+  if (d.length === 10) return d;
+  return '';
+}
+
+function extractPhonesFromText(text){
+  const out = new Set();
+  const s = String(text ?? '');
+  // Телефон должен быть отдельным полным номером, а не куском более длинной цифровой строки.
+  // Без lookbehind, чтобы нормально работало в локальном Chrome.
+  const phoneLike = /(^|[^\d])((?:\+?7|8)?[\s\-\(]*\d{3}[\s\-\)]*\d{3}[\s\-]*\d{2}[\s\-]*\d{2})(?=$|[^\d])/g;
+  let m;
+  while ((m = phoneLike.exec(s)) !== null) {
+    const p = normalizePhone(m[2]);
+    if (p) out.add(p);
+  }
+  // Если вся ячейка сама является телефоном, тоже берём её.
+  const d = s.replace(/\D/g,'');
+  if (d.length === 10 || (d.length === 11 && (d[0] === '7' || d[0] === '8'))) {
+    const p = normalizePhone(d);
+    if (p) out.add(p);
+  }
+  return [...out];
+}
+
+function parseMaybeDate(raw){
+  const s = clean(raw);
+  if (!s || /не закрыта/i.test(s)) return null;
+  let m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (m) return new Date(+m[3], +m[2]-1, +m[1], +(m[4]||0), +(m[5]||0), +(m[6]||0));
+  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (m) return new Date(+m[1], +m[2]-1, +m[3], +(m[4]||0), +(m[5]||0), +(m[6]||0));
+  const t = Date.parse(s);
+  return Number.isFinite(t) ? new Date(t) : null;
+}
+function dateKey(raw){ const d=parseMaybeDate(raw); return d ? d.getTime() : 0; }
+function formatDate(raw){
+  const d = parseMaybeDate(raw); if (!d) return clean(raw);
+  return d.toLocaleString('ru-RU', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',', '');
+}
+function latestByCreated(rows){
+  return rows.slice().sort((a,b)=>(b.createdAtMs||0)-(a.createdAtMs||0))[0] || null;
+}
+function latestByVisitThenCreated(rows){
+  return rows.slice().sort((a,b)=>{
+    const vd=(b.visitDateMs||0)-(a.visitDateMs||0);
+    if(vd) return vd;
+    return (b.createdAtMs||0)-(a.createdAtMs||0);
+  })[0] || null;
+}
+function isDateInCurrentMonth(raw){
+  const d = parseMaybeDate(raw);
+  if(!d) return false;
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+}
+function visitDistanceDays(raw){
+  const d = parseMaybeDate(raw);
+  if(!d) return Number.POSITIVE_INFINITY;
+  const now = new Date();
+  const a = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const b = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return Math.abs(Math.round((a-b)/86400000));
+}
+function bestCurrentMonthVisit(rows){
+  return rows.filter(r=>isDateInCurrentMonth(r.visitDate)).slice().sort((a,b)=>{
+    const dd = visitDistanceDays(a.visitDate) - visitDistanceDays(b.visitDate);
+    if(dd) return dd;
+    const vd = (b.visitDateMs||0) - (a.visitDateMs||0);
+    if(vd) return vd;
+    return (b.createdAtMs||0) - (a.createdAtMs||0);
+  })[0] || null;
+}
+function dealIsClosed(r){
+  const c = clean(r && r.closedAt);
+  if(!c || /не\s*закрыта/i.test(c)) return false;
+  return true;
+}
+function dealIsWorkCandidate(r){
+  return r && !r.isExcludedCloseReason && !dealIsClosed(r);
+}
+
+function splitCsvLine(line, delimiter){
+  const arr=[]; let cur='', q=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i], nx=line[i+1];
+    if(ch==='"'){
+      if(q && nx==='"'){cur+='"'; i++;}
+      else q=!q;
+    } else if(ch===delimiter && !q){ arr.push(cur); cur=''; }
+    else cur+=ch;
+  }
+  arr.push(cur); return arr;
+}
+function parseCsv(text){
+  text = String(text || '').replace(/^\uFEFF/, '').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  if(!text.trim()) return {headers:[], rows:[], delimiter:','};
+
+  const firstLineEnd = text.indexOf('\n') === -1 ? text.length : text.indexOf('\n');
+  const firstLine = text.slice(0, firstLineEnd);
+  const counts = {',':0, ';':0, '\t':0};
+  let q0=false;
+  for(let i=0;i<firstLine.length;i++){
+    const ch=firstLine[i], nx=firstLine[i+1];
+    if(ch==='"'){
+      if(q0 && nx==='"') i++;
+      else q0=!q0;
+    } else if(!q0 && Object.prototype.hasOwnProperty.call(counts,ch)) counts[ch]++;
+  }
+  const delimiter = counts['\t'] > counts[','] && counts['\t'] > counts[';'] ? '\t' : (counts[';'] > counts[','] ? ';' : ',');
+
+  const records=[];
+  let row=[], cur='', q=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i], nx=text[i+1];
+    if(ch==='"'){
+      if(q && nx==='"') { cur+='"'; i++; }
+      else q=!q;
+    } else if(ch===delimiter && !q){
+      row.push(cur); cur='';
+    } else if(ch==='\n' && !q){
+      row.push(cur); cur='';
+      if(row.some(v=>String(v).trim()!=='')) records.push(row);
+      row=[];
+    } else {
+      cur+=ch;
+    }
+  }
+  row.push(cur);
+  if(row.some(v=>String(v).trim()!=='')) records.push(row);
+
+  if(!records.length) return {headers:[], rows:[], delimiter};
+  const headers = records[0].map(h=>clean(h));
+  const rows = records.slice(1).map((cells,idx)=>({__cells:cells.map(v=>clean(v)), __rownum:idx+2})).filter(r=>r.__cells.some(v=>v));
+  return {headers, rows, delimiter};
+}
+function headerIndexes(headers, names){
+  const wanted = names.map(compactKey);
+  const idx=[];
+  headers.forEach((h,i)=>{ if(wanted.includes(compactKey(h))) idx.push(i); });
+  return idx;
+}
+function safeCell(row, index){ return clean(row && row.__cells ? row.__cells[index] : ''); }
+function rowGet(parsed, row, names, fallbackIndexes=[]){
+  const idxs = [...headerIndexes(parsed.headers, Array.isArray(names)?names:[names]), ...fallbackIndexes];
+  for(const i of idxs){ const v=clean(row.__cells?.[i]); if(v) return v; }
+  return '';
+}
+function rowGetAllPhoneValues(parsed, row, fallbackIndexes=[]){
+  const vals=[];
+  parsed.headers.forEach((h,i)=>{
+    const k=compactKey(h);
+    if(k.includes('телефон') || k.includes('phone')) vals.push(clean(row.__cells?.[i]));
+  });
+  fallbackIndexes.forEach(i=> vals.push(clean(row.__cells?.[i])));
+  return vals.filter(Boolean);
+}
+
+function findHeaderIndexExact(parsed, names, fallbackIndex=null){
+  const wanted = (Array.isArray(names)?names:[names]).map(compactKey);
+  for(let i=0;i<(parsed.headers||[]).length;i++){
+    if(wanted.includes(compactKey(parsed.headers[i]))) return i;
+  }
+  return fallbackIndex;
+}
+function rowGetExact(parsed, row, names, fallbackIndex=null){
+  const idx = findHeaderIndexExact(parsed, names, fallbackIndex);
+  return idx === null || idx === undefined ? '' : safeCell(row, idx);
+}
+function debugColumnSample(parsed, rows, label, idx){
+  const samples=[];
+  if(idx !== null && idx !== undefined){
+    for(const r of rows){ const v=safeCell(r,idx); if(v){ samples.push(v); if(samples.length>=5) break; } }
+  }
+  logLine(`${label}: col=${idx===null||idx===undefined?'not_found':idx}, header=${idx===null||idx===undefined?'':clean(parsed.headers[idx])}, samples=${samples.join(' | ')}`);
+}
+
+async function readFile(file){ return await file.text(); }
+function sleep(ms){ return new Promise(resolve=>setTimeout(resolve,ms)); }
+function svgCheck(){ return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"></path></svg>'; }
+function setPickButtonState(id, ok, label){
+  const btn = $(id);
+  if(!btn) return;
+  btn.classList.toggle('file-ok', !!ok);
+  btn.innerHTML = ok ? `${svgCheck()}${esc(label)}` : esc(label);
+}
+function resetPickButtons(){
+  setPickButtonState('btnMaxFile', false, 'Выбрать файл MAX');
+  setPickButtonState('btnAmoFile', false, 'Выбрать amoCRM');
+  setPickButtonState('btnZipFile', false, 'Выбрать ZIP MAX');
+  setPickButtonState('btnImagesFolder', false, 'Выбрать папку');
+}
+function bindFileInput(kind){
+  const input = kind==='max' ? $('fileMax') : $('fileAmo');
+  const drop = kind==='max' ? $('dropMax') : $('dropAmo');
+  input.addEventListener('change', async ()=>{ if(input.files[0]) await loadSource(kind, input.files[0]); });
+  ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag')}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag')}));
+  drop.addEventListener('drop', async e=>{ const f=e.dataTransfer.files[0]; if(f) await loadSource(kind, f); });
+}
+
+function normalizeFsPath(p){ return String(p || '').split('\\').join('/').replace(/^\.\//,'').replace(/^\/+/, '').trim(); }
+function basename(p){ return normalizeFsPath(p).split('/').filter(Boolean).pop() || ''; }
+function imageKey(p){ return normalizeFsPath(p).toLowerCase(); }
+function addImageKey(key, file){
+  const k=imageKey(key); if(!k) return;
+  const count=(state.imageKeyCounts.get(k)||0)+1;
+  state.imageKeyCounts.set(k,count);
+  if(count===1) state.imageFiles.set(k,file);
+  else state.imageFiles.set(k,null); // коллизия: например много att_01.webp, по basename не ищем.
+}
+function addImageFileWithPath(file, relPath){
+  const rel = normalizeFsPath(relPath || file.webkitRelativePath || file.name);
+  if(!rel) return;
+  addImageKey(rel,file);
+  const lower = rel.toLowerCase();
+  for(const marker of ['attachments/','images/']){
+    const idx = lower.indexOf(marker);
+    if(idx >= 0) addImageKey(rel.slice(idx),file);
+  }
+  if(/^msg_\d+\//i.test(rel)) addImageKey('attachments/'+rel,file);
+  addImageKey(basename(rel),file);
+}
+function mapImageFile(file){ addImageFileWithPath(file, file.webkitRelativePath || file.name); }
+function findImageFile(path){
+  const norm = normalizeFsPath(path);
+  if(!norm) return null;
+  const keys = [norm];
+  const lower = norm.toLowerCase();
+  for(const marker of ['attachments/','images/']){
+    const idx = lower.indexOf(marker);
+    if(idx >= 0) keys.push(norm.slice(idx));
+  }
+  if(/^msg_\d+\//i.test(norm)) keys.push('attachments/'+norm);
+  for(const k of keys){ const f=state.imageFiles.get(imageKey(k)); if(f) return f; }
+  // Не используем поиск только по имени файла att_01.webp: в разных сообщениях такие имена повторяются и дают неверное превью.
+  return null;
+}
+function clearImages(){
+  state.imageFiles.clear();
+  state.imageKeyCounts.clear();
+  for(const url of state.imageObjectUrls.values()) URL.revokeObjectURL(url);
+  state.imageObjectUrls.clear();
+}
+function bindImageFolder(){
+  const input = $('fileImages');
+  const zipInput = $('fileZip');
+  const drop = $('dropImages');
+  input.addEventListener('change', async ()=>{
+    if(input.files && input.files.length){
+      updateImageSourceStatus(true, 'Читаю выбранную папку с картинками...');
+      await sleep(20);
+      loadImageFiles(input.files);
+    }
+  });
+  zipInput.addEventListener('change', async ()=>{
+    if(zipInput.files && zipInput.files[0]) await loadZipImages(zipInput.files[0]);
+  });
+  ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag')}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag')}));
+  drop.addEventListener('drop', async e=>{
+    e.preventDefault(); drop.classList.remove('drag');
+    const files=[...e.dataTransfer.files];
+    const zip=files.find(f=>/\.zip$/i.test(f.name));
+    if(zip) await loadZipImages(zip); else loadImageFiles(files);
+  });
+}
+function updateImageSourceStatus(ok, text){
+  $('infoImages').classList.toggle('warn-blink', !ok);
+  $('dropImages').classList.toggle('needs-images', !ok);
+  $('dropImages').classList.toggle('loaded', !!ok);
+  $('infoImages').innerHTML = text;
+}
+function expectedZipMessage(){
+  return `ZIP/папка не загружены. Ожидаемый стандартный путь: <code>${esc(state.expectedZipPath)}</code>. Браузер не может сам открыть файл по пути — выбери ZIP или папку вручную.`;
+}
+function loadImageFiles(fileList){
+  clearImages();
+  const all=[...fileList];
+  const files = all.filter(f=>/\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(f.name || f.webkitRelativePath || ''));
+  files.forEach(mapImageFile);
+  state.imageFolderName = files[0]?.webkitRelativePath ? normalizeFsPath(files[0].webkitRelativePath).split('/')[0] : 'selected_images';
+  if(files.length){
+    updateImageSourceStatus(true, `OK: <span class="ok">${esc(state.imageFolderName)}</span>; картинок: <b>${files.length}</b>; ключей поиска: <b>${state.imageFiles.size}</b>`);
+    setPickButtonState('btnImagesFolder', true, 'Папка выбрана');
+    setPickButtonState('btnZipFile', false, 'Выбрать ZIP MAX');
+  } else {
+    updateImageSourceStatus(false, `Папка выбрана, но картинки не найдены. Выбери распакованную папку <b>attachments</b> или исходный ZIP MAX.`);
+    setPickButtonState('btnImagesFolder', false, 'Выбрать папку');
+  }
+}
+function u16le(b,o){ return b[o] | (b[o+1]<<8); }
+function u32le(b,o){ return (b[o] | (b[o+1]<<8) | (b[o+2]<<16) | (b[o+3]<<24)) >>> 0; }
+function findEocd(bytes){
+  const min = Math.max(0, bytes.length - 22 - 65535);
+  for(let i=bytes.length-22; i>=min; i--){ if(u32le(bytes,i)===0x06054b50) return i; }
+  return -1;
+}
+function decodeZipName(nameBytes, flags){
+  try { return new TextDecoder(flags & 0x0800 ? 'utf-8' : 'utf-8').decode(nameBytes); }
+  catch(e){ return Array.from(nameBytes).map(b=>String.fromCharCode(b)).join(''); }
+}
+async function inflateZipData(data){
+  if(typeof DecompressionStream === 'undefined') throw new Error('DecompressionStream недоступен');
+  const formats = ['deflate-raw','deflate'];
+  let lastErr = null;
+  for(const fmt of formats){
+    try{
+      const ds = new DecompressionStream(fmt);
+      const stream = new Blob([data]).stream().pipeThrough(ds);
+      return new Uint8Array(await new Response(stream).arrayBuffer());
+    }catch(e){ lastErr=e; }
+  }
+  throw lastErr || new Error('не удалось распаковать deflate');
+}
+async function loadZipImages(file){
+  clearImages();
+  updateImageSourceStatus(true, `Читаю ZIP: <span class="ok">${esc(file.name)}</span>...`);
+  setPickButtonState('btnZipFile', true, 'ZIP выбран');
+  await sleep(20);
+
+  let added=0, skipped=0, failed=0;
+  try{
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const eocd = findEocd(bytes);
+    if(eocd < 0) throw new Error('не найдена центральная директория ZIP');
+    const total = u16le(bytes, eocd+10);
+    let cdOff = u32le(bytes, eocd+16);
+    for(let n=0; n<total && cdOff+46<=bytes.length; n++){
+      if(u32le(bytes,cdOff)!==0x02014b50) break;
+      const flags=u16le(bytes,cdOff+8);
+      const method=u16le(bytes,cdOff+10);
+      const compSize=u32le(bytes,cdOff+20);
+      const nameLen=u16le(bytes,cdOff+28);
+      const extraLen=u16le(bytes,cdOff+30);
+      const commentLen=u16le(bytes,cdOff+32);
+      const localOff=u32le(bytes,cdOff+42);
+      const name = decodeZipName(bytes.slice(cdOff+46, cdOff+46+nameLen), flags);
+      cdOff += 46 + nameLen + extraLen + commentLen;
+      if(!/\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(name)) continue;
+      if(localOff+30>bytes.length || u32le(bytes,localOff)!==0x04034b50){ failed++; continue; }
+      const ln=u16le(bytes,localOff+26), le=u16le(bytes,localOff+28);
+      const dataStart=localOff+30+ln+le;
+      const dataEnd=dataStart+compSize;
+      if(dataEnd>bytes.length){ failed++; continue; }
+      const compData=bytes.slice(dataStart,dataEnd);
+      let data;
+      if(method===0){
+        data=compData;
+      } else if(method===8){
+        try{ data=await inflateZipData(compData); }
+        catch(e){ skipped++; continue; }
+      } else { skipped++; continue; }
+      const mime = mimeFromName(name);
+      const f = new File([data], basename(name), {type:mime});
+      addImageFileWithPath(f, name);
+      added++;
+    }
+    state.imageFolderName = file.name;
+    if(added){
+      updateImageSourceStatus(true, `OK: <span class="ok">${esc(file.name)}</span>; картинок из ZIP: <b>${added}</b>; ключей поиска: <b>${state.imageFiles.size}</b>${skipped?`; не распаковано: <b>${skipped}</b>`:''}${failed?`; ошибок: <b>${failed}</b>`:''}`);
+      setPickButtonState('btnZipFile', true, 'ZIP выбран');
+      setPickButtonState('btnImagesFolder', false, 'Выбрать папку');
+    } else {
+      updateImageSourceStatus(false, `ZIP выбран, но картинки не прочитались. Чаще всего это сжатие ZIP, которое браузер не смог распаковать. Распакуй <b>${esc(file.name)}</b> и выбери папку <b>attachments</b>.`);
+      setPickButtonState('btnZipFile', false, 'Выбрать ZIP MAX');
+    }
+  }catch(err){
+    console.error(err);
+    updateImageSourceStatus(false, `ZIP выбран, но не прочитан: ${esc(err.message)}. Распакуй архив и выбери папку <b>attachments</b>.`);
+    setPickButtonState('btnZipFile', false, 'Выбрать ZIP MAX');
+  }
+}
+function mimeFromName(name){
+  const n=String(name).toLowerCase();
+  if(n.endsWith('.png')) return 'image/png'; if(n.endsWith('.jpg')||n.endsWith('.jpeg')) return 'image/jpeg'; if(n.endsWith('.webp')) return 'image/webp'; if(n.endsWith('.gif')) return 'image/gif'; if(n.endsWith('.bmp')) return 'image/bmp'; return 'application/octet-stream';
+}
+function objectUrlForImage(path){
+  const file = findImageFile(path);
+  if(!file) return '';
+  const key = normalizeFsPath(path) + '|' + file.name + '|' + file.size;
+  if(!state.imageObjectUrls.has(key)) state.imageObjectUrls.set(key, URL.createObjectURL(file));
+  return state.imageObjectUrls.get(key);
+}
+function openAnketaPreview(path){
+  const file = findImageFile(path);
+  const url = file ? objectUrlForImage(path) : normalizeFsPath(path);
+  const title = basename(path) || 'anketa';
+  $('previewTitle').textContent = `Анкета: ${title}`;
+  $('previewPath').textContent = path || '';
+  $('previewWarn').classList.toggle('hidden', !!file);
+  $('previewWarn').textContent = file ? '' : 'Файл картинки не найден. Выбери исходный ZIP MAX или папку attachments, чтобы открыть точную OCR-картинку.';
+  $('previewImg').src = url;
+  $('anketaPreviewModal').classList.remove('hidden');
+}
+function closeAnketaPreview(){
+  $('anketaPreviewModal').classList.add('hidden');
+  $('previewImg').removeAttribute('src');
+}
+function detectExpectedZipFromText(text){
+  const m = String(text || '').match(/MAX_CHAT_EXPORT_[^"'\\/\s]+?(?:\.zip)?(?=["'\\/\s]|$)/);
+  const name = m ? (m[0].endsWith('.zip') ? m[0] : m[0] + '.zip') : 'MAX_CHAT_EXPORT_1201msg_1166att_23-06-26_01-11.zip';
+  state.expectedZipName = name;
+  state.expectedZipPath = `C:\\LeadBridgeKSO\\exports\\${name}`;
+  if(!state.imageFiles.size) updateImageSourceStatus(false, expectedZipMessage());
+}
+
+async function loadSource(kind, file){
+  try{
+    logLine(`read_file: ${file.name}`);
+    const text = await readFile(file);
+    if(kind==='max') detectExpectedZipFromText(text);
+    if(kind==='max'){
+      state.maxFileName = file.name;
+      state.maxRaw = text;
+      state.maxRows = normalizeMaxSource(file.name, text);
+      $('infoMax').innerHTML = `OK: <span class="ok">${esc(file.name)}</span>; анкет/строк: <b>${state.maxRows.length}</b>; телефонов: <b>${countPhones(state.maxRows)}</b>`;
+      setPickButtonState('btnMaxFile', true, 'MAX выбран');
+      logLine(`max_schema: rows=${state.maxRows.length}, phones=${countPhones(state.maxRows)}`);
+    } else {
+      state.amoFileName = file.name;
+      state.amoRaw = text;
+      state.amoRows = normalizeAmoSource(file.name, text);
+      $('infoAmo').innerHTML = `OK: <span class="ok">${esc(file.name)}</span>; сделок/строк: <b>${state.amoRows.length}</b>; телефонов: <b>${countPhones(state.amoRows)}</b>`;
+      setPickButtonState('btnAmoFile', true, 'amoCRM выбран');
+      logLine(`amocrm_schema: rows=${state.amoRows.length}, phones=${countPhones(state.amoRows)}`);
+    }
+    buildFilterOptions();
+    setNotice('Файл загружен. Когда будут загружены оба источника, нажми «Сделать матчинг».');
+  }catch(err){
+    console.error(err);
+    if(kind==='max') setPickButtonState('btnMaxFile', false, 'Выбрать файл MAX');
+    else setPickButtonState('btnAmoFile', false, 'Выбрать amoCRM');
+    setNotice(`Ошибка чтения файла: ${err.message}`, true);
+  }
+}
+function countPhones(rows){ return rows.reduce((n,r)=>n+(r.phones?.length||0),0); }
+
+function normalizeMaxSource(fileName, text){
+  const trimmed = text.trim();
+  if(!trimmed) return [];
+  if(fileName.toLowerCase().endsWith('.json') || trimmed[0]==='{' || trimmed[0]==='['){
+    let data = JSON.parse(trimmed);
+    let arr;
+    if(Array.isArray(data)) arr = data;
+    else if(Array.isArray(data.forms)) arr = data.forms;
+    else if(Array.isArray(data.messages)) {
+      arr = [];
+      data.messages.forEach((m)=>{
+        const ocr = Array.isArray(m.attachment_ocr) ? m.attachment_ocr : [];
+        const ok = ocr.filter(a=>!a.status || String(a.status).toLowerCase()==='ok');
+        if(ok.length){
+          ok.forEach(a=>{
+            const one = {...m};
+            one.attachment_ocr = [a]; // критично: не тащим OCR других картинок из этого же сообщения
+            one.attachment_path = a.original_path || a.attachment_path || a.path || a.source_path || '';
+            one.form = a.structured || a.form || {};
+            one.version_status = a.version_status || one.version_status || '';
+            one.case_key = a.case_key || one.case_key || '';
+            one._ocr_attachment = a;
+            one._row_kind = 'ocr_attachment';
+            arr.push(one);
+          });
+        }
+        // Отдельная строка для телефонов, написанных обычным текстом в чате.
+        // Она не получает attachment_path, чтобы ссылка «Анкета → открыть» не вела на случайную картинку из сообщения.
+        const textOnly = {...m, attachment_ocr: [], attachment_path: '', form: {}, version_status: '', case_key: '', _row_kind: 'text_message'};
+        const textForPhone = [m.bodyText,m.body_text,m.message_text,m.messageText,m.chat_message,m.text,m.comment,m.source_message,m.reply?.text].filter(Boolean).join(' ');
+        if(uniquePhones([textForPhone]).length || !ok.length) arr.push(textOnly);
+      });
+    }
+    else arr = data.items || data.records || data.data || [];
+    if(!Array.isArray(arr)) arr=[];
+    // Матчинг строится только по телефону. Строки без телефона не должны создавать ложные привязки и мусорную статистику.
+    return arr.map((item, i)=>normalizeMaxItem(item, i)).filter(r=>r.phones.length);
+  }
+  const parsed = parseCsv(text);
+  return parsed.rows.map((row,i)=>normalizeMaxCsvRow(parsed,row,i)).filter(r=>r.phones.length);
+}
+function deepPick(obj, paths){
+  for(const path of paths){
+    const parts=path.split('.'); let cur=obj;
+    for(const p of parts){ if(cur && Object.prototype.hasOwnProperty.call(cur,p)) cur=cur[p]; else {cur=undefined;break;} }
+    if(cur!==undefined && cur!==null && clean(Array.isArray(cur)?cur.join('; '):cur)) return cur;
+  }
+  return '';
+}
+function collectObjectPhones(obj){
+  const vals=[];
+  function walk(o, path=''){
+    if(vals.length>80) return;
+    if(o==null) return;
+    if(typeof o==='string' || typeof o==='number'){
+      const p=path.toLowerCase(); const s=String(o);
+      if(p.includes('phone') || p.includes('телефон') || p.includes('mobile') || p.includes('contact') || /^phone:\d+/.test(s)) vals.push(s);
+      return;
+    }
+    if(Array.isArray(o)){ o.slice(0,30).forEach((v,idx)=>walk(v, path+' '+idx)); return; }
+    if(typeof o==='object') Object.keys(o).slice(0,200).forEach(k=>walk(o[k], path+' '+k));
+  }
+  walk(obj); return vals;
+}
+function normalizeMaxItem(item, i){
+  const ocrAtt = item._ocr_attachment || {};
+  const isOcrAttachment = item._row_kind === 'ocr_attachment' || !!item._ocr_attachment;
+  const isTextMessage = item._row_kind === 'text_message';
+  const fields = isOcrAttachment
+    ? (item.form?.fields || ocrAtt.structured?.fields || ocrAtt.form?.fields || ocrAtt.fields || {})
+    : (item.form?.fields || item.fields || {});
+  const norm = isOcrAttachment
+    ? (item.form?.normalized || ocrAtt.structured?.normalized || ocrAtt.form?.normalized || ocrAtt.normalized || {})
+    : (item.form?.normalized || item.normalized || {});
+  const matchKeys = isOcrAttachment
+    ? (item.form?.match_keys || ocrAtt.structured?.match_keys || ocrAtt.form?.match_keys || ocrAtt.match_keys || [])
+    : (item.form?.match_keys || item.match_keys || item.matchKeys || []);
+
+  const phoneVals=[];
+  ['mobile_phone_norm','phone_norm','borrower_phone_norm','mobile_phone','phone','borrower_phone','contact_phone','work_phone'].forEach(k=>{
+    if(norm[k]) phoneVals.push(norm[k]);
+    if(fields[k]) phoneVals.push(fields[k]);
+    if(!isOcrAttachment && item[k]) phoneVals.push(item[k]);
+  });
+  for(const mk of (Array.isArray(matchKeys)?matchKeys:[])){
+    if(String(mk).startsWith('phone:')) phoneVals.push(String(mk).slice(6));
+  }
+  phoneVals.push(...collectObjectPhones(fields));
+
+  if(isOcrAttachment){
+    // НЕ сужаем матчинг только до «мобильного телефона заемщика».
+    // В реальных анкетах номер может стоять в блоке супруга/семейного положения,
+    // контактных лиц, комментарии или OCR-тексте. Сужение убивало совпадения.
+    // Но берём данные строго из КОНКРЕТНОГО OCR-вложения, а не из всего сообщения,
+    // чтобы превью не перескакивало на соседнюю картинку того же сообщения.
+    phoneVals.push(...collectObjectPhones(norm));
+    // Не сканируем весь объект ocrAtt целиком: в нём у некоторых экспортов может лежать текст сообщения MAX,
+    // из-за чего телефон из комментария ошибочно привязывался к случайной картинке этого же сообщения.
+    // Для OCR-картинки берём только её структурированные поля/нормализацию/сырой OCR-текст.
+    const ocrText = [ocrAtt.text, ocrAtt.ocr_text, ocrAtt.raw_text, ocrAtt.raw_ocr, ocrAtt.plain_text, fields.ocr_text, fields.raw_ocr].filter(Boolean).join('\n');
+    phoneVals.push(ocrText);
+  } else if(isTextMessage){
+    // Обычное текстовое сообщение MAX — отдельный источник без attachment_path.
+    phoneVals.push([item.bodyText,item.body_text,item.message_text,item.messageText,item.chat_message,item.text,item.comment,item.source_message,item.reply?.text].filter(Boolean).join(' '));
+  } else {
+    phoneVals.push(...collectObjectPhones(item).slice(0,20));
+  }
+
+  let phones = uniquePhones(phoneVals);
+  if(!phones.length && !isOcrAttachment){
+    const maybeText = [item.bodyText,item.message_text,item.text,item.ocr_text,item.raw_ocr,fields.ocr_text,fields.raw_ocr].filter(Boolean).join('\n');
+    phones = uniquePhones([maybeText]);
+  }
+
+  const fullName = deriveMaxFullName(item, ocrAtt, fields, norm, phones);
+  const phoneNames = buildMaxPhoneNames(item, ocrAtt, fields, norm, phones, fullName);
+  const messageIndex = clean(deepPick(item,['message_index','messageIndex','number','msg_number','form.message_index','fields.message_index'])) || String(i+1);
+  const messageDate = clean(deepPick(item,['message_date','messageDate','sent_at','sentAt','sent_time','sentTime','date','time','created_at','createdAt','timestamp','fields.message_date','form.message_date'])) ;
+  const messageUrl = clean(deepPick(item,['message_url','messageUrl','max_message_link','maxMessageLink','link','url','permalink','fields.message_url']));
+  const comment = clean(deepPick(item,['bodyText','body_text','message_text','messageText','chat_message','text','comment','source_message','fields.message_text','fields.comment'])) ;
+  const reply = item.reply?.text ? clean(item.reply.text) : '';
+  const attachmentPath = isOcrAttachment ? clean(deepPick(item,['_ocr_attachment.original_path','_ocr_attachment.attachment_path','_ocr_attachment.path','_ocr_attachment.source_path','attachment_path','attachmentPath','form.attachment_path','fields.attachment_path','original_path','ocr_attachment.original_path'])) : '';
+  const versionStatus = clean(deepPick(item,['version_status','versionStatus','form.version_status','fields.version_status'])) ;
+  const sourceKind = attachmentPath ? 'анкета' : 'сообщение';
+  return {source:'max', sourceKind, raw:item, phones, phoneNames, fullName, messageIndex, messageDate, messageDateMs:dateKey(messageDate), messageUrl, comment, reply, attachmentPath, versionStatus};
+}
+function maxOcrTextBlob(item, ocrAtt, fields, norm){
+  return [
+    ocrAtt && (ocrAtt.ocr_text || ocrAtt.text || ocrAtt.raw_text || ocrAtt.raw_ocr || ocrAtt.plain_text),
+    fields && (fields.ocr_text || fields.raw_ocr || fields.text),
+    item && (item.bodyText || item.body_text || item.message_text || item.messageText || item.chat_message || item.text || item.comment || item.source_message),
+    item && item.reply && item.reply.text
+  ].filter(Boolean).join('\n');
+}
+function titleCaseRuName(s){
+  return clean(s).replace(/[«»"'`]+/g,'').split(/\s+/).filter(Boolean).map(w=>{
+    if(w === w.toUpperCase()) return w.charAt(0) + w.slice(1).toLowerCase();
+    return w;
+  }).join(' ');
+}
+function fioBadWord(w){
+  const x = lowerKey(w);
+  return /^(анкета|новая|мобильный|мобильного|телефон|тел|рабочий|контактных|контактные|фио|заемщик|заемщика|заёмщик|заёмщика|клиент|клиента|дата|рождения|девичья|девичьяфио|год|изменения|паспорт|паспортные|данные|полностью|выдан|орган|органа|код|место|адрес|прописке|фактического|проживания|родственники|родственник|знакомые|знакомый|супруга|супруги|супруг|кем|приходится|информация|месте|работы|образование|полное|название|организации|организация|работодателя|работодатель|доход|собственность|семейное|положение|иждивенцев|стоимость|авто|первоначальный|взнос|срок|кредита|желаемый|платеж|месяц|подпись|расшифровка|заполнения|настоящим|подтверждаю|достоверны|слов|записано|верно|высшее|холост|квартира|мвд|россии|рф|гу|ооо|оао|ао|ип|инн|администрация|администрации|омской|омская|омскаяобласть|обл|область|район|город|тюмень|кемерово|свердловская|баженовское)$/i.test(x);
+}
+function looksLikeRuFio(s){
+  const raw = clean(s).replace(/[.,;:()\[\]{}<>|]+/g,' ').replace(/\s+/g,' ');
+  if(!raw || /\d/.test(raw)) return false;
+  const words = raw.split(/\s+/).filter(Boolean);
+  if(words.length < 2 || words.length > 4) return false;
+  if(words.some(w=>fioBadWord(w))) return false;
+  let good = 0;
+  for(const w of words){
+    if(!/^[А-ЯЁа-яё-]+$/.test(w)) return false;
+    if(w.length < 3) return false;
+    if(/^[А-ЯЁ][а-яё-]+$/.test(w) || /^[А-ЯЁ]{3,}$/.test(w)) good++;
+  }
+  if(good < 2) return false;
+  const joined = lowerKey(raw);
+  if(/мвд|россии|области|край|республика|город|улица|ул|проспект|район|банк|магазин|агроторг|организац|работодатель|администрац|мобильн|анкета/.test(joined)) return false;
+  return true;
+}
+function extractRuFioSequences(text){
+  const src = String(text || '').replace(/[|]+/g,' ');
+  const re = /(?:[А-ЯЁ][а-яё-]{2,}|[А-ЯЁ]{3,})(?:\s+(?:[А-ЯЁ][а-яё-]{2,}|[А-ЯЁ]{3,})){1,3}/g;
+  const out = [];
+  for(const m of src.matchAll(re)){
+    const name = titleCaseRuName(m[0]);
+    if(looksLikeRuFio(name)) out.push(name);
+  }
+  return [...new Set(out.map(x=>lowerKey(x)))].map(k=>out.find(x=>lowerKey(x)===k));
+}
+function stripFioLabels(s){
+  return String(s || '')
+    .replace(/ФИО\s*за[её]мщика/ig,' ')
+    .replace(/ФИО\s*клиента/ig,' ')
+    .replace(/дата\s*рождения/ig,' ')
+    .replace(/за[её]мщика\s*полностью/ig,' ')
+    .replace(/Девичья\s*ФИО\s*,?\s*год\s*изменения/ig,' ')
+    .replace(/Мобильный\s*телефон/ig,' ')
+    .replace(/Телефон/ig,' ')
+    .replace(/ФИО/ig,' ');
+}
+function extractBorrowerFioFromOcrText(text){
+  const lines = String(text || '').split(/\r?\n/).map(x=>clean(x.replace(/[|]+/g,' '))).filter(Boolean);
+  for(let i=0;i<lines.length;i++){
+    const lk = lowerKey(lines[i]);
+    if((lk.includes('фио') && (lk.includes('заемщик') || lk.includes('заемщика'))) || lk.includes('фио заемщика') || lk.includes('фио заёмщика')){
+      const window = stripFioLabels([lines[i], lines[i+1]||'', lines[i+2]||'', lines[i+3]||'', lines[i+4]||''].join(' '));
+      const cands = extractRuFioSequences(window);
+      if(cands.length) return cands[0];
+    }
+  }
+  // частый OCR-разрыв: строка «ФИО заемщика, дата», следующая «рождения ... ФИО»
+  const all = String(text || '').replace(/\r/g,'\n');
+  const m = all.match(/ФИО\s*за[её]мщика[\s\S]{0,180}/i);
+  if(m){
+    const cands = extractRuFioSequences(stripFioLabels(m[0]));
+    if(cands.length) return cands[0];
+  }
+  return '';
+}
+function extractMessageFio(text){
+  const lines = String(text || '').split(/\r?\n/).map(x=>clean(x)).filter(Boolean);
+  for(const line of lines.slice(0,8)){
+    const cands = extractRuFioSequences(line);
+    if(cands.length) return cands[0];
+  }
+  const cands = extractRuFioSequences(String(text || '').slice(0,600));
+  return cands[0] || '';
+}
+function bestStructuredFioCandidate(item, ocrAtt, fields, norm){
+  const raw = [
+    deepPick(item,['form.fields.borrower_full_name','fields.borrower_full_name','borrower_full_name']),
+    deepPick(item,['form.fields.full_name','fields.full_name','full_name','fio','client_name','name']),
+    deepPick(item,['form.normalized.borrower_full_name_key','normalized.borrower_full_name_key']),
+    deepPick(ocrAtt,['structured.fields.borrower_full_name','form.fields.borrower_full_name','fields.borrower_full_name','borrower_full_name']),
+    deepPick(ocrAtt,['structured.fields.full_name','form.fields.full_name','fields.full_name','full_name'])
+  ].map(clean).filter(Boolean);
+  for(const x of raw){
+    const seq = extractRuFioSequences(x);
+    if(seq.length) return seq[0];
+    const tc = titleCaseRuName(x);
+    if(looksLikeRuFio(tc)) return tc;
+  }
+  return '';
+}
+function deriveMaxFullName(item, ocrAtt, fields, norm, phones){
+  const textBlob = maxOcrTextBlob(item, ocrAtt, fields, norm);
+  const isOcr = item && item._row_kind === 'ocr_attachment';
+  const borrowerFromText = extractBorrowerFioFromOcrText(textBlob);
+  if(borrowerFromText) return borrowerFromText;
+  const structured = bestStructuredFioCandidate(item, ocrAtt, fields, norm);
+  if(structured) return structured;
+  if(!isOcr) return extractMessageFio(textBlob);
+  return '';
+}
+function buildMaxPhoneNames(item, ocrAtt, fields, norm, phones, defaultName){
+  // Не подменяем ФИО по номеру слабой эвристикой рядом с телефоном.
+  // Иначе появляются «Мобильный», «Омской Обл», «Анкета Новая» и похожий мусор.
+  // Для MAX-строки показываем только надёжно найденное ФИО заемщика/сообщения.
+  return {};
+}
+function normalizeMaxCsvRow(parsed,row,i){
+  const phoneVals = [];
+  parsed.headers.forEach((h,idx)=>{ const k=compactKey(h); if(k.includes('phone')||k.includes('телефон')) phoneVals.push(row.__cells[idx]); });
+  let phones = uniquePhones(phoneVals);
+  if(!phones.length) phones = uniquePhones([row.__cells.join(' ')]);
+  const fullName = rowGet(parsed,row,['borrower_full_name','ФИО заемщика','ФИО','full_name','client_name','name']);
+  const messageIndex = rowGet(parsed,row,['message_index','messageIndex','number','Номер сообщения','Сообщение'],[]) || String(i+1);
+  const messageDate = rowGet(parsed,row,['message_date','messageDate','Дата сообщения','sent_at','sentAt','date','Дата'],[]);
+  const messageUrl = rowGet(parsed,row,['message_url','messageLink','max_message_link','Ссылка на сообщение','link','url'],[]);
+  const comment = rowGet(parsed,row,['message_text','bodyText','body_text','Текст сообщения','Комментарий анкета','comment','text'],[]);
+  const attachmentPath = rowGet(parsed,row,['attachment_path','attachmentPath','Вложение','path'],[]);
+  const versionStatus = rowGet(parsed,row,['version_status','versionStatus','Статус версии'],[]);
+  const sourceKind = attachmentPath ? 'анкета' : 'сообщение';
+  return {source:'max', sourceKind, raw:row, phones, phoneNames:{}, fullName, messageIndex, messageDate, messageDateMs:dateKey(messageDate), messageUrl, comment, reply:'', attachmentPath, versionStatus};
+}
+function extractPrimaryPhonesFromOcrText(text){
+  const t = String(text || '');
+  if(!t) return [];
+  const lines = t.split(/\r?\n/);
+  const hits = [];
+  const primaryLabel = /(мобильн(?:ый|ого)?\s+телефон|телефон\s+заемщик|телефон\s+клиент|сотов(?:ый|ого)?|осн(?:овной)?\s+телефон)/i;
+  const badLabel = /(контактн|знаком|родствен|супруг|рабоч|работодател|организац|кем\s+приход|фио\s*,?\s*тел)/i;
+  for(let i=0;i<lines.length;i++){
+    const line = lines[i] || '';
+    if(primaryLabel.test(line) && !badLabel.test(line)){
+      const chunk = [line, lines[i+1] || '', lines[i+2] || ''].join(' ');
+      hits.push(...extractPhonesFromText(chunk));
+    }
+  }
+  return [...new Set(hits)];
+}
+function uniquePhones(vals){
+  const set=new Set();
+  for(const v of vals){ for(const p of extractPhonesFromText(v)) set.add(p); }
+  return [...set].sort();
+}
+
+function normalizeAmoSource(fileName, text){
+  const parsed = parseCsv(text);
+  logLine(`amocrm_csv: delimiter=${JSON.stringify(parsed.delimiter)}, rows=${parsed.rows.length}, cols=${parsed.headers.length}`);
+  debugColumnSample(parsed, parsed.rows, 'amo_col Дата визита', findHeaderIndexExact(parsed, 'Дата визита', 78));
+  debugColumnSample(parsed, parsed.rows, 'amo_col Дата создания сделки', findHeaderIndexExact(parsed, 'Дата создания сделки', 4));
+  debugColumnSample(parsed, parsed.rows, 'amo_col Причина закрытия карточки', findHeaderIndexExact(parsed, 'Причина закрытия карточки', 65));
+  return parsed.rows.map((row,i)=>normalizeAmoRow(parsed,row,i)).filter(r=>r.id || r.phones.length || r.fullName);
+}
+function normalizeAmoRow(parsed,row,i){
+  // amoCRM CSV: сначала ищем нужные колонки по точному заголовку, потом fallback на известные индексы.
+  // A=ID, D=Ответственный, E=Дата создания сделки, I=Дата закрытия, V:AA=телефоны, CA=Дата визита, BV=Город.
+  const id = rowGetExact(parsed,row,'ID',0) || String(i+1);
+  const responsible = rowGetExact(parsed,row,'Ответственный',3);              // D
+  const createdAt = rowGetExact(parsed,row,'Дата создания сделки',4);         // E
+  const closedAt = rowGetExact(parsed,row,'Дата закрытия',8);                 // I
+  const tags = safeCell(row, 9);                                             // J
+  const stage = safeCell(row, 15);                                           // P
+  const pipeline = safeCell(row, 16);                                        // Q
+  const fullName = rowGetExact(parsed,row,'Полное имя контакта',17);          // R
+  const visitDate = rowGetExact(parsed,row,'Дата визита',78);                 // CA, строго именно заголовок «Дата визита»
+  const city = rowGetExact(parsed,row,'Город',73);                            // BV, строго именно «Город»
+  const region = safeCell(row, 38);                                          // AM: REGION TIME - Область или город
+  const closeReasonCard = rowGetExact(parsed,row,'Причина закрытия карточки',65);
+  const closeReasonOld = safeCell(row,99);
+  const closeReason = closeReasonCard;
+  const comment = [safeCell(row,81),safeCell(row,10),safeCell(row,11),safeCell(row,12),safeCell(row,13),safeCell(row,14)].filter(Boolean).join('\n');
+  const closeReasonKey = lowerKey(closeReasonCard).replace(/[\s-]+/g,'_');
+  const isExcludedCloseReason = /(^|_)1_?(хоз|дубль|дубл)(_|$)/.test(closeReasonKey);
+  const duplicateHaystack = lowerKey([stage,pipeline,tags,closeReasonCard,closeReasonOld,comment].join(' '));
+  const isDuplicate = isExcludedCloseReason || /(^|\s|_)1?\s*дубл|дубликат|duplicate/.test(duplicateHaystack);
+  const phoneVals = [];
+  for(let col=21; col<=26; col++) phoneVals.push(safeCell(row,col)); // V:AA
+  phoneVals.push(safeCell(row,30), safeCell(row,100));
+  const phones = uniquePhones(phoneVals);
+  const dealUrl = id ? AMO_BASE + encodeURIComponent(id) : '';
+  return {source:'amo', raw:row, phones, id, dealUrl, otherLeadsUrl:dealUrl ? dealUrl + '?tab_id=amo_other_leads' : '', responsible, createdAt, createdAtMs:dateKey(createdAt), closedAt, fullName, visitDate, visitDateMs:dateKey(visitDate), city, region, stage, pipeline, tags, closeReason, closeReasonOld, isExcludedCloseReason, isDuplicate, comment};
+}
+
+function buildGroups(){
+  // Важно: переключатель MAX CURRENT больше НЕ отсекает телефоны глобально.
+  // Иначе можно потерять клиента, если по телефону нет CURRENT-версии, но есть полезная OCR/текстовая строка.
+  // Фильтр применяется только на этапе выбора канонической MAX-строки внутри телефона.
+  const maxRows = state.maxRows.slice();
+  const amoRows = state.amoRows.slice();
+  const map = new Map();
+  const add=(phone, side, row)=>{ if(!map.has(phone)) map.set(phone,{phone,max:[],amoAll:[],amo:[]}); map.get(phone)[side].push(row); };
+  maxRows.forEach(r=>r.phones.forEach(p=>add(p,'max',r)));
+  amoRows.forEach(r=>r.phones.forEach(p=>add(p,'amoAll',r)));
+  const groups = [...map.values()].filter(g=>g.max.length && g.amoAll.length);
+  groups.forEach(g=>{
+    g.max=selectMaxForGroup(dedupBy(g.max,r=>r.messageIndex+'|'+r.attachmentPath+'|'+r.sourceKind), g.phone);
+    g.amoAll=dedupBy(g.amoAll,r=>r.id);
+    enrichGroupBase(g);
+  });
+  state.groups = groups;
+}
+function dedupBy(arr, keyFn){ const seen=new Set(), out=[]; for(const x of arr){ const k=keyFn(x); if(!seen.has(k)){seen.add(k);out.push(x);} } return out; }
+function selectMaxForGroup(maxRows, phone){
+  let rows = (maxRows || []).slice();
+  if(rows.length <= 1) return rows;
+
+  // ВАЖНО: version_status из OCR-процессора — это подсказка, а не истина.
+  // SUPERSEDED может появиться ошибочно, если OCR частично прочитал номер или неверно сгруппировал анкеты.
+  // Поэтому чекбокс MAX CURRENT НЕ фильтрует строки и НЕ скрывает анкеты.
+  // Он только даёт небольшой приоритет CURRENT при выборе канонической строки, но анкета с точным совпавшим телефоном остаётся в матчинге.
+  const preferCurrent = !!($('onlyCurrentMax') && $('onlyCurrentMax').checked);
+
+  const score = (r)=>{
+    let s = 0;
+    const hasAttachment = !!clean(r.attachmentPath);
+    const kind = String(r.sourceKind||'').toLowerCase();
+    const vs = String(r.versionStatus||'').toUpperCase();
+
+    // Строка попала в группу только если в ней найден ПОЛНЫЙ нормализованный телефон.
+    // Поэтому точное совпадение телефона важнее старого version_status.
+    if((r.phones || []).includes(phone)) s += 5000;
+
+    // Реальная OCR-картинка анкеты лучше текстового сообщения MAX.
+    if(hasAttachment) s += 1000;
+    if(kind.includes('анкета')) s += 250;
+    if(kind.includes('сообщение')) s += 50;
+
+    // CURRENT/SUPERSEDED из OCR — только подсказка. Не даём CURRENT перебить точное совпадение
+    // в другой анкете, потому что статус может быть построен по частично распознанному номеру.
+    if(preferCurrent && vs === 'CURRENT') s += 15;
+    if(preferCurrent && vs === 'SUPERSEDED') s -= 2;
+
+    // Более информативная OCR-строка предпочтительнее.
+    if(clean(r.fullName) && !/тел|кем|польз|понз|знаком|родствен/i.test(r.fullName)) s += 80;
+    if(clean(r.comment)) s += 20;
+
+    // Если несколько анкет по одному телефону — более позднее сообщение обычно является корректировкой/новой версией.
+    const n = Number(String(r.messageIndex||'').replace(/\D+/g,'')) || 0;
+    s += Math.min(n, 999999) / 1000000;
+    if(r.messageDateMs) s += Math.min(r.messageDateMs, Date.now()) / 1e14;
+    return s;
+  };
+
+  const sorted = rows.sort((a,b)=>score(b)-score(a));
+  const chosen = sorted[0];
+  if(chosen){
+    chosen._leadbridgeOriginalVersionStatus = chosen.versionStatus || '';
+    // Эффективный статус именно для этого телефона: выбранная строка по полному номеру считается CURRENT,
+    // даже если внешний OCR-процессор пометил её SUPERSEDED из-за ошибочной группировки.
+    if((chosen.phones || []).includes(phone) && clean(chosen.attachmentPath)) chosen._leadbridgePhoneStatus = 'CURRENT';
+  }
+  if(chosen && rows.length > 1){
+    const statuses = rows.map(r=>`${r.messageIndex || '?'}:${r.versionStatus || 'no_status'}:${r.attachmentPath || 'text'}:phones=${(r.phones||[]).join('/')}`).join(' | ');
+    logLine(`max_select phone=${phone}: выбран #${chosen.messageIndex || ''} ${chosen.attachmentPath || 'text'} из ${rows.length} MAX-строк; phone_status=${chosen._leadbridgePhoneStatus || chosen.versionStatus || 'no_status'}; status_debug=${statuses}`);
+  }
+  return chosen ? [chosen] : [];
+}
+function selectAmoForGroup(amoRows){
+  // Приоритет выбора сделки внутри одного телефона, строго по текущему правилу:
+  // 1) Сначала проверяем ВСЕ сделки, совпавшие по номеру, по полю «Дата визита».
+  //    Если дата визита попадает в текущий месяц — выводим эту сделку.
+  // 2) Если таких сделок несколько — выбираем ближайшую к текущей дате.
+  //    При равной дистанции: более поздняя дата визита, затем более свежая дата создания.
+  // 3) Если по всем сделкам нет даты визита текущего месяца — выбираем самую свежую по «Дата создания сделки»,
+  //    исключая «Причина закрытия карточки» = 1_ХОЗ или 1_ДУБЛЬ.
+  // 4) Если после исключения ничего не осталось — аварийный fallback на самую свежую из всех.
+  const rows = (amoRows || []).slice();
+  const normal = rows.filter(r => !r.isExcludedCloseReason);
+  let selected = null;
+  let reason = '';
+
+  const currentMonthVisits = rows.filter(r => isDateInCurrentMonth(r.visitDate));
+  if(currentMonthVisits.length){
+    selected = currentMonthVisits.slice().sort((a,b)=>{
+      const da = visitDistanceDays(a.visitDate);
+      const db = visitDistanceDays(b.visitDate);
+      if(da !== db) return da - db;
+      const va = a.visitDateMs || 0;
+      const vb = b.visitDateMs || 0;
+      if(va !== vb) return vb - va;
+      return (b.createdAtMs || 0) - (a.createdAtMs || 0);
+    })[0];
+    reason = 'visit_current_month_nearest';
+  }
+
+  if(!selected){
+    selected = latestByCreated(normal);
+    if(selected) reason = 'latest_created_not_hoz_not_double';
+  }
+
+  if(!selected){
+    selected = latestByCreated(rows);
+    if(selected) reason = 'fallback_only_hoz_double';
+  }
+
+  if(selected) selected._leadbridgeSelectReason = reason;
+  return selected ? [selected] : [];
+}
+function enrichGroupBase(g){
+  const amoForMeta = g.amoAll || g.amo || [];
+  g.responsibles = [...new Set(amoForMeta.map(r=>r.responsible).filter(Boolean))];
+  g.cities = [...new Set(amoForMeta.flatMap(r=>String(r.city||'').split('/').map(x=>x.trim()).filter(Boolean)))];
+  g.regions = [...new Set(amoForMeta.map(r=>r.region).filter(Boolean))];
+  g.maxDateMs = Math.min(...g.max.map(r=>r.messageDateMs||Infinity)); if(!Number.isFinite(g.maxDateMs)) g.maxDateMs=0;
+  g.crmVisitDateMs = Math.min(...amoForMeta.map(r=>r.visitDateMs||Infinity)); if(!Number.isFinite(g.crmVisitDateMs)) g.crmVisitDateMs=0;
+  g.crmCreatedDateMs = Math.max(...amoForMeta.map(r=>r.createdAtMs||0)); if(!Number.isFinite(g.crmCreatedDateMs)) g.crmCreatedDateMs=0;
+  g.hasCrmVisit = amoForMeta.some(r=>clean(r.visitDate));
+  g.hasEmptyCrmVisit = amoForMeta.some(r=>!clean(r.visitDate));
+  g.names = [...new Set([...g.max.map(r=>r.fullName),...amoForMeta.map(r=>r.fullName)].filter(Boolean))];
+}
+function enrichFilteredGroup(g){
+  g.responsibles = [...new Set(g.amo.map(r=>r.responsible).filter(Boolean))];
+  g.cities = [...new Set(g.amo.flatMap(r=>String(r.city||'').split('/').map(x=>x.trim()).filter(Boolean)))];
+  g.regions = [...new Set(g.amo.map(r=>r.region).filter(Boolean))];
+  g.maxDateMs = Math.min(...g.max.map(r=>r.messageDateMs||Infinity)); if(!Number.isFinite(g.maxDateMs)) g.maxDateMs=0;
+  g.crmVisitDateMs = Math.min(...g.amo.map(r=>r.visitDateMs||Infinity)); if(!Number.isFinite(g.crmVisitDateMs)) g.crmVisitDateMs=0;
+  g.crmCreatedDateMs = Math.max(...g.amo.map(r=>r.createdAtMs||0)); if(!Number.isFinite(g.crmCreatedDateMs)) g.crmCreatedDateMs=0;
+  g.hasCrmVisit = g.amo.some(r=>clean(r.visitDate));
+  g.hasEmptyCrmVisit = g.amo.some(r=>!clean(r.visitDate));
+  g.names = [...new Set([...g.max.map(r=>r.fullName),...g.amo.map(r=>r.fullName)].filter(Boolean))];
+  return g;
+}
+
+function buildFilterOptions(){
+  const resp = new Set(state.amoRows.map(r=>r.responsible).filter(Boolean));
+  const cities = new Set();
+  state.amoRows.forEach(r=>String(r.city||'').split('/').map(x=>x.trim()).filter(Boolean).forEach(x=>cities.add(x)));
+  fillSelect($('filterResponsible'), [...resp].sort((a,b)=>a.localeCompare(b,'ru')));
+  fillSelect($('filterCity'), [...cities].sort((a,b)=>a.localeCompare(b,'ru')));
+}
+function fillSelect(sel, vals){
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Все</option>' + vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  if(vals.includes(cur)) sel.value=cur;
+}
+function applyFilters(){
+  let groups = state.groups.map(g=>({...g, amoAll:g.amoAll.slice(), max:g.max.slice(), amo:[]}));
+  const resp = $('filterResponsible').value;
+  const city = $('filterCity').value;
+  const dateFrom = $('filterDateFrom').value ? new Date($('filterDateFrom').value+'T00:00:00').getTime() : 0;
+  const dateTo = $('filterDateTo').value ? new Date($('filterDateTo').value+'T23:59:59').getTime() : 0;
+  const q = lowerKey($('filterSearch').value);
+  const hidePhonesWithCurrentMonthVisit = $('onlyNoCrmVisit').checked;
+  groups = groups.map(g=>{
+    // Главный рабочий фильтр проекта:
+    // если по телефону/контакту среди ВСЕХ найденных amoCRM-сделок уже есть «Дата визита» текущего месяца,
+    // блок скрывается целиком. Это нужно, чтобы искать анкеты/сообщения MAX, по которым визит в amoCRM НЕ отмечен.
+    // Проверка делается ДО фильтров Ответственный/Город, чтобы дубль или другая сделка по тому же контакту
+    // не пролезала в отчет, если визит уже стоит в любой сделке контакта.
+    if(hidePhonesWithCurrentMonthVisit && g.amoAll.some(r=>isDateInCurrentMonth(r.visitDate))) return null;
+
+    let amo = g.amoAll.slice();
+    if(resp) amo = amo.filter(r=>r.responsible===resp);
+    if(city) amo = amo.filter(r=>String(r.city||'').split('/').map(x=>x.trim()).includes(city));
+
+    const amoSelected = selectAmoForGroup(amo);
+    let max = g.max.slice();
+    if(dateFrom) max = max.filter(r=>(r.messageDateMs||0) >= dateFrom);
+    if(dateTo) max = max.filter(r=>(r.messageDateMs||0) <= dateTo);
+    return enrichFilteredGroup({...g, amoAll:g.amoAll, amo:amoSelected, max, amoFilteredPool:amo});
+  }).filter(g=>g && g.max.length && g.amo.length);
+  if(q){
+    groups = groups.filter(g=>lowerKey([
+      g.phone,
+      ...g.max.map(r=>[r.fullName,r.messageIndex,r.comment,r.messageUrl].join(' ')),
+      ...g.amo.map(r=>[r.id,r.fullName,r.responsible,r.city,r.region,r.comment].join(' '))
+    ].join(' ')).includes(q));
+  }
+  const sortBy=$('sortBy').value, dir=$('sortDir').value==='desc'?-1:1;
+  groups.sort((a,b)=>{
+    const val=(g)=>{
+      if(sortBy==='phone') return g.phone;
+      if(sortBy==='maxDate') return Math.min(...g.max.map(r=>r.messageDateMs||Infinity));
+      if(sortBy==='responsible') return (g.amo[0]?.responsible||'');
+      if(sortBy==='city') return (g.amo[0]?.city||'');
+      if(sortBy==='crmVisitDate') return Math.min(...g.amo.map(r=>r.visitDateMs||Infinity));
+      if(sortBy==='crmCreatedDate') return Math.max(...g.amo.map(r=>r.createdAtMs||0));
+      if(sortBy==='amoCount') return g.amo.length;
+      if(sortBy==='maxCount') return g.max.length;
+      return '';
+    };
+    const av=val(a), bv=val(b);
+    if(typeof av==='number' || typeof bv==='number') return ((av||0)-(bv||0))*dir;
+    return String(av).localeCompare(String(bv),'ru')*dir;
+  });
+  state.filtered = groups;
+}
+
+function run(){
+  if(!state.maxRows.length || !state.amoRows.length){ setNotice('Нужно загрузить оба источника: OCR-анкеты MAX и CSV amoCRM.', true); return; }
+  $('loader').textContent='';
+  logLine('normalize_phone: +7/8/7xxxxxxxxxx/(xxx) -> 10 digits');
+  buildGroups();
+  logLine(`match_by_phone: groups=${state.groups.length}`);
+  logLine('amocrm_select: 1) сделка с визитом текущего месяца; 2) если таких нет — свежая по созданию без 1_ХОЗ/1_ДУБЛЬ; фильтр-чип скрывает телефоны без визита текущего месяца');
+  applyFilters();
+  render();
+  setNotice('Матчинг готов. По amoCRM сначала выбирается сделка с визитом текущего месяца. Если таких нет — самая свежая по созданию, кроме 1_ХОЗ/1_ДУБЛЬ. Включённый фильтр показывает только телефоны, где среди найденных сделок есть визит текущего месяца.');
+  setSetupDrawer(true, true);
+}
+
+function render(){
+  renderStats();
+  const actions = $('reportActions');
+  if(actions) actions.classList.remove('hidden');
+  syncFixedTop();
+  const root = $('results');
+  if(!state.filtered.length){ root.innerHTML='<div class="empty">Совпадений по телефону нет или всё отфильтровано.</div>'; return; }
+  root.innerHTML = state.filtered.map((g,idx)=>renderGroup(g,idx)).join('');
+  toggleCrmVisitColumn();
+}
+function makeMatchedKeySet(groups, side){
+  const matched = new Set();
+  const sourceGroups = groups || [];
+  if(side === 'max'){
+    sourceGroups.forEach(g => (g.max||[]).forEach(r => matched.add((r.messageIndex||'')+'|'+(r.attachmentPath||'')+'|'+(r.comment||''))));
+  } else {
+    sourceGroups.forEach(g => (g.amoAll||[]).forEach(r => matched.add(String(r.id||'')+'|'+(r.phone||'')+'|'+(r.createdAt||''))));
+  }
+  return matched;
+}
+function renderStats(){
+  const board = $('stickyBoard');
+  if(!board) return;
+  if(!state.maxRows.length && !state.amoRows.length){ board.classList.add('hidden'); board.innerHTML=''; syncFixedTop(); return; }
+  const matchedPhones = state.groups.length || 0;
+  const filteredPhones = state.filtered.length || 0;
+  const maxInFiltered = state.filtered.reduce((sum,g)=>sum+(g.max?.length||0),0);
+  const amoSelectedFiltered = state.filtered.reduce((sum,g)=>sum+(g.amo?.length||0),0);
+  const matchedMax = new Set();
+  state.groups.forEach(g => (g.max||[]).forEach(r => matchedMax.add((r.messageIndex||'')+'|'+(r.attachmentPath||'')+'|'+(r.comment||''))));
+  const matchedAmo = new Set();
+  state.groups.forEach(g => (g.amoAll||[]).forEach(r => matchedAmo.add(String(r.id||'')+'|'+(r.createdAt||'')+'|'+(r.fullName||''))));
+  const maxWithout = state.maxRows.filter(r=>!matchedMax.has((r.messageIndex||'')+'|'+(r.attachmentPath||'')+'|'+(r.comment||''))).length;
+  const amoWithout = state.amoRows.filter(r=>!matchedAmo.has(String(r.id||'')+'|'+(r.createdAt||'')+'|'+(r.fullName||''))).length;
+  const items = [
+    ['телефонов совпало', matchedPhones],
+    ['после фильтров', filteredPhones],
+    ['MAX в совпадениях', maxInFiltered],
+    ['amoCRM выбрано', amoSelectedFiltered],
+    ['MAX без совпадений', maxWithout],
+    ['amoCRM без совпадений', amoWithout]
+  ];
+  board.innerHTML = `<div class="stats">${items.map(([label,value])=>`<div class="stat"><span class="t">${esc(label)}:</span><span class="n">${esc(value)}</span></div>`).join('')}</div>`;
+  board.classList.remove('hidden');
+  syncFixedTop();
+}
+function renderGroup(g, idx){
+  const groupId = `deals_${idx}_${String(g.phone).replace(/\D/g, '')}`;
+  const mainName = g.names[0] || '';
+  const mainCity = g.cities[0] || '';
+  const mainRegion = g.regions[0] || '';
+  const totalAmo = g.amoAll?.length || g.amo.length;
+  const chips = [
+    `<span class="pill max">анкеты: ${g.max.length}</span>`,
+    `<span class="pill amo">amoCRM: ${g.amo.length}</span>`,
+    totalAmo>g.amo.length ? `<span class="pill">всего сделок: ${totalAmo}</span>` : '',
+    ...g.amo.slice(0,3).map(r=>r.responsible?`<span class="pill">${esc(r.responsible)}</span>`:''),
+    mainCity?`<span class="pill">${esc(mainCity)}</span>`:'',
+    mainRegion?`<span class="pill">${esc(mainRegion)}</span>`:'',
+    g.amo.some(r=>r.visitDate)?`<span class="pill warn">есть визит CRM</span>`:`<span class="pill max">визит CRM пусто</span>`
+  ].filter(Boolean).join('');
+  const dealsBtn = renderDealsToggle(g, groupId);
+  const dealsPanel = renderDealsPanel(g, groupId);
+  const rows = [...g.max.map(r=>renderRow('max', g.phone, r)), ...g.amo.map(r=>renderRow('amo', g.phone, r))].join('');
+  return `<article class="match" data-phone="${esc(g.phone)}">
+    <div class="match-head">
+      <div class="head-main">
+        <div class="head-line"><div class="phone">☎ ${esc(g.phone)}</div><div class="head-title">${esc(mainName || 'ФИО не найдено')}</div></div>
+        <div class="head-sub"><span>нормализованный телефон / один блок совпадения</span>${mainCity?`<span>${esc(mainCity)}</span>`:''}${mainRegion?`<span>${esc(mainRegion)}</span>`:''}</div>
+      </div>
+      <div class="head-meta">${chips}${dealsBtn}</div>
+    </div>
+    ${dealsPanel}
+    <div class="tablebox"><table><colgroup><col class="source-cell"><col class="id-cell"><col class="phone-cell"><col class="fio-cell"><col class="mop-cell"><col class="city-cell"><col class="date-cell"><col class="date-cell crm-visit-col"><col class="date-cell"><col class="link-cell"><col class="comment-cell"></colgroup><thead><tr>
+      <th>Источник</th><th>ID / сообщение</th><th>Телефон</th><th>ФИО клиента</th><th>МОП</th><th>Город</th><th>Визит анкеты</th><th class="crm-visit-col">Визит CRM</th><th>Создание CRM</th><th>Анкета</th><th>Комментарий</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>
+  </article>`;
+}
+function toggleDealsPanel(id){
+  const panel = $(id);
+  const btn = $('btn_' + id);
+  if(!panel) return;
+  const isHidden = panel.classList.toggle('hidden');
+  if(btn){
+    btn.classList.toggle('open', !isHidden);
+    btn.setAttribute('aria-expanded', String(!isHidden));
+  }
+}
+function renderDealsToggle(g, groupId){
+  const deals = g.amoAll || g.amo || [];
+  if(!deals.length) return '';
+  return `<button id="btn_${escAttr(groupId)}" class="deals-toggle" onclick="toggleDealsPanel('${escAttr(groupId)}')" title="Показать все сделки amoCRM, найденные по номеру" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg><span>сделки: ${esc(deals.length)}</span></button>`;
+}
+function renderDealsPanel(g, groupId){
+  const deals = (g.amoAll || g.amo || []).slice().sort((a,b)=>{
+    const cm = Number(isDateInCurrentMonth(b.visitDate)) - Number(isDateInCurrentMonth(a.visitDate));
+    if(cm) return cm;
+    const vd=(b.visitDateMs||0)-(a.visitDateMs||0); if(vd) return vd;
+    return (b.createdAtMs||0)-(a.createdAtMs||0);
+  });
+  if(!deals.length) return '';
+  const selected = new Set((g.amo || []).map(r=>String(r.id || '')));
+  const rows = deals.map(r=>{
+    const isSelected = selected.has(String(r.id || ''));
+    const selectedChip = isSelected ? '<span class="pill ok">выбрана</span>' : '';
+    const visit = clean(r.visitDate) ? esc(formatDate(r.visitDate)) : '<span class="muted">пусто</span>';
+    const created = clean(r.createdAt) ? esc(formatDate(r.createdAt)) : '<span class="muted">—</span>';
+    const city = [r.city,r.region].filter(Boolean).join(' / ');
+    const dup = r.isDuplicate ? '<span class="dup-chip">дубль</span>' : '';
+    const id = r.id ? `<a href="${esc(r.dealUrl)}" target="_blank" rel="noopener">${esc(r.id)}</a>` : '<span class="muted">—</span>';
+    return `<tr class="${isSelected?'selected':''}"><td>${id}<div>${selectedChip}${dup}</div></td><td>${esc(r.fullName)}</td><td>${esc(r.responsible)}</td><td>${esc(city)}</td><td>${visit}</td><td>${created}</td><td>${esc(r.closeReason || '')}</td><td class="comment">${esc(r.comment || '')}</td></tr>`;
+  }).join('');
+  return `<div id="${escAttr(groupId)}" class="deals-panel hidden"><div class="deals-title">Все сделки amoCRM по номеру ${esc(g.phone)}</div><div class="deals-table-wrap"><table class="deals-table"><thead><tr><th>ID</th><th>ФИО</th><th>МОП</th><th>Город</th><th>Визит CRM</th><th>Создание CRM</th><th>Причина закрытия</th><th>Комментарий</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
+
+function renderAnketaCell(r){
+  const path = clean(r.attachmentPath || '');
+  const isSuperseded = String(r._leadbridgeOriginalVersionStatus || r.versionStatus || '').toUpperCase() === 'SUPERSEDED';
+  const reviewChips = isSuperseded ? '<div class="review-chips"><span class="review-chip manual">РУЧНАЯ СВЕРКА</span><span class="review-chip partial">СОВПАДЕНИЕ ЧАСТИЧНОЕ</span></div>' : '';
+  if(!path) return '<span class="anketa-noimage">нет анкеты</span>';
+  const file = findImageFile(path);
+  if(!file){
+    return `<div class="anketa-preview-stack"><span class="anketa-missing" title="${escAttr(path)}">картинка не найдена</span>${reviewChips}</div>`;
+  }
+  const url = URL.createObjectURL(file);
+  state.previewUrls = state.previewUrls || [];
+  state.previewUrls.push(url);
+  return `<div class="anketa-preview-cell"><div class="anketa-preview-stack"><img class="anketa-thumb" src="${escAttr(url)}" alt="Анкета" title="Открыть превью: ${escAttr(path)}" onclick="openAnketaPreview(${jsArg(path)});return false;">${reviewChips}</div></div>`;
+}
+
+function renderRow(type, phone, r){
+  if(type==='max'){
+    const link = renderAnketaCell(r);
+    const displayStatus = r._leadbridgePhoneStatus || r.versionStatus || '';
+    const originalStatus = r._leadbridgeOriginalVersionStatus && r._leadbridgeOriginalVersionStatus !== displayStatus ? ` title="OCR status: ${escAttr(r._leadbridgeOriginalVersionStatus)}"` : '';
+    const id = `#${esc(r.messageIndex||'')}${r.attachmentPath?`<div class="muted small">${esc(r.attachmentPath)}</div>`:''}${displayStatus?`<div class="pill ${String(displayStatus).toUpperCase()==='CURRENT'?'max':'warn'}"${originalStatus}>${esc(displayStatus)}</div>`:''}`;
+    const comment = [r.comment, r.reply?`reply: ${r.reply}`:''].filter(Boolean).join('\n');
+    return `<tr><td><span class="pill max">${esc(r.sourceKind || 'анкета')}</span></td><td>${id}</td><td class="nowrap">${esc(phone)}</td><td>${esc(r.fullName)}</td><td class="muted">—</td><td class="muted">—</td><td>${esc(formatDate(r.messageDate))}</td><td class="crm-visit-col muted">—</td><td class="muted">—</td><td>${link}</td><td class="comment">${esc(comment)}</td></tr>`;
+  }
+  let reasonLabel = '';
+  if(r._leadbridgeSelectReason==='visit_current_month_nearest') reasonLabel = '<div><span class="pill ok">визит текущего месяца / ближайший</span></div>';
+  else if(r._leadbridgeSelectReason==='visit_current_month') reasonLabel = '<div><span class="pill ok">визит текущего месяца</span></div>';
+  else if(r._leadbridgeSelectReason==='latest_created_not_hoz_not_double') reasonLabel = '<div><span class="pill max">свежая, не 1_ХОЗ/1_ДУБЛЬ</span></div>';
+  else if(r._leadbridgeSelectReason==='fallback_only_hoz_double') reasonLabel = '<div><span class="pill danger">только 1_ХОЗ/1_ДУБЛЬ</span></div>';
+  const idLink = r.id ? `<a href="${esc(r.dealUrl)}" target="_blank" rel="noopener">${esc(r.id)}</a>${r.otherLeadsUrl?`<div><a class="dup-chip" href="${esc(r.otherLeadsUrl)}" target="_blank" rel="noopener">дубль</a></div>`:''}${reasonLabel}` : '<span class="muted">—</span>';
+  const visit = clean(r.visitDate) ? esc(formatDate(r.visitDate)) : '<span class="muted">пусто</span>';
+  const city = [r.city, r.region].filter(Boolean).join(' / ');
+  return `<tr><td><span class="pill amo">amoCRM</span></td><td>${idLink}</td><td class="nowrap">${esc(phone)}</td><td>${esc(r.fullName)}</td><td>${esc(r.responsible)}</td><td>${esc(city)}</td><td class="muted">—</td><td class="crm-visit-col">${visit}</td><td>${esc(formatDate(r.createdAt))}</td><td class="muted">—</td><td class="comment">${esc(r.comment)}</td></tr>`;
+}
+function toggleCrmVisitColumn(){
+  document.body.classList.toggle('hide-crm-visit', !$('showCrmVisitCol').checked);
+}
+
+function makeUnifiedRows(groups=state.filtered){
+  const rows=[];
+  groups.forEach(g=>{
+    g.max.forEach(mx=>{
+      g.amo.forEach(am=>{
+        rows.push({
+          phone:g.phone,
+          max_message_index:mx.messageIndex,
+          max_message_date:formatDate(mx.messageDate),
+          max_full_name:mx.fullName,
+          max_message_link:mx.messageUrl,
+          max_attachment_path:mx.attachmentPath,
+          max_version_status:mx.versionStatus,
+          max_comment:mx.comment,
+          amo_lead_id:am.id,
+          amo_lead_link:am.dealUrl,
+          amo_full_name:am.fullName,
+          amo_responsible:am.responsible,
+          amo_city:am.city,
+          amo_region:am.region,
+          amo_visit_date:formatDate(am.visitDate),
+          amo_created_date:formatDate(am.createdAt),
+          amo_closed_date:formatDate(am.closedAt),
+          amo_stage:am.stage,
+          amo_pipeline:am.pipeline,
+          amo_is_duplicate:am.isDuplicate ? 'yes' : '',
+          amo_close_reason:am.closeReason || '',
+          amo_selection_reason:am._leadbridgeSelectReason || '',
+          amo_other_leads_link:am.otherLeadsUrl,
+          amo_comment:am.comment,
+        });
+      });
+    });
+  });
+  return rows;
+}
+function toCsv(rows){
+  if(!rows.length) return '';
+  const headers = Object.keys(rows[0]);
+  const q=(v)=>`"${String(v??'').replace(/"/g,'""').replace(/\r?\n/g,' ')}"`;
+  return '\uFEFF' + headers.map(q).join(',') + '\n' + rows.map(r=>headers.map(h=>q(r[h])).join(',')).join('\n');
+}
+function download(name, content, type='text/plain;charset=utf-8'){
+  const blob = new Blob([content], {type});
+  downloadBlob(name, blob);
+}
+function downloadBlob(name, blob){
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+}
+function downloadUnifiedCsv(){ download('leadbridge_kso_matches.csv', toCsv(makeUnifiedRows()), 'text/csv;charset=utf-8'); }
+function downloadMarkdown(){
+  const lines = [`# LeadBridge: поиск сделок по анкетам КСО`, ``, `Авторство и идея разработки: Бочаров Ю.С.`, ``, `MAX file: ${state.maxFileName}`, `amoCRM file: ${state.amoFileName}`, `Generated: ${new Date().toLocaleString('ru-RU')}`, ``];
+  state.filtered.forEach(g=>{
+    lines.push(`## ☎ ${g.phone}`, ``);
+    lines.push(`Анкеты: ${g.max.length}; amoCRM: ${g.amo.length}; всего сделок по телефону: ${g.amoAll?.length || g.amo.length}`, ``);
+    lines.push(`| Источник | ID / сообщение | Телефон | ФИО | МОП | Город | Визит анкеты | Визит CRM | Создание CRM | Ссылка | Комментарий |`);
+    lines.push(`|---|---:|---|---|---|---|---|---|---|---|---|`);
+    g.max.forEach(r=>lines.push(`| анкета | #${md(r.messageIndex)} | ${g.phone} | ${md(r.fullName)} |  |  | ${md(formatDate(r.messageDate))} |  |  | ${md(r.messageUrl)} | ${md(r.comment)} |`));
+    g.amo.forEach(r=>lines.push(`| amoCRM | ${md(r.id)} | ${g.phone} | ${md(r.fullName)} | ${md(r.responsible)} | ${md([r.city,r.region].filter(Boolean).join(' / '))} |  | ${md(formatDate(r.visitDate))} | ${md(formatDate(r.createdAt))} | ${md(r.dealUrl)} | ${md(r.comment)} |`));
+    lines.push('');
+  });
+  download('leadbridge_kso_match_report.md', lines.join('\n'), 'text/markdown;charset=utf-8');
+}
+function md(s){ return String(s??'').replace(/\|/g,'\\|').replace(/\r?\n/g,'<br>'); }
+async function downloadHtmlReport(){
+  if(!state.filtered.length){ setNotice('Нет отфильтрованных совпадений для HTML-отчёта.', true); return; }
+  const imageMap = buildReportImageMap(state.filtered);
+  const html = buildStandaloneReportHtml(imageMap);
+  const files = [{name:'report.html', data:utf8(html)}];
+  const missing = [];
+  for(const item of imageMap.values()){
+    if(item.file) files.push({name:item.reportPath, data:new Uint8Array(await item.file.arrayBuffer())});
+    else missing.push(item.sourcePath);
+  }
+  if(missing.length) files.push({name:'missing_images.txt', data:utf8(missing.join('\n'))});
+  const zipBlob = new Blob([createZip(files)], {type:'application/zip'});
+  downloadBlob(`leadbridge_kso_html_report_${dateStampForFile()}.zip`, zipBlob);
+}
+function dateStampForFile(){
+  const d=new Date(); const p=n=>String(n).padStart(2,'0');
+  return `${p(d.getDate())}-${p(d.getMonth()+1)}-${String(d.getFullYear()).slice(-2)}_${p(d.getHours())}-${p(d.getMinutes())}`;
+}
+function safeReportImageName(path, i){
+  const norm = normalizeFsPath(path);
+  const low = norm.toLowerCase();
+  const idx = low.indexOf('attachments/');
+  const base = idx >= 0 ? norm.slice(idx + 'attachments/'.length) : (norm || `anketa_${i}.jpg`);
+  return 'images/' + base.replace(/[\\/:*?"<>|]+/g,'__').replace(/\s+/g,'_');
+}
+function buildReportImageMap(groups){
+  const map = new Map(); let i=1;
+  groups.forEach(g=>g.max.forEach(r=>{
+    if(!r.attachmentPath || map.has(r.attachmentPath)) return;
+    map.set(r.attachmentPath, {sourcePath:r.attachmentPath, reportPath:safeReportImageName(r.attachmentPath, i++), file:findImageFile(r.attachmentPath)});
+  }));
+  return map;
+}
+function renderGroupForReport(g, imageMap){
+  const mainName = g.names[0] || '';
+  const mainCity = g.cities[0] || '';
+  const mainRegion = g.regions[0] || '';
+  const chips = [`<span class="pill max">анкеты: ${g.max.length}</span>`,`<span class="pill amo">amoCRM: ${g.amo.length}</span>`,...(g.amo||[]).slice(0,3).map(r=>r.responsible?`<span class="pill">${esc(r.responsible)}</span>`:''),mainCity?`<span class="pill">${esc(mainCity)}</span>`:'',mainRegion?`<span class="pill">${esc(mainRegion)}</span>`:''].filter(Boolean).join('');
+  const rows = [...g.max.map(r=>renderRowForReport('max', g.phone, r, imageMap)), ...g.amo.map(r=>renderRowForReport('amo', g.phone, r, imageMap))].join('');
+  return `<article class="match"><div class="match-head"><div class="head-main"><div class="head-line"><div class="phone">☎ ${esc(g.phone)}</div><div class="head-title">${esc(mainName || 'ФИО не найдено')}</div></div><div class="head-sub"><span>нормализованный телефон / один блок совпадения</span>${mainCity?`<span>${esc(mainCity)}</span>`:''}${mainRegion?`<span>${esc(mainRegion)}</span>`:''}</div></div><div class="head-meta">${chips}</div></div><div class="tablebox"><table><colgroup><col class="source-cell"><col class="id-cell"><col class="phone-cell"><col class="fio-cell"><col class="mop-cell"><col class="city-cell"><col class="date-cell"><col class="date-cell"><col class="date-cell"><col class="link-cell"><col class="comment-cell"></colgroup><thead><tr><th>Источник</th><th>ID / сообщение</th><th>Телефон</th><th>ФИО клиента</th><th>МОП</th><th>Город</th><th>Визит анкеты</th><th>Визит CRM</th><th>Создание CRM</th><th>Анкета</th><th>Комментарий</th></tr></thead><tbody>${rows}</tbody></table></div></article>`;
+}
+function renderRowForReport(type, phone, r, imageMap){
+  if(type==='max'){
+    const img = imageMap.get(r.attachmentPath);
+    const link = img ? `<a href="${escAttr(img.reportPath)}" target="_blank" rel="noopener">открыть</a>` : '<span class="muted">нет</span>';
+    const displayStatus = r._leadbridgePhoneStatus || r.versionStatus || '';
+    const originalStatus = r._leadbridgeOriginalVersionStatus && r._leadbridgeOriginalVersionStatus !== displayStatus ? ` title="OCR status: ${escAttr(r._leadbridgeOriginalVersionStatus)}"` : '';
+    const id = `#${esc(r.messageIndex||'')}${r.attachmentPath?`<div class="muted small">${esc(r.attachmentPath)}</div>`:''}${displayStatus?`<div class="pill ${String(displayStatus).toUpperCase()==='CURRENT'?'max':'warn'}"${originalStatus}>${esc(displayStatus)}</div>`:''}`;
+    const comment = [r.comment, r.reply?`reply: ${r.reply}`:''].filter(Boolean).join('\n');
+    return `<tr><td><span class="pill max">${esc(r.sourceKind || 'анкета')}</span></td><td>${id}</td><td class="nowrap">${esc(phone)}</td><td>${esc(r.fullName)}</td><td class="muted">—</td><td class="muted">—</td><td>${esc(formatDate(r.messageDate))}</td><td class="muted">—</td><td class="muted">—</td><td>${link}</td><td class="comment">${esc(comment)}</td></tr>`;
+  }
+  const idLink = r.id ? `<a href="${esc(r.dealUrl)}" target="_blank" rel="noopener">${esc(r.id)}</a>${r.otherLeadsUrl?`<div><a class="dup-chip" href="${esc(r.otherLeadsUrl)}" target="_blank" rel="noopener">дубль</a></div>`:''}` : '<span class="muted">—</span>';
+  const visit = clean(r.visitDate) ? esc(formatDate(r.visitDate)) : '<span class="muted">пусто</span>';
+  const city = [r.city, r.region].filter(Boolean).join(' / ');
+  return `<tr><td><span class="pill amo">amoCRM</span></td><td>${idLink}</td><td class="nowrap">${esc(phone)}</td><td>${esc(r.fullName)}</td><td>${esc(r.responsible)}</td><td>${esc(city)}</td><td class="muted">—</td><td>${visit}</td><td>${esc(formatDate(r.createdAt))}</td><td class="muted">—</td><td class="comment">${esc(r.comment)}</td></tr>`;
+}
+function buildStandaloneReportHtml(imageMap){
+  const css = document.querySelector('style').textContent + `\n.top,.source-files,.filter-panel,.sticky-board,.loader,.notice{display:none!important}.wrap{padding:14px!important;max-width:1760px!important}.match{break-inside:avoid}.report-meta{margin:4px 0 14px;color:var(--muted)}`;
+  const missing = [...imageMap.values()].filter(x=>!x.file).length;
+  const warning = missing ? `<div class="notice bad" style="display:block!important">Не найдены картинки для ${missing} анкет. Для полного архива выбери папку attachments перед скачиванием отчёта.</div>` : '';
+  return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>LeadBridge report</title><style>${css}</style></head><body data-theme="${document.body.dataset.theme || 'dark'}"><main class="wrap"><h1>LeadBridge: поиск сделок по анкетам КСО</h1><div class="report-meta">Авторство и идея разработки: Бочаров Ю.С. · ${esc(new Date().toLocaleString('ru-RU'))}<br>MAX: ${esc(state.maxFileName)} · amoCRM: ${esc(state.amoFileName)} · изображений в архиве: ${[...imageMap.values()].filter(x=>x.file).length}</div>${warning}${state.filtered.map(g=>renderGroupForReport(g, imageMap)).join('')}</main></body></html>`;
+}
+
+function downloadUnmatchedCsv(kind){
+  const matched = new Set();
+  state.groups.forEach(g=>g[kind==='max'?'max':'amoAll'].forEach(r=>matched.add(kind==='max' ? r.messageIndex+'|'+r.attachmentPath : r.id)));
+  let rows;
+  if(kind==='max'){
+    rows = state.maxRows.filter(r=>!matched.has(r.messageIndex+'|'+r.attachmentPath)).map(r=>({phones:r.phones.join(';'),message_index:r.messageIndex,message_date:formatDate(r.messageDate),full_name:r.fullName,link:r.messageUrl,attachment:r.attachmentPath,comment:r.comment}));
+  } else {
+    rows = state.amoRows.filter(r=>!matched.has(r.id)).map(r=>({phones:r.phones.join(';'),lead_id:r.id,lead_link:r.dealUrl,full_name:r.fullName,responsible:r.responsible,city:r.city,region:r.region,visit_date:formatDate(r.visitDate),created_date:formatDate(r.createdAt), close_reason:r.closeReason||'', selection_reason:r._leadbridgeSelectReason||''}));
+  }
+  download(kind==='max'?'max_unmatched.csv':'amocrm_unmatched.csv', toCsv(rows), 'text/csv;charset=utf-8');
+}
+
+
+
+function utf8(s){ return new TextEncoder().encode(String(s ?? '')); }
+const CRC_TABLE = (()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[n]=c>>>0; } return t; })();
+function crc32(data){ let c=0xffffffff; for(let i=0;i<data.length;i++) c=CRC_TABLE[(c^data[i])&255]^(c>>>8); return (c^0xffffffff)>>>0; }
+function dosDateTime(d=new Date()){
+  const time = ((d.getHours()&31)<<11)|((d.getMinutes()&63)<<5)|((Math.floor(d.getSeconds()/2))&31);
+  const date = (((d.getFullYear()-1980)&127)<<9)|(((d.getMonth()+1)&15)<<5)|(d.getDate()&31);
+  return {time,date};
+}
+function push16(arr,n){ arr.push(n&255,(n>>>8)&255); }
+function push32(arr,n){ arr.push(n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255); }
+function concatU8(parts){ const len=parts.reduce((s,p)=>s+p.length,0); const out=new Uint8Array(len); let off=0; for(const p of parts){ out.set(p,off); off+=p.length; } return out; }
+function createZip(files){
+  const localParts=[], centralParts=[]; let offset=0; const now=dosDateTime();
+  for(const f of files){
+    const nameBytes=utf8(f.name.replace(/^\/+/,'').replace(/\\/g,'/'));
+    const data = f.data instanceof Uint8Array ? f.data : new Uint8Array(f.data);
+    const crc=crc32(data), size=data.length;
+    const local=[];
+    push32(local,0x04034b50); push16(local,20); push16(local,0); push16(local,0); push16(local,now.time); push16(local,now.date); push32(local,crc); push32(local,size); push32(local,size); push16(local,nameBytes.length); push16(local,0);
+    const localHeader=concatU8([new Uint8Array(local), nameBytes, data]);
+    localParts.push(localHeader);
+    const central=[];
+    push32(central,0x02014b50); push16(central,20); push16(central,20); push16(central,0); push16(central,0); push16(central,now.time); push16(central,now.date); push32(central,crc); push32(central,size); push32(central,size); push16(central,nameBytes.length); push16(central,0); push16(central,0); push16(central,0); push16(central,0); push32(central,0); push32(central,offset);
+    centralParts.push(concatU8([new Uint8Array(central), nameBytes]));
+    offset += localHeader.length;
+  }
+  const centralDir=concatU8(centralParts);
+  const end=[]; push32(end,0x06054b50); push16(end,0); push16(end,0); push16(end,files.length); push16(end,files.length); push32(end,centralDir.length); push32(end,offset); push16(end,0);
+  return concatU8([...localParts, centralDir, new Uint8Array(end)]);
+}
+
+function syncFixedTop(){
+  const top = document.querySelector('.top');
+  if(!top) return;
+  const maxH = Math.max(230, Math.floor(window.innerHeight * 0.58));
+  document.documentElement.style.setProperty('--top-max', maxH + 'px');
+  // top is fixed, so reserve exactly its visible height in normal document flow.
+  // requestAnimationFrame prevents stale height reads after filters/stats/buttons change.
+  requestAnimationFrame(()=>{
+    const h = Math.ceil(top.getBoundingClientRect().height || 0);
+    document.documentElement.style.setProperty('--top-offset', h + 'px');
+  });
+}
+let topResizeObserver = null;
+function initFixedTop(){
+  syncFixedTop();
+  window.addEventListener('resize', syncFixedTop, {passive:true});
+  if('ResizeObserver' in window){
+    topResizeObserver = new ResizeObserver(()=>syncFixedTop());
+    topResizeObserver.observe(document.querySelector('.top'));
+  }
+  setTimeout(syncFixedTop, 80);
+  setTimeout(syncFixedTop, 400);
+}
+
+
+function applyTheme(theme){
+  const value = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = value;
+  document.body.dataset.theme = value;
+  localStorage.setItem('leadbridge.theme', value);
+  const btn = $('themeToggleBtn');
+  if(btn){
+    btn.title = value === 'light' ? 'Светлая тема. Нажми для тёмной' : 'Тёмная тема. Нажми для светлой';
+    btn.innerHTML = value === 'light'
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"/></svg>';
+  }
+}
+function toggleTheme(){
+  applyTheme(document.body.dataset.theme === 'light' ? 'dark' : 'light');
+  syncFixedTop();
+}
+function initTheme(){
+  applyTheme(localStorage.getItem('leadbridge.theme') || 'dark');
+}
+
+function resetAll(){
+  state.maxRaw=state.amoRaw=null; state.maxRows=[]; state.amoRows=[]; state.groups=[]; state.filtered=[]; state.maxFileName=state.amoFileName=''; state.imageFiles.clear(); state.imageFolderName=''; clearImages(); resetPickButtons();
+  ['fileMax','fileAmo','fileZip','fileImages'].forEach(id=>{ const el=$(id); if(el) el.value=''; });
+  $('infoMax').textContent='файл не загружен'; $('infoAmo').textContent='файл не загружен'; updateImageSourceStatus(false, expectedZipMessage()); $('results').innerHTML=''; const actions=$('reportActions'); if(actions) actions.classList.add('hidden'); setSetupDrawer(false, false); syncFixedTop(); $('loader').textContent=''; $('loader').classList.add('hidden'); setNotice('Сброшено. Загрузи два файла.');
+}
+['filterResponsible','filterCity','filterDateFrom','filterDateTo','filterSearch','sortBy','sortDir','onlyNoCrmVisit','showCrmVisitCol','onlyCurrentMax'].forEach(id=>{
+  $(id).addEventListener('input', ()=>{ if(state.groups.length){ buildGroups(); applyFilters(); render(); } else { toggleCrmVisitColumn(); } });
+  $(id).addEventListener('change', ()=>{ if(state.groups.length){ buildGroups(); applyFilters(); render(); } else { toggleCrmVisitColumn(); } });
+});
+bindFileInput('max'); bindFileInput('amo'); bindImageFolder(); document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAnketaPreview(); }); setSetupDrawer(false, false); initTheme(); toggleCrmVisitColumn(); initFixedTop(); checkReleaseManifest();
+</script>
+</body>
+</html>

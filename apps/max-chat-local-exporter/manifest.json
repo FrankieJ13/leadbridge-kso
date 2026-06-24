@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "MAX Chat Local Exporter",
+  "version": "0.4.1",
+  "description": "Локальный экспорт подгруженной переписки MAX: сообщения, reply, ссылки на сообщения, картинки и автоназвание ZIP с количеством сообщений/вложений.",
+  "action": {
+    "default_title": "MAX Chat Exporter",
+    "default_popup": "popup.html"
+  },
+  "permissions": [
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://web.max.ru/*",
+    "https://*.max.ru/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://web.max.ru/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

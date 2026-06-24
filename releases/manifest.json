@@ -1,0 +1,50 @@
+{
+  "package_version": "v6.4.24.1144",
+  "leadbridge_matcher": "v6.4.24.1104",
+  "max_chat_local_exporter": "v0.4.1",
+  "max_chat_ocr_postprocessor": "v0.3.1",
+  "pages_entry": "index.html",
+  "release_tag": "v6.4.24.1144",
+  "local_data_policy": "Files are processed locally by the browser/tools; GitHub is used only for code, static page hosting and releases.",
+  "local_data_policy_ru": "Файлы MAX, amoCRM, OCR и картинки обрабатываются локально в браузере или локальных инструментах. GitHub используется только для кода, страницы запуска и релизов.",
+  "downloads": {
+    "tools": {
+      "macos": {
+        "label": "LeadBridge KSO tools for macOS",
+        "version": "v6.4.24.1144",
+        "file": "leadbridge-kso-tools-macos-v6.4.24.1144.zip",
+        "github_release_asset": "leadbridge-kso-tools-macos-v6.4.24.1144.zip",
+        "download_url": "releases/packages/leadbridge-kso-tools-macos-v6.4.24.1144.zip",
+        "installer": "install_macos.command"
+      },
+      "windows": {
+        "label": "LeadBridge KSO tools for Windows",
+        "version": "v6.4.24.1144",
+        "file": "leadbridge-kso-tools-windows-v6.4.24.1144.zip",
+        "github_release_asset": "leadbridge-kso-tools-windows-v6.4.24.1144.zip",
+        "download_url": "releases/packages/leadbridge-kso-tools-windows-v6.4.24.1144.zip",
+        "installer": "install_windows.ps1"
+      }
+    },
+    "components": {
+      "leadbridge_offline_html": {
+        "version": "v6.4.24.1104",
+        "file": "leadbridge-offline-html-v6.4.24.1104.zip",
+        "github_release_asset": "leadbridge-offline-html-v6.4.24.1104.zip",
+        "download_url": "releases/packages/leadbridge-offline-html-v6.4.24.1104.zip"
+      },
+      "max_chat_local_exporter": {
+        "version": "v0.4.1",
+        "file": "max-chat-local-exporter-v0.4.1.zip",
+        "github_release_asset": "max-chat-local-exporter-v0.4.1.zip",
+        "download_url": "releases/packages/max-chat-local-exporter-v0.4.1.zip"
+      },
+      "max_chat_ocr_postprocessor": {
+        "version": "v0.3.1",
+        "file": "max-chat-ocr-postprocessor-v0.3.1.zip",
+        "github_release_asset": "max-chat-ocr-postprocessor-v0.3.1.zip",
+        "download_url": "releases/packages/max-chat-ocr-postprocessor-v0.3.1.zip"
+      }
+    }
+  }
+}
