@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>LeadBridge: поиск сделок по анкетам КСО v6.4.24.1104</title>
   <meta name="theme-color" content="#05070a" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -157,6 +157,32 @@
     @media(max-width:480px){
       .top-actions{grid-template-columns:minmax(0,1fr) 42px 42px}.filter-panel,.compact-filters{grid-template-columns:1fr}.stats{grid-template-columns:1fr}.report-actions{grid-template-columns:1fr}.report-actions .btn:nth-child(3){grid-column:auto}.match table:not(.deals-table) td,.deals-table td{display:block}.match table:not(.deals-table) td::before,.deals-table td::before{display:block;margin-bottom:4px}.btn{white-space:normal}.load-more-wrap .btn{width:100%;min-width:0}
     }
+    .mobile-run-wrap{display:none}
+    @media(max-width:820px),(pointer:coarse) and (max-width:960px){
+      .filter-panel.compact-filters{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;padding:6px;border-radius:9px}
+      .compact-filters .search-ctrl,.compact-filters .checkbar{grid-column:1 / -1}
+      .compact-filters .ctrl{gap:2px;min-width:0;overflow:hidden}
+      .compact-filters .ctrl label{font-size:8px;line-height:1.1;letter-spacing:0;white-space:nowrap}
+      .compact-filters .ctrl input,.compact-filters .ctrl select,select,input[type="date"],input[type="text"]{height:34px;min-height:34px;font-size:13px;padding:4px 6px;border-radius:7px;max-width:100%;min-width:0}
+      .compact-filters .date-ctrl{min-width:0;overflow:hidden}
+      .compact-filters input[type="date"]{width:100%;font-size:12px;padding:4px 3px;-webkit-appearance:none;appearance:none}
+      .compact-filters .checkbar{display:grid;grid-template-columns:1fr;gap:5px}
+      .compact-filters .switch-chip{height:32px;min-height:32px;padding:5px 7px;border-radius:7px}
+      .compact-filters .switch-chip span{font-size:11px;white-space:nowrap}
+      .mobile-run-wrap.ready{display:block;margin:8px 0 4px}
+      .mobile-run-wrap .btn{width:100%;min-height:44px;font-size:14px;letter-spacing:.02em}
+      .report-actions:not(.hidden){display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+      .report-actions .btn{width:100%;min-height:32px;padding:4px 3px;font-size:10px;gap:2px;border-radius:7px;white-space:nowrap}
+      .report-actions .btn svg{width:12px;height:12px}
+      .report-actions .btn:nth-child(3){grid-column:auto}
+      .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+      .stat{min-height:34px;padding:4px 3px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:2px;white-space:nowrap}
+      .stat .n{font-size:13px;line-height:1}
+      .stat .t{max-width:100%;font-size:8px;line-height:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .downloadbar{padding:5px;gap:5px}
+      .downloadbar .left,.downloadbar .downloads{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+      .pill{font-size:10px;padding:2px 5px;line-height:1.1}
+    }
   </style>
 </head>
 <body>
@@ -171,9 +197,9 @@
           <div id="reportActions" class="report-actions hidden">
             <button class="btn icon-btn" onclick="downloadUnifiedCsv()" title="Скачать единый CSV со всеми совпадениями"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>.CSV</button>
             <button class="btn icon-btn" onclick="downloadMarkdown()" title="Скачать Markdown-отчёт по совпадениям"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>.MD</button>
-            <button class="btn icon-btn" onclick="downloadHtmlReport()" title="Скачать ZIP: HTML-отчёт и папка images с анкетами"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>.HTML-отчёт ZIP</button>
-            <button class="btn warn icon-btn" onclick="downloadUnmatchedCsv('max')" title="Скачать MAX .csv: анкеты/сообщения MAX без совпадения в amoCRM"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>MAX .csv</button>
-            <button class="btn warn icon-btn" onclick="downloadUnmatchedCsv('amo')" title="Скачать amoCRM .csv: сделки amoCRM без совпадения в MAX"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>amoCRM .csv</button>
+            <button class="btn icon-btn" onclick="downloadHtmlReport()" title="Скачать ZIP: HTML-отчёт и папка images с анкетами"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>.HTML</button>
+            <button class="btn warn icon-btn" onclick="downloadUnmatchedCsv('max')" title="Скачать MAX .csv: анкеты/сообщения MAX без совпадения в amoCRM"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>MAX</button>
+            <button class="btn warn icon-btn" onclick="downloadUnmatchedCsv('amo')" title="Скачать amoCRM .csv: сделки amoCRM без совпадения в MAX"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>amo</button>
           </div>
           <button class="btn primary" onclick="run()">ЗАПУСК</button>
           <button id="pwaInstallBtn" class="btn cyan hidden" onclick="installPwa()" title="Установить LeadBridge как PWA">Установить</button>
@@ -235,6 +261,9 @@
         </div>
       </div>
     </section>
+    <div id="mobileRunWrap" class="mobile-run-wrap" aria-hidden="true">
+      <button id="mobileRunBtn" class="btn primary" onclick="run()">ЗАПУСК</button>
+    </div>
     <div class="local-policy"><strong>Данные остаются на этом компьютере.</strong> GitHub Pages только открывает LeadBridge. Выбранные JSON/CSV/ZIP/папки читаются локально браузером и не отправляются на сервер.</div>
     <div id="mobileAdvice" class="mobile-advice"><strong>Смартфон-режим:</strong> amoCRM CSV читается чанками после выбора файла. Большие MAX JSON и ZIP с картинками всё ещё могут упереться в память браузера; результаты на телефоне показываются порциями.</div>
     <div id="releaseHint" class="release-hint hidden" aria-live="polite"></div>
@@ -277,6 +306,8 @@ const state = {
 };
 
 const $ = (id)=>document.getElementById(id);
+const LOCKED_VIEWPORT = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+const PREVIEW_VIEWPORT = 'width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover';
 const esc = (s)=>String(s ?? '').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const escAttr = (s)=>esc(s).replace(/'/g,'&#39;');
 const jsArg = (s)=>escAttr(JSON.stringify(String(s ?? '')));
@@ -289,6 +320,22 @@ function logLine(text){
   const time = new Date().toLocaleTimeString('ru-RU');
   el.textContent += `[${time}] ${text}\n`;
   el.scrollTop = el.scrollHeight;
+}
+function setViewportZoom(allow){
+  const meta = document.querySelector('meta[name="viewport"]');
+  if(meta) meta.setAttribute('content', allow ? PREVIEW_VIEWPORT : LOCKED_VIEWPORT);
+}
+function initZoomGuard(){
+  setViewportZoom(false);
+  const allowPreviewGesture = (target)=>{
+    const modal = $('anketaPreviewModal');
+    return modal && !modal.classList.contains('hidden') && target && target.closest && target.closest('#previewImg');
+  };
+  ['gesturestart','gesturechange','gestureend'].forEach(type=>{
+    document.addEventListener(type, (event)=>{
+      if(!allowPreviewGesture(event.target)) event.preventDefault();
+    }, {passive:false});
+  });
 }
 function setNotice(text, bad=false){ $('notice').className = bad ? 'notice bad' : 'notice'; $('notice').textContent = text; }
 function repoAssetUrl(path){
@@ -783,6 +830,16 @@ function resetPickButtons(){
   setPickButtonState('btnZipFile', false, 'Выбрать ZIP MAX');
   setPickButtonState('btnImagesFolder', false, 'Выбрать папку');
 }
+function mobileRunReady(){
+  return !!(state.maxRows.length && state.amoRows.length && state.imageFiles.size);
+}
+function updateMobileRunButton(){
+  const wrap = $('mobileRunWrap');
+  if(!wrap) return;
+  const ready = mobileRunReady();
+  wrap.classList.toggle('ready', ready);
+  wrap.setAttribute('aria-hidden', ready ? 'false' : 'true');
+}
 function bindFileInput(kind){
   const input = kind==='max' ? $('fileMax') : $('fileAmo');
   const drop = kind==='max' ? $('dropMax') : $('dropAmo');
@@ -834,6 +891,7 @@ function clearImages(){
   state.imageKeyCounts.clear();
   for(const url of state.imageObjectUrls.values()) URL.revokeObjectURL(url);
   state.imageObjectUrls.clear();
+  updateMobileRunButton();
 }
 function bindImageFolder(){
   const input = $('fileImages');
@@ -883,6 +941,7 @@ function loadImageFiles(fileList){
     updateImageSourceStatus(false, `Папка выбрана, но картинки не найдены. Выбери распакованную папку <b>attachments</b> или исходный ZIP MAX.`);
     setPickButtonState('btnImagesFolder', false, 'Выбрать папку');
   }
+  updateMobileRunButton();
 }
 function u16le(b,o){ return b[o] | (b[o+1]<<8); }
 function u32le(b,o){ return (b[o] | (b[o+1]<<8) | (b[o+2]<<16) | (b[o+3]<<24)) >>> 0; }
@@ -966,6 +1025,7 @@ async function loadZipImages(file){
     updateImageSourceStatus(false, `ZIP выбран, но не прочитан: ${esc(err.message)}. Распакуй архив и выбери папку <b>attachments</b>.`);
     setPickButtonState('btnZipFile', false, 'Выбрать ZIP MAX');
   }
+  updateMobileRunButton();
 }
 function mimeFromName(name){
   const n=String(name).toLowerCase();
@@ -987,11 +1047,15 @@ function openAnketaPreview(path){
   $('previewWarn').classList.toggle('hidden', !!file);
   $('previewWarn').textContent = file ? '' : 'Файл картинки не найден. Выбери исходный ZIP MAX или папку attachments, чтобы открыть точную OCR-картинку.';
   $('previewImg').src = url;
+  document.body.classList.add('preview-zoom-open');
+  setViewportZoom(true);
   $('anketaPreviewModal').classList.remove('hidden');
 }
 function closeAnketaPreview(){
   $('anketaPreviewModal').classList.add('hidden');
   $('previewImg').removeAttribute('src');
+  document.body.classList.remove('preview-zoom-open');
+  setViewportZoom(false);
 }
 function detectExpectedZipFromText(text){
   const m = String(text || '').match(/MAX_CHAT_EXPORT_[^"'\\/\s]+?(?:\.zip)?(?=["'\\/\s]|$)/);
@@ -1034,12 +1098,14 @@ async function loadSource(kind, file){
       logLine(`amocrm_schema: rows=${state.amoRows.length}, phones=${countPhones(state.amoRows)}`);
     }
     buildFilterOptions();
-    setNotice('Файл загружен. Когда будут загружены оба источника, нажми «Сделать матчинг».');
+    setNotice('Файл загружен. Верхний запуск доступен после MAX и amoCRM; нижняя мобильная кнопка появится после ZIP/папки с анкетами.');
   }catch(err){
     console.error(err);
     if(kind==='max') setPickButtonState('btnMaxFile', false, 'Выбрать файл MAX');
     else setPickButtonState('btnAmoFile', false, 'Выбрать amoCRM');
     setNotice(`Ошибка чтения файла: ${err.message}`, true);
+  }finally{
+    updateMobileRunButton();
   }
 }
 function countPhones(rows){ return rows.reduce((n,r)=>n+(r.phones?.length||0),0); }
@@ -1636,14 +1702,14 @@ function renderStats(){
   const maxWithout = state.maxRows.filter(r=>!matchedMax.has((r.messageIndex||'')+'|'+(r.attachmentPath||'')+'|'+(r.comment||''))).length;
   const amoWithout = state.amoRows.filter(r=>!matchedAmo.has(String(r.id||'')+'|'+(r.createdAt||'')+'|'+(r.fullName||''))).length;
   const items = [
-    ['телефонов совпало', matchedPhones],
-    ['после фильтров', filteredPhones],
-    ['MAX в совпадениях', maxInFiltered],
-    ['amoCRM выбрано', amoSelectedFiltered],
-    ['MAX без совпадений', maxWithout],
-    ['amoCRM без совпадений', amoWithout]
+    ['телефонов совпало', 'Тел.', matchedPhones],
+    ['после фильтров', 'Фильтр', filteredPhones],
+    ['MAX в совпадениях', 'MAX', maxInFiltered],
+    ['amoCRM выбрано', 'amo', amoSelectedFiltered],
+    ['MAX без совпадений', 'MAX-', maxWithout],
+    ['amoCRM без совпадений', 'amo-', amoWithout]
   ];
-  board.innerHTML = `<div class="stats">${items.map(([label,value])=>`<div class="stat"><span class="t">${esc(label)}:</span><span class="n">${esc(value)}</span></div>`).join('')}</div>`;
+  board.innerHTML = `<div class="stats">${items.map(([label,shortLabel,value])=>`<div class="stat" title="${escAttr(label)}"><span class="t">${esc(isMobileConstrained() ? shortLabel : label)}:</span><span class="n">${esc(value)}</span></div>`).join('')}</div>`;
   board.classList.remove('hidden');
   syncFixedTop();
 }
@@ -2052,13 +2118,13 @@ function initMobileMode(){
 function resetAll(){
   state.maxRaw=state.amoRaw=null; state.maxRows=[]; state.amoRows=[]; state.groups=[]; state.filtered=[]; state.maxFileName=state.amoFileName=''; state.imageFiles.clear(); state.imageFolderName=''; clearImages(); resetPickButtons();
   ['fileMax','fileAmo','fileZip','fileImages'].forEach(id=>{ const el=$(id); if(el) el.value=''; });
-  $('infoMax').textContent='файл не загружен'; $('infoAmo').textContent='файл не загружен'; updateImageSourceStatus(false, expectedZipMessage()); renderStartState(); const actions=$('reportActions'); if(actions) actions.classList.add('hidden'); setSetupDrawer(false, false); syncFixedTop(); $('loader').textContent=''; $('loader').classList.add('hidden'); setNotice('Сброшено. Загрузи два файла.');
+  $('infoMax').textContent='файл не загружен'; $('infoAmo').textContent='файл не загружен'; updateImageSourceStatus(false, expectedZipMessage()); renderStartState(); const actions=$('reportActions'); if(actions) actions.classList.add('hidden'); updateMobileRunButton(); setSetupDrawer(false, false); syncFixedTop(); $('loader').textContent=''; $('loader').classList.add('hidden'); setNotice('Сброшено. Загрузи файлы.');
 }
 ['filterResponsible','filterCity','filterDateFrom','filterDateTo','filterSearch','sortBy','sortDir','onlyNoCrmVisit','showCrmVisitCol','onlyCurrentMax'].forEach(id=>{
   $(id).addEventListener('input', ()=>{ if(state.groups.length){ buildGroups(); applyFilters(); render(); } else { toggleCrmVisitColumn(); } });
   $(id).addEventListener('change', ()=>{ if(state.groups.length){ buildGroups(); applyFilters(); render(); } else { toggleCrmVisitColumn(); } });
 });
-bindFileInput('max'); bindFileInput('amo'); bindImageFolder(); document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAnketaPreview(); }); setSetupDrawer(false, false); initTheme(); initMobileMode(); toggleCrmVisitColumn(); initFixedTop(); checkReleaseManifest(); initPwaInstall(); registerServiceWorker();
+bindFileInput('max'); bindFileInput('amo'); bindImageFolder(); document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAnketaPreview(); }); setSetupDrawer(false, false); initTheme(); initMobileMode(); initZoomGuard(); toggleCrmVisitColumn(); initFixedTop(); checkReleaseManifest(); initPwaInstall(); updateMobileRunButton(); registerServiceWorker();
 </script>
 </body>
 </html>

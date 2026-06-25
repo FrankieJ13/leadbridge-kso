@@ -7,6 +7,7 @@
 - Added smartphone memory safeguards for heavy CSV/JSON/ZIP/folder inputs and batched mobile result rendering.
 - Added chunked amoCRM CSV reading so large CSV files can be processed on smartphones without loading the whole file as one string.
 - Hardened PWA cache refresh so installed smartphone apps pick up new matcher code more reliably.
+- Refined mobile filters, report actions, stats, lower run button and PWA zoom behavior.
 - Tightened the initial mobile screen with a compact ready state instead of an empty results area.
 - Prepared GitHub-ready repository structure for GitHub Pages and GitHub Releases.
 - Added native build ZIP packages for Windows WPF/WebView2 and macOS AppKit/WKWebView DMG wrappers.
