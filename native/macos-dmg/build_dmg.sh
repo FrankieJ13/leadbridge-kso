@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$ROOT/../.." 2>/dev/null && pwd || true)"
-VERSION="v6.4.24.1144"
+VERSION="v8.2.09.1733"
 APP_NAME="LeadBridge KSO"
 BUNDLE_ID="ru.leadbridge.kso"
 EXECUTABLE="LeadBridgeKSO"
@@ -18,17 +18,15 @@ hydrate_web_assets() {
   if [ -f "$WEB_DIR/index.html" ]; then
     return
   fi
-  if [ ! -f "$REPO_ROOT/index.html" ]; then
+  CANONICAL_WEB="$REPO_ROOT/apps/leadbridge-web"
+  if [ ! -f "$CANONICAL_WEB/index.html" ]; then
     echo "Web/index.html is missing. Build from the generated ZIP package or from the repository root." >&2
     exit 1
   fi
 
   mkdir -p "$WEB_DIR"
-  cp "$REPO_ROOT/index.html" "$WEB_DIR/index.html"
-  if [ -d "$REPO_ROOT/releases" ]; then
-    rm -rf "$WEB_DIR/releases"
-    cp -R "$REPO_ROOT/releases" "$WEB_DIR/releases"
-  fi
+  cp -R "$CANONICAL_WEB/." "$WEB_DIR/"
+  rm -rf "$WEB_DIR/releases"
 }
 
 hydrate_web_assets

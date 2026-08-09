@@ -35,7 +35,7 @@ public partial class MainWindow : Window
 
             Browser.CoreWebView2.NavigationCompleted += Browser_NavigationCompleted;
             Browser.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
-            Browser.CoreWebView2.Settings.AreDevToolsEnabled = true;
+            Browser.CoreWebView2.Settings.AreDevToolsEnabled = false;
 
             OpenGitHubPages();
         }

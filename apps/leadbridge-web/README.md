@@ -1,8 +1,13 @@
-# LeadBridge Web
+# LeadBridge Web v8.2.09.1733
 
-Static HTML/JS/CSS matcher for GitHub Pages and offline use.
+This directory is the canonical Web/PWA source. Edit files here, then run:
 
-- `index.html` is the GitHub Pages entry.
-- `offline_phone_matcher.html` is the same app kept for offline package compatibility.
+```bash
+python3 tools/sync_web_assets.py
+```
 
-The app reads local files only after the operator selects them through browser file inputs. It does not upload MAX, amoCRM or attachment files.
+The sync tool generates root GitHub Pages assets and `offline_phone_matcher.html`. CI runs `--verify` and fails on drift. Release tooling copies this same source into offline and native fallback packages.
+
+`index.html` loads local `app.css`, `app.js` and `src/*.js`, so it remains usable when opened directly from the unpacked offline package. The application reads files only after explicit browser selection and does not upload MAX, amoCRM or attachment data.
+
+The CSP restricts scripts, styles and connections to the local application origin. Blob/data image sources remain available for selected questionnaire previews and generated reports.

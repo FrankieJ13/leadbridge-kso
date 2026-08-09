@@ -22,24 +22,54 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
+import time
 import zipfile
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
+from urllib.parse import unquote, urlsplit
 
 try:
+    import PIL
     from PIL import Image, ImageOps, ImageFilter
 except Exception:  # pragma: no cover
+    PIL = None
     Image = None
     ImageOps = None
     ImageFilter = None
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
 DEFAULT_LANG = "rus+eng"
-VERSION = "0.3.1"
+VERSION = "8.2.09.1733"
+
+# MAX exports can be large, but archive-controlled resource use must remain finite.
+MAX_ZIP_FILES = 25_000
+MAX_ZIP_TOTAL_UNCOMPRESSED = 8 * 1024 * 1024 * 1024
+MAX_ZIP_SINGLE_FILE = 512 * 1024 * 1024
+MAX_ZIP_COMPRESSION_RATIO = 200
+MAX_ZIP_PATH_LENGTH = 512
+MAX_ZIP_PATH_DEPTH = 24
+ZIP_COPY_CHUNK_SIZE = 1024 * 1024
+
+
+class UnsafeArchiveError(ValueError):
+    """Raised when an archive violates an extraction security invariant."""
+
+
+class UnsafeAttachmentPath(ValueError):
+    """Raised when export-controlled input points outside the export root."""
+
+
+@dataclass
+class ArchiveExtractionStats:
+    input_type: str
+    files: int = 0
+    total_uncompressed: int = 0
+    warnings: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -95,6 +125,32 @@ def safe_text(value: Any) -> str:
     return str(value).strip()
 
 
+def spreadsheet_safe(value: Any) -> Any:
+    if value is None:
+        return ""
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return value
+    text = str(value)
+    return "'" + text if re.match(r"^[=+\-@\t\r]", text) else text
+
+
+def spreadsheet_safe_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    return {key: spreadsheet_safe(value) for key, value in row.items()}
+
+
+def safe_https_url(value: Any, allowed_domains: Tuple[str, ...]) -> str:
+    try:
+        parsed = urlsplit(str(value or ""))
+    except ValueError:
+        return ""
+    hostname = (parsed.hostname or "").lower().rstrip(".")
+    if parsed.scheme != "https" or not hostname or parsed.username or parsed.password:
+        return ""
+    if not any(hostname == domain or hostname.endswith("." + domain) for domain in allowed_domains):
+        return ""
+    return parsed.geturl()
+
+
 def first_present(d: Dict[str, Any], keys: Iterable[str], default: Any = "") -> Any:
     for key in keys:
         if key in d and d[key] not in (None, ""):
@@ -102,19 +158,142 @@ def first_present(d: Dict[str, Any], keys: Iterable[str], default: Any = "") -> 
     return default
 
 
-def unpack_if_needed(input_path: Path, work_dir: Path) -> Path:
+def _is_within(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def _decoded_path(value: str) -> str:
+    decoded = value
+    for _ in range(3):
+        next_value = unquote(decoded)
+        if next_value == decoded:
+            break
+        decoded = next_value
+    return decoded
+
+
+def _safe_relative_parts(raw_path: str, *, source: str) -> Tuple[str, ...]:
+    value = _decoded_path(str(raw_path or "").strip())
+    if not value or "\x00" in value:
+        raise UnsafeAttachmentPath(f"{source}: unsafe path (empty or NUL)")
+    if len(value) > MAX_ZIP_PATH_LENGTH:
+        raise UnsafeAttachmentPath(f"{source}: unsafe path (path too long)")
+
+    normalized = value.replace("\\", "/")
+    if normalized.startswith("/") or normalized.startswith("//") or re.match(r"^[A-Za-z]:", normalized):
+        raise UnsafeAttachmentPath(f"{source}: unsafe path (absolute path)")
+
+    parts = tuple(part for part in normalized.split("/") if part not in ("", "."))
+    if not parts or any(part == ".." for part in parts):
+        raise UnsafeAttachmentPath(f"{source}: unsafe path (parent traversal)")
+    if len(parts) > MAX_ZIP_PATH_DEPTH:
+        raise UnsafeAttachmentPath(f"{source}: unsafe path (path too deep)")
+    return parts
+
+
+def _zip_member_parts(info: zipfile.ZipInfo) -> Tuple[str, ...]:
+    try:
+        return _safe_relative_parts(info.filename, source="ZIP")
+    except UnsafeAttachmentPath as exc:
+        raise UnsafeArchiveError(str(exc)) from exc
+
+
+def _zip_member_is_symlink(info: zipfile.ZipInfo) -> bool:
+    unix_mode = (info.external_attr >> 16) & 0xFFFF
+    return stat.S_ISLNK(unix_mode)
+
+
+def safe_extract_zip(zip_path: Path, extract_dir: Path) -> ArchiveExtractionStats:
+    """Validate every member first, then copy each approved member explicitly."""
+    extract_dir = extract_dir.resolve()
+    if extract_dir.exists():
+        shutil.rmtree(extract_dir)
+
+    stats = ArchiveExtractionStats(input_type="zip")
+    validated: List[Tuple[zipfile.ZipInfo, Tuple[str, ...]]] = []
+    seen_paths = set()
+
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            for info in zf.infolist():
+                if _zip_member_is_symlink(info):
+                    raise UnsafeArchiveError(f"ZIP: symlink entry rejected: {info.filename}")
+
+                parts = _zip_member_parts(info)
+                path_key = "/".join(parts).casefold()
+                if path_key in seen_paths:
+                    raise UnsafeArchiveError(f"ZIP: duplicate path rejected: {info.filename}")
+                seen_paths.add(path_key)
+
+                target = (extract_dir.joinpath(*parts)).resolve()
+                if not _is_within(target, extract_dir) or target == extract_dir:
+                    raise UnsafeArchiveError(f"ZIP: unsafe path rejected: {info.filename}")
+
+                unix_mode = (info.external_attr >> 16) & 0xFFFF
+                file_type = stat.S_IFMT(unix_mode)
+                if file_type and not info.is_dir() and file_type != stat.S_IFREG:
+                    raise UnsafeArchiveError(f"ZIP: unsupported special entry rejected: {info.filename}")
+
+                if not info.is_dir():
+                    stats.files += 1
+                    stats.total_uncompressed += info.file_size
+                    if stats.files > MAX_ZIP_FILES:
+                        raise UnsafeArchiveError(f"ZIP: too many files (limit {MAX_ZIP_FILES})")
+                    if info.file_size > MAX_ZIP_SINGLE_FILE:
+                        raise UnsafeArchiveError(f"ZIP: single file too large: {info.filename}")
+                    if stats.total_uncompressed > MAX_ZIP_TOTAL_UNCOMPRESSED:
+                        raise UnsafeArchiveError("ZIP: archive too large (uncompressed size limit exceeded)")
+                    if info.file_size and not info.compress_size:
+                        raise UnsafeArchiveError(f"ZIP: suspicious compression ratio: {info.filename}")
+                    if info.compress_size and info.file_size / info.compress_size > MAX_ZIP_COMPRESSION_RATIO:
+                        raise UnsafeArchiveError(f"ZIP: suspicious compression ratio: {info.filename}")
+
+                validated.append((info, parts))
+
+            extract_dir.mkdir(parents=True, exist_ok=False)
+            copied_total = 0
+            for info, parts in validated:
+                target = extract_dir.joinpath(*parts)
+                if info.is_dir():
+                    target.mkdir(parents=True, exist_ok=True)
+                    continue
+                target.parent.mkdir(parents=True, exist_ok=True)
+                copied_file = 0
+                with zf.open(info, "r") as source_file, target.open("xb") as destination:
+                    while True:
+                        chunk = source_file.read(ZIP_COPY_CHUNK_SIZE)
+                        if not chunk:
+                            break
+                        copied_file += len(chunk)
+                        copied_total += len(chunk)
+                        if copied_file > MAX_ZIP_SINGLE_FILE or copied_total > MAX_ZIP_TOTAL_UNCOMPRESSED:
+                            raise UnsafeArchiveError("ZIP: archive expanded beyond declared safety limits")
+                        destination.write(chunk)
+                if copied_file != info.file_size:
+                    raise UnsafeArchiveError(f"ZIP: extracted size mismatch: {info.filename}")
+    except Exception:
+        if extract_dir.exists():
+            shutil.rmtree(extract_dir)
+        raise
+
+    return stats
+
+
+def unpack_if_needed(input_path: Path, work_dir: Path) -> Tuple[Path, ArchiveExtractionStats]:
     if input_path.is_file() and input_path.suffix.lower() == ".zip":
         extract_dir = work_dir / "extracted_export"
-        extract_dir.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(input_path, "r") as zf:
-            zf.extractall(extract_dir)
+        stats = safe_extract_zip(input_path, extract_dir)
         # If ZIP contains a single root folder, use it.
         children = [p for p in extract_dir.iterdir() if not p.name.startswith("__MACOSX")]
         if len(children) == 1 and children[0].is_dir():
-            return children[0]
-        return extract_dir
+            return children[0], stats
+        return extract_dir, stats
     if input_path.is_dir():
-        return input_path
+        return input_path, ArchiveExtractionStats(input_type="folder")
     raise FileNotFoundError(f"Не найден ZIP или папка экспорта: {input_path}")
 
 
@@ -239,38 +418,55 @@ def normalize_messages(export_root: Path) -> List[Dict[str, Any]]:
 
 
 def resolve_attachment(export_root: Path, rel_path: str) -> Optional[Path]:
-    p = Path(rel_path)
-    candidates = []
-    if p.is_absolute():
-        candidates.append(p)
-    candidates.extend(
-        [
-            export_root / rel_path,
-            export_root / p.name,
-            export_root / "attachments" / rel_path,
-            export_root / "attachments" / p.name,
-        ]
-    )
+    root = export_root.resolve()
+    parts = _safe_relative_parts(rel_path, source="attachment")
+    name = parts[-1]
+    candidates = [
+        root.joinpath(*parts),
+        root / name,
+        root.joinpath("attachments", *parts),
+        root / "attachments" / name,
+    ]
     for candidate in candidates:
-        if candidate.exists() and candidate.is_file():
-            return candidate
+        resolved = candidate.resolve()
+        if not _is_within(resolved, root):
+            raise UnsafeAttachmentPath(f"attachment: unsafe path outside export root: {rel_path}")
+        if resolved.exists() and resolved.is_file():
+            return resolved
 
-    # Fallback: search by filename in attachments folder.
-    attachments_dir = export_root / "attachments"
-    if attachments_dir.exists():
-        matches = list(attachments_dir.rglob(p.name))
-        if matches:
-            return matches[0]
+    # Filename fallback remains confined to the export root and its attachments tree.
+    search_roots = [root / "attachments", root]
+    seen_roots = set()
+    for search_root in search_roots:
+        resolved_search_root = search_root.resolve()
+        if resolved_search_root in seen_roots or not resolved_search_root.exists() or not _is_within(resolved_search_root, root):
+            continue
+        seen_roots.add(resolved_search_root)
+        for match in resolved_search_root.rglob(name):
+            resolved = match.resolve()
+            if _is_within(resolved, root) and resolved.is_file():
+                return resolved
     return None
 
 
-def ensure_tesseract_available(tesseract_cmd: str) -> None:
+def tesseract_version(tesseract_cmd: str) -> str:
     try:
-        subprocess.run([tesseract_cmd, "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, text=True, encoding="utf-8", errors="replace")
+        proc = subprocess.run(
+            [tesseract_cmd, "--version"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
     except FileNotFoundError as exc:
         raise RuntimeError(
             "Tesseract не найден. Установи Tesseract OCR и убедись, что команда tesseract доступна в PATH."
         ) from exc
+    if proc.returncode != 0:
+        raise RuntimeError((proc.stderr or proc.stdout or "Не удалось получить версию Tesseract").strip())
+    return (proc.stdout or proc.stderr or "unknown").splitlines()[0].strip()
 
 
 def preprocess_image(src: Path, dst: Path, upscale: int = 2) -> Path:
@@ -435,8 +631,12 @@ def ocr_attachment(
     psm: int,
     timeout: int,
 ) -> AttachmentOCR:
-    file_name = Path(rel_path).name
-    src = resolve_attachment(export_root, rel_path)
+    file_name = Path(str(rel_path).replace("\\", "/")).name
+    try:
+        src = resolve_attachment(export_root, rel_path)
+    except UnsafeAttachmentPath as exc:
+        log(f"Отклонён небезопасный путь вложения: {rel_path} ({exc})")
+        return AttachmentOCR(attachment_index, rel_path, file_name, "", [], [], "unsafe_path", str(exc))
     if not src:
         return AttachmentOCR(attachment_index, rel_path, file_name, "", [], [], "missing", "Файл вложения не найден")
     if src.suffix.lower() not in IMAGE_EXTENSIONS:
@@ -922,7 +1122,7 @@ def make_outputs(export_root: Path, messages: List[MessageOCR], out_dir: Path, c
 
     # JSON
     json_data = {
-        "source_export": str(export_root),
+        "source_export": export_root.name,
         "cases": case_summaries,
         "messages": [
             {
@@ -1022,7 +1222,7 @@ def make_outputs(export_root: Path, messages: List[MessageOCR], out_dir: Path, c
             writer = csv.DictWriter(f, fieldnames=all_keys)
             writer.writeheader()
             for row in flat_rows:
-                writer.writerow(row)
+                writer.writerow(spreadsheet_safe_row(row))
 
     # TXT
     txt_parts: List[str] = []
@@ -1094,7 +1294,7 @@ def make_outputs(export_root: Path, messages: List[MessageOCR], out_dir: Path, c
         for m in messages:
             if not m.attachment_ocr:
                 writer.writerow(
-                    {
+                    spreadsheet_safe_row({
                         "message_index": m.message_index,
                         "datetime": m.datetime,
                         "author": m.author,
@@ -1111,11 +1311,11 @@ def make_outputs(export_root: Path, messages: List[MessageOCR], out_dir: Path, c
                         "names": "",
                         "phones": "",
                         "ocr_text": "",
-                    }
+                    })
                 )
             for a in m.attachment_ocr:
                 writer.writerow(
-                    {
+                    spreadsheet_safe_row({
                         "message_index": m.message_index,
                         "datetime": m.datetime,
                         "author": m.author,
@@ -1132,7 +1332,7 @@ def make_outputs(export_root: Path, messages: List[MessageOCR], out_dir: Path, c
                         "names": "; ".join(a.names),
                         "phones": "; ".join(a.phones),
                         "ocr_text": a.ocr_text,
-                    }
+                    })
                 )
 
     # Case/version summary
@@ -1152,7 +1352,7 @@ def make_outputs(export_root: Path, messages: List[MessageOCR], out_dir: Path, c
         writer.writeheader()
         for case in case_summaries.values():
             writer.writerow(
-                {
+                spreadsheet_safe_row({
                     "case_key": case.get("case_key", ""),
                     "version_count": case.get("version_count", ""),
                     "current_message_index": case.get("current_message_index", ""),
@@ -1160,7 +1360,7 @@ def make_outputs(export_root: Path, messages: List[MessageOCR], out_dir: Path, c
                     "names": "; ".join(case.get("names", [])),
                     "phones": "; ".join(case.get("phones", [])),
                     "all_versions": json.dumps(case.get("all_versions", []), ensure_ascii=False),
-                }
+                })
             )
 
     # HTML
@@ -1189,10 +1389,12 @@ def make_outputs(export_root: Path, messages: List[MessageOCR], out_dir: Path, c
         meta = " | ".join(x for x in [m.datetime, m.author] if x)
         if meta:
             html_parts.append(f'<div class="meta">{html.escape(meta)}</div>')
-        if m.message_url:
-            html_parts.append(f'<div class="meta"><a href="{html.escape(m.message_url)}" target="_blank" rel="noopener">Ссылка MAX</a></div>')
-        elif m.max_chat_url:
-            html_parts.append(f'<div class="meta">Ссылка MAX не найдена; чат: <a href="{html.escape(m.max_chat_url)}" target="_blank" rel="noopener">открыть чат</a></div>')
+        message_url = safe_https_url(m.message_url, ("max.ru",))
+        chat_url = safe_https_url(m.max_chat_url, ("max.ru",))
+        if message_url:
+            html_parts.append(f'<div class="meta"><a href="{html.escape(message_url)}" target="_blank" rel="noopener">Ссылка MAX</a></div>')
+        elif chat_url:
+            html_parts.append(f'<div class="meta">Ссылка MAX не найдена; чат: <a href="{html.escape(chat_url)}" target="_blank" rel="noopener">открыть чат</a></div>')
         if m.reply_text:
             target = f"#{m.reply_to_message_index}" if m.reply_to_message_index else "цель не найдена"
             html_parts.append(f'<div class="reply"><b>Ответ на:</b> {html.escape(target)}<br><b>Цитата:</b><br>{html.escape(m.reply_text)}</div>')
@@ -1205,7 +1407,10 @@ def make_outputs(export_root: Path, messages: List[MessageOCR], out_dir: Path, c
         for a in m.attachment_ocr:
             html_parts.append('<div class="att">')
             html_parts.append(f"<h3>Расшифровка img: {html.escape(a.original_path)}</h3>")
-            src_path = resolve_attachment(export_root, a.original_path)
+            try:
+                src_path = resolve_attachment(export_root, a.original_path)
+            except UnsafeAttachmentPath:
+                src_path = None
             if src_path:
                 try:
                     rel_from_out = os.path.relpath(src_path, out_dir)
@@ -1271,12 +1476,15 @@ def main() -> int:
     parser.add_argument("--timeout", type=int, default=90, help="Таймаут OCR одного изображения, секунд")
     args = parser.parse_args()
 
+    started_at = time.monotonic()
     input_path = Path(args.input).expanduser().resolve()
     log(f"MAX Chat OCR Postprocessor v{VERSION}")
-    ensure_tesseract_available(args.tesseract)
+    tess_version = tesseract_version(args.tesseract)
+    pillow_version = getattr(PIL, "__version__", "not installed") if PIL is not None else "not installed"
+    log(f"Python: {sys.version.split()[0]}; Pillow: {pillow_version}; Tesseract: {tess_version}; языки: {args.lang}")
 
     with tempfile.TemporaryDirectory(prefix="max_export_") as tmp:
-        root = unpack_if_needed(input_path, Path(tmp))
+        root, archive_stats = unpack_if_needed(input_path, Path(tmp))
         export_root = find_export_root(root)
         if args.output:
             out_dir = Path(args.output).expanduser().resolve()
@@ -1331,6 +1539,28 @@ def main() -> int:
 
         case_summaries = assign_form_versions(enriched)
         make_outputs(export_root, enriched, out_dir, case_summaries)
+        statuses = [attachment.status for message in enriched for attachment in message.attachment_ocr]
+        diagnostics = {
+            "app_version": VERSION,
+            "python_version": sys.version.split()[0],
+            "pillow_version": pillow_version,
+            "tesseract_version": tess_version,
+            "ocr_languages": args.lang,
+            "input_type": archive_stats.input_type,
+            "message_count": len(enriched),
+            "attachment_count": len(statuses),
+            "ocr_success_count": statuses.count("ok"),
+            "ocr_error_count": sum(status not in ("ok", "skipped") for status in statuses),
+            "unsafe_paths_rejected": statuses.count("unsafe_path"),
+            "archive_files": archive_stats.files,
+            "archive_uncompressed_bytes": archive_stats.total_uncompressed,
+            "archive_limit_warnings": archive_stats.warnings,
+            "elapsed_seconds": round(time.monotonic() - started_at, 3),
+        }
+        (out_dir / "diagnostics.json").write_text(
+            json.dumps(diagnostics, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
         log(f"Готово: {out_dir}")
         log(f"Версионных групп: {len(case_summaries)}")
         return 0

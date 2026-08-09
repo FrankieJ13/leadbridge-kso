@@ -2,7 +2,7 @@ import Cocoa
 import WebKit
 
 private let appName = "LeadBridge KSO"
-private let appVersion = "v6.4.24.1144"
+private let appVersion = "v8.2.09.1733"
 private let gitHubPagesURL = URL(string: "https://frankiej13.github.io/leadbridge-kso/")!
 
 final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {

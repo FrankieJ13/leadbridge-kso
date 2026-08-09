@@ -2,7 +2,7 @@
 
 ## Install Tools Pack
 
-1. Download `leadbridge-kso-tools-windows-v6.4.24.1144.zip` from GitHub Releases or from `releases/packages/`.
+1. Download `leadbridge-kso-tools-windows-v8.2.09.1733.zip` from GitHub Releases or from `releases/packages/` and verify it against `releases/SHA256SUMS`.
 2. Unzip it.
 3. Right-click `install_windows.ps1` and run with PowerShell.
 

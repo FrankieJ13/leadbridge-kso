@@ -1,4 +1,4 @@
-# MAX Chat OCR Postprocessor v0.3.1
+# MAX Chat OCR Postprocessor v8.2.09.1733
 
 Локальный OCR-процессор для ZIP/папки экспорта MAX.
 
@@ -15,6 +15,7 @@
   - `forms_md/`
   - `ocr_summary.csv`
   - `cases_summary.csv`
+  - `diagnostics.json`
 
 ## Что изменилось в v0.3.1
 
@@ -60,3 +61,12 @@ messages_ocr.json
 В нём есть и OCR-анкеты, и обычные текстовые сообщения MAX. Это важно для поиска телефонов по всей выгрузке.
 
 `forms_structured.json` и `forms_flat.csv` остаются полезными для проверки только OCR-анкет, но для полного матчинга LeadBridge нужен `messages_ocr.json`.
+
+## Security hardening v8.2.09.1733
+
+- ZIP распаковывается только после полной проверки путей, symlink и лимитов размера/сжатия.
+- Пути вложений из JSON/CSV разрешаются только внутри корня выбранного экспорта.
+- Небезопасные вложения получают статус `unsafe_path` и не читаются.
+- `diagnostics.json` содержит версии Python/Pillow/Tesseract, языки OCR, счётчики и время обработки без пользовательских секретов.
+
+Для release tools pack требуется Python 3.10+; Pillow зафиксирован точной версией в `requirements.txt`.

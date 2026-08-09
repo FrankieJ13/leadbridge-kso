@@ -1,5 +1,19 @@
 # Changelog
 
+## v8.2.09.1733
+
+- Hardened ZIP extraction against ZIP Slip, absolute paths, symlinks, suspicious compression and archive resource exhaustion.
+- Sandboxed OCR attachment paths to the selected export root and added `unsafe_path` diagnostics.
+- Fixed service-worker cache cleanup so caches belonging to other applications are preserved.
+- Added spreadsheet-safe CSV export for untrusted MAX, amoCRM and OCR text.
+- Restricted Chrome extension cross-origin fetches to HTTPS MAX/documented CDN domains with sender, count, length, type and size checks.
+- Added SHA-256 and byte-size metadata plus `releases/SHA256SUMS` for release artifacts.
+- Established `apps/leadbridge-web/` as canonical Web source with generated Pages, offline and native fallback copies.
+- Extracted Web CSS/JS, removed inline event handlers and enabled a restrictive local-data CSP.
+- Restored user zoom throughout the responsive/PWA interface.
+- Added Python and JavaScript security/matching regression tests plus GitHub Actions CI.
+- Added exporter/OCR/build diagnostics and unified current metadata on `v8.2.09.1733`.
+
 ## v6.4.24.1144
 
 - Added responsive smartphone layout across forms, panels, actions, result tables and deal tables.

@@ -18,7 +18,7 @@ MAX_CHAT_EXPORT_.../
   messages.csv
   messages.txt
   attachments_manifest.csv
-  attachments_manifest.csv
+  diagnostics.json
   attachments/
     msg_0001/
       att_01.jpg
@@ -95,7 +95,7 @@ MAX_CHAT_EXPORT_.../
 1. читает DOM открытого `web.max.ru`;
 2. скачивает изображения, ссылки на которые уже найдены в открытом чате, чтобы положить их в локальный ZIP.
 
-В `manifest.json` есть широкое `host_permissions: https://*/*`. Это нужно не для чтения всех сайтов, а чтобы background script мог скачать картинки, если MAX отдаёт их с CDN вне `web.max.ru`. Content script всё равно запускается только на `https://web.max.ru/*`.
+Расширение не имеет `https://*/*`. `host_permissions` ограничены `max.ru` и документированными MAX CDN-зонами `oneme.ru`/`okcdn.ru`. Background принимает запрос только от собственного content script на `https://web.max.ru/`, разрешает только HTTPS-изображения и ограничивает число/длину URL и размер ответа. Cookies используются только для доменов `max.ru`; CDN загружаются с `credentials: omit`.
 
 ## Быстрая проверка кода
 
@@ -135,3 +135,9 @@ MAX_CHAT_EXPORT_1698msg_1149att_22-06-26_23-49.zip
 - `22-06-26_23-49` — локальная дата и время создания архива в формате `дд-мм-гг_чч-мм`.
 
 Точное количество именно распознанных анкет появляется после OCR в `forms_structured.json` / `forms_flat.csv`. На этапе Chrome-экспорта расширение честно считает вложения, потому что ещё не знает, анкета это или другая картинка.
+
+## v8.2.09.1733
+
+- Добавлен безопасный URL policy для background fetch bridge.
+- Добавлен `diagnostics.json` без cookies, токенов и query-параметров URL.
+- CSV защищён от spreadsheet formula injection.

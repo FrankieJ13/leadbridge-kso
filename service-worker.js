@@ -1,6 +1,13 @@
-const CACHE_NAME = 'leadbridge-kso-pwa-v6.4.24.1144-4';
+importScripts('./src/security.js');
+
+const CACHE_NAME = 'leadbridge-kso-pwa-v8.2.09.1733-1';
 const APP_SHELL = [
   './index.html',
+  './app.css',
+  './app.js',
+  './src/security.js',
+  './src/csv.js',
+  './src/matching.js',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/icon-192.png',
@@ -24,7 +31,9 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(
+        LeadBridgeSecurity.cacheKeysToDelete(keys, CACHE_NAME).map((key) => caches.delete(key))
+      ))
       .then(() => self.clients.claim())
   );
 });

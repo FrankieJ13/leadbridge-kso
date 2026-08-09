@@ -5,7 +5,7 @@ $ProjectDir = Join-Path $Root 'LeadBridgeKSO.Windows'
 $Project = Join-Path $ProjectDir 'LeadBridgeKSO.Windows.csproj'
 $WebDir = Join-Path $ProjectDir 'Web'
 $RepoRoot = Resolve-Path (Join-Path $Root '..\..') -ErrorAction SilentlyContinue
-$Version = 'v6.4.24.1144'
+$Version = 'v8.2.09.1733'
 $PublishDir = Join-Path $Root "dist\LeadBridgeKSO-Windows-WPF-$Version"
 $ZipPath = Join-Path $Root "dist\LeadBridgeKSO-Windows-WPF-$Version.zip"
 
@@ -13,15 +13,12 @@ function Copy-WebAssets {
   if (Test-Path (Join-Path $WebDir 'index.html')) {
     return
   }
-  if (-not $RepoRoot -or -not (Test-Path (Join-Path $RepoRoot 'index.html'))) {
+  $CanonicalWeb = if ($RepoRoot) { Join-Path $RepoRoot 'apps\leadbridge-web' } else { $null }
+  if (-not $CanonicalWeb -or -not (Test-Path (Join-Path $CanonicalWeb 'index.html'))) {
     throw 'Web/index.html is missing. Build from the generated ZIP package or from the repository root.'
   }
 
-  New-Item -ItemType Directory -Force -Path $WebDir | Out-Null
-  Copy-Item (Join-Path $RepoRoot 'index.html') (Join-Path $WebDir 'index.html') -Force
-  if (Test-Path (Join-Path $RepoRoot 'releases')) {
-    Copy-Item (Join-Path $RepoRoot 'releases') (Join-Path $WebDir 'releases') -Recurse -Force
-  }
+  Copy-Item $CanonicalWeb $WebDir -Recurse -Force
 }
 
 Copy-WebAssets

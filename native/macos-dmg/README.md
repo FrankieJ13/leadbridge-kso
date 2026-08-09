@@ -35,7 +35,7 @@ Output:
 
 ```text
 build/LeadBridge KSO.app
-dist/LeadBridgeKSO-macOS-DMG-v6.4.24.1144.dmg
+dist/LeadBridgeKSO-macOS-DMG-v8.2.09.1733.dmg
 ```
 
 ## Distribution Note
@@ -50,4 +50,4 @@ Change the GitHub Pages URL in:
 Sources/LeadBridgeKSOApp.swift
 ```
 
-The build package includes `Web/index.html` for offline fallback. When building directly from the repository, `build_dmg.sh` hydrates that folder from the repository root.
+The build package includes a generated `Web/` fallback. When building directly from the repository, `build_dmg.sh` hydrates that folder from canonical `apps/leadbridge-web/`.

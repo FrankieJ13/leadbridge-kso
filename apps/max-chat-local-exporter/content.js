@@ -2,7 +2,7 @@
   'use strict';
 
   const APP_ID = 'max-local-exporter-panel';
-  const EXPORTER_VERSION = '0.4.1';
+  const EXPORTER_VERSION = '8.2.09.1733';
   const STORAGE_VERSION = 3;
 
   const state = {
@@ -778,7 +778,23 @@
   }
 
   function csvCell(value) {
-    return `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const raw = value === null || value === undefined ? '' : value;
+    const text = typeof raw === 'number' && Number.isFinite(raw) ? String(raw) : String(raw);
+    const safe = typeof raw !== 'number' && /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+    return `"${safe.replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
+  }
+
+  function diagnosticSourceUrl(value = location.href) {
+    try {
+      const url = new URL(String(value || ''), location.href);
+      url.username = '';
+      url.password = '';
+      url.search = '';
+      url.hash = '';
+      return url.href;
+    } catch (_) {
+      return '';
+    }
   }
 
   function localArchiveStamp(date = new Date()) {
@@ -805,10 +821,33 @@
       storageVersion: STORAGE_VERSION,
       exportedAt: new Date().toISOString(),
       sourceTitle: document.title,
-      sourceUrl: location.href,
+      sourceUrl: diagnosticSourceUrl(),
       messageCount: records.length,
       attachmentCount: records.reduce((sum, r) => sum + (r.attachments?.length || 0), 0),
       note: 'Экспорт основан на сообщениях и вложениях, которые web.max.ru подгрузил в DOM. Привязка картинки к сообщению строится по DOM-контейнеру сообщения.'
+    };
+  }
+
+  function diagnosticsFor(records, saved, failed) {
+    const replies = records.filter((record) => record.reply?.detected);
+    const resolvedReplies = replies.filter((record) => record.reply?.targetMessageNumber).length;
+    const warnings = [];
+    if (!state.lastRootLabel) warnings.push('chat root was not recorded');
+    if (!state.lastScrollerLabel) warnings.push('chat scroller was not recorded');
+    if (!records.length) warnings.push('no messages detected');
+    return {
+      exporter_version: EXPORTER_VERSION,
+      export_timestamp: new Date().toISOString(),
+      source_url: diagnosticSourceUrl(),
+      detected_chat_root: state.lastRootLabel || 'unknown',
+      detected_scroller: state.lastScrollerLabel || 'unknown',
+      messages_detected: records.length,
+      attachments_detected: records.reduce((sum, record) => sum + (record.attachments?.length || 0), 0),
+      attachments_downloaded: saved,
+      attachments_failed: failed,
+      reply_links_resolved: resolvedReplies,
+      reply_links_unresolved: replies.length - resolvedReplies,
+      dom_detection_warnings: warnings
     };
   }
 
@@ -1243,9 +1282,11 @@ URL: ${meta.sourceUrl}
       const csvPayload = buildPayload('csv', records);
       const attCsvPayload = buildPayload('attachments.csv', records);
       const finalMeta = metaFor(records);
+      const diagnostics = diagnosticsFor(records, saved, failed);
 
       files.unshift(
         { name: `${rootName}/README.txt`, bytes: stringToBytes(readmeText(rootName, finalMeta)) },
+        { name: `${rootName}/diagnostics.json`, bytes: stringToBytes(JSON.stringify(diagnostics, null, 2)) },
         { name: `${rootName}/index.html`, bytes: stringToBytes(htmlPayload.data) },
         { name: `${rootName}/messages.json`, bytes: stringToBytes(jsonPayload.data) },
         { name: `${rootName}/messages.csv`, bytes: stringToBytes(csvPayload.data) },

@@ -1,4 +1,4 @@
-LeadBridge KSO — macOS tools pack v6.4.24.1144
+LeadBridge KSO — macOS tools pack v8.2.09.1733
 
 Что внутри:
 - tools/leadbridge/ — локальная копия LeadBridge matcher.

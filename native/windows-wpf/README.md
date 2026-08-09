@@ -27,8 +27,8 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 Output:
 
 ```text
-dist\LeadBridgeKSO-Windows-WPF-v6.4.24.1144\
-dist\LeadBridgeKSO-Windows-WPF-v6.4.24.1144.zip
+dist\LeadBridgeKSO-Windows-WPF-v8.2.09.1733\
+dist\LeadBridgeKSO-Windows-WPF-v8.2.09.1733.zip
 ```
 
 ## Configuration
@@ -39,4 +39,4 @@ Change the GitHub Pages URL in:
 LeadBridgeKSO.Windows\AppSettings.cs
 ```
 
-The build package includes `LeadBridgeKSO.Windows\Web\index.html` for offline fallback. When building directly from the repository, `build.ps1` hydrates that folder from the repository root.
+The build package includes a generated `LeadBridgeKSO.Windows\Web\` fallback. When building directly from the repository, `build.ps1` hydrates that folder from canonical `apps/leadbridge-web/`.
