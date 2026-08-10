@@ -70,8 +70,8 @@
             <div><strong>Источник 1: MAX — анкеты OCR + текстовые сообщения</strong><div class="hint">Лучше messages_ocr.json — внутри OCR-анкеты и обычные текстовые сообщения. forms_structured.json/forms_flat.csv — только OCR-анкеты</div></div>
             <button id="btnMaxFile" class="btn cyan" data-action="pick-file" data-target="fileMax">Выбрать файл MAX</button>
             <input id="fileMax" type="file" accept=".json,.csv,.txt" />
+            <div id="infoMax" class="file-info">файл не загружен</div>
           </div>
-          <div id="infoMax" class="file-info">файл не загружен</div>
         </div>
         <div>
           <div id="dropAmo" class="drop amo-drop">
@@ -98,8 +98,8 @@
               </div>
               <div class="hint">Токен передаётся только POST-телом в указанный Apps Script и не записывается в URL, отчёты или браузерное хранилище. После загрузки CSV обрабатывается локально.</div>
             </div>
+            <div id="infoAmo" class="file-info" aria-live="polite">файл не загружен</div>
           </div>
-          <div id="infoAmo" class="file-info" aria-live="polite">файл не загружен</div>
         </div>
         <div class="image-source-wide">
           <div id="dropImages" class="drop image-source-drop needs-images">
@@ -111,17 +111,19 @@
             <input id="fileZip" type="file" accept=".zip" />
             <input id="fileImages" type="file" webkitdirectory directory multiple />
           </div>
-          <div id="infoImages" class="file-info warn-blink">ZIP/папка не загружены. Ожидаемый стандартный путь: <code>C:\LeadBridgeKSO\exports\MAX_CHAT_EXPORT_1201msg_1166att_23-06-26_01-11.zip</code>. Браузер не может сам открыть файл по пути — выбери ZIP или папку вручную.</div>
         </div>
       </div>
+      <div id="infoImages" class="file-info warn-blink">ZIP/папка не загружены. Ожидаемый стандартный путь: <code>C:\LeadBridgeKSO\exports\MAX_CHAT_EXPORT_1201msg_1166att_23-06-26_01-11.zip</code>. Браузер не может сам открыть файл по пути — выбери ZIP или папку вручную.</div>
     </section>
     <div id="mobileRunWrap" class="mobile-run-wrap" aria-hidden="true">
       <button id="mobileRunBtn" class="btn primary" data-action="run">ЗАПУСК</button>
     </div>
-    <div class="local-policy"><strong>Обработка и отчёты остаются на этом компьютере.</strong> MAX, OCR, ZIP и выбранные файлы не загружаются в LeadBridge. В онлайн-режиме браузер отправляет токен только выбранному Google Apps Script `/exec`, получает CSV-снимок и разбирает его локально.</div>
-    <div id="mobileAdvice" class="mobile-advice"><strong>Смартфон-режим:</strong> локальный и онлайн CSV читаются потоком. Большие MAX JSON, число строк amoCRM и ZIP с картинками всё ещё могут упереться в память браузера; результаты показываются порциями.</div>
-    <div id="releaseHint" class="release-hint hidden" aria-live="polite"></div>
-    <div id="notice" class="notice">Загрузи MAX и amoCRM. Для поиска номеров из обычных текстовых сообщений MAX используй messages_ocr.json. Всё считается локально в браузере.</div>
+    <div class="source-info-grid">
+      <div class="local-policy"><strong>Обработка и отчёты остаются на этом компьютере.</strong><span>MAX, OCR, ZIP и выбранные файлы не загружаются в LeadBridge. В онлайн-режиме браузер отправляет токен только выбранному Google Apps Script `/exec`, получает CSV-снимок и разбирает его локально.</span></div>
+      <div id="mobileAdvice" class="mobile-advice"><strong>Смартфон-режим:</strong><span>Локальный и онлайн CSV читаются потоком. Большие MAX JSON, число строк amoCRM и ZIP с картинками всё ещё могут упереться в память браузера; результаты показываются порциями.</span></div>
+      <div id="releaseHint" class="release-hint hidden" aria-live="polite"></div>
+      <div id="notice" class="notice"><strong id="noticeTitle">Загрузки</strong><span id="noticeCopy">Загрузи MAX и amoCRM. Для поиска номеров из обычных текстовых сообщений MAX используй messages_ocr.json. Всё считается локально в браузере.</span></div>
+    </div>
     <div id="loader" class="loader hidden"></div>
     </div>
     <div id="resultsView" class="app-view results-view-only" role="tabpanel" aria-labelledby="resultsTab" aria-hidden="true">

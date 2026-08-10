@@ -26,7 +26,18 @@ function logLine(text){
   el.textContent += `[${time}] ${text}\n`;
   el.scrollTop = el.scrollHeight;
 }
-function setNotice(text, bad=false){ $('notice').className = bad ? 'notice bad' : 'notice'; $('notice').textContent = text; }
+function setNotice(text, bad=false){
+  const notice = $('notice');
+  notice.className = bad ? 'notice bad' : 'notice';
+  const title = $('noticeTitle');
+  const copy = $('noticeCopy');
+  if(title && copy){
+    title.textContent = bad ? 'Внимание' : 'Загрузки';
+    copy.textContent = text;
+  }else{
+    notice.textContent = text;
+  }
+}
 function repoAssetUrl(path){
   const value = String(path || '');
   if(!value) return '';
