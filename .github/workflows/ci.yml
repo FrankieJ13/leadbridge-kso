@@ -38,6 +38,9 @@ jobs:
           node --check apps/max-chat-local-exporter/background.js
           node --check apps/max-chat-local-exporter/content.js
           node --check apps/leadbridge-web/app.js
+          node --check apps/leadbridge-web/src/amo-schema.js
+          node --check apps/leadbridge-web/src/online-csv.js
+          node --check < integrations/google-apps-script-amocrm/Code.gs
 
       - name: Verify canonical Web source
         run: python tools/sync_web_assets.py --verify
@@ -52,7 +55,7 @@ jobs:
           diff -u /tmp/leadbridge-sha256-first releases/SHA256SUMS
           python tools/build_release_packages.py --verify
           python tools/sync_web_assets.py --verify
-          for archive in releases/packages/*v8.2.09.1733.zip; do unzip -tqq "$archive"; done
+          for archive in releases/packages/*.zip; do unzip -tqq "$archive"; done
 
       - name: Reject common committed secret formats
         run: |

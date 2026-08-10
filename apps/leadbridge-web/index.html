@@ -3,40 +3,46 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>LeadBridge: поиск сделок по анкетам КСО v8.2.09.1733</title>
+  <title>LeadBridge: поиск сделок по анкетам КСО v8.2.10.0848</title>
   <meta name="theme-color" content="#05070a" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="LeadBridge KSO" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; worker-src 'self'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; worker-src 'self'" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="stylesheet" href="app.css" />
 </head>
-<body>
+<body data-active-view="sources">
   <section class="top">
     <div class="top-inner">
       <div class="brand">
-        <div>
-          <h1>LeadBridge: поиск сделок по анкетам КСО <span class="version">v8.2.09.1733</span></h1>
-          <div class="sub">Офлайн HTML. Два файла → все OCR-анкеты и текстовые сообщения MAX против всех сделок amoCRM → нормализация телефонов до 10 цифр → один блок совпадения на один телефон → отчёт CSV / MD / HTML. <span class="author">Авторство и идея разработки: Бочаров Ю.С.</span> <span id="buildMeta">Build commit: local/offline</span></div>
+        <div class="brand-copy">
+          <div class="heading-row">
+            <h1><span class="title-full">LeadBridge: поиск сделок по анкетам КСО</span><span class="title-compact">LeadBridge KSO</span> <span class="version">v8.2.10.0848</span></h1>
+            <nav id="appTabs" class="app-tabs" role="tablist" aria-label="Разделы LeadBridge">
+              <button id="sourcesTab" class="app-tab active" type="button" role="tab" aria-selected="true" aria-controls="sourcesView" tabindex="0" data-action="switch-view" data-view="sources">Источники</button>
+              <button id="resultsTab" class="app-tab" type="button" role="tab" aria-selected="false" aria-controls="resultsView" tabindex="-1" data-action="switch-view" data-view="results">Результаты</button>
+            </nav>
+          </div>
+          <div class="sub">Локальный matcher. MAX читается с устройства, amoCRM — из выбранного CSV или защищённого слепка /exec → нормализация телефонов до 10 цифр → один блок совпадения на один телефон → отчёт CSV / MD / HTML. <span class="author">Авторство и идея разработки: Бочаров Ю.С.</span> <span id="buildMeta">Build commit: local/offline</span></div>
         </div>
         <div class="top-actions">
-          <div id="reportActions" class="report-actions hidden">
+          <div id="reportActions" class="report-actions results-view-only hidden">
             <button class="btn icon-btn" data-action="download-csv" title="Скачать единый CSV со всеми совпадениями"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>.CSV</button>
             <button class="btn icon-btn" data-action="download-markdown" title="Скачать Markdown-отчёт по совпадениям"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>.MD</button>
             <button class="btn icon-btn" data-action="download-html" title="Скачать ZIP: HTML-отчёт и папка images с анкетами"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>.HTML</button>
             <button class="btn warn icon-btn" data-action="download-unmatched" data-kind="max" title="Скачать MAX .csv: анкеты/сообщения MAX без совпадения в amoCRM"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>MAX</button>
             <button class="btn warn icon-btn" data-action="download-unmatched" data-kind="amo" title="Скачать amoCRM .csv: сделки amoCRM без совпадения в MAX"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>amo</button>
           </div>
-          <button class="btn primary" data-action="run">ЗАПУСК</button>
+          <button class="btn primary sources-view-only" data-action="run">ЗАПУСК</button>
           <button id="pwaInstallBtn" class="btn cyan hidden" data-action="install-pwa" title="Установить LeadBridge как PWA">Установить</button>
           <button class="btn danger icon-btn eject-btn" data-action="reset" title="Сброс" aria-label="Сброс"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5 5 14h14L12 5z"/><path d="M5 19h14"/></svg></button>
           <button id="themeToggleBtn" class="btn theme theme-icon icon-btn" data-action="toggle-theme" title="Переключить тему" aria-label="Переключить тему"></button>
         </div>
       </div>
-      <div class="filter-panel compact-filters">
+      <div class="filter-panel compact-filters results-view-only">
         <div class="ctrl search-ctrl"><label>Поиск</label><input id="filterSearch" type="text" placeholder="телефон / ФИО / ID" /></div>
         <div class="ctrl"><label>Ответственный amoCRM</label><select id="filterResponsible"><option value="">Все</option></select></div>
         <div class="ctrl"><label>Город amoCRM</label><select id="filterCity"><option value="">Все</option></select></div>
@@ -50,14 +56,13 @@
           <label class="switch-chip" title="Мягко предпочитать CURRENT-анкеты MAX, но не скрывать телефон из MAX. Телефон — главный ключ матчинга; SUPERSEDED помечается для ручной сверки."><span>MAX CURRENT</span><input id="onlyCurrentMax" type="checkbox" checked /></label>
         </div>
       </div>
-      <div id="stickyBoard" class="sticky-board hidden"></div>
+      <div id="stickyBoard" class="sticky-board results-view-only hidden"></div>
     </div>
   </section>
   <div id="topSpacer" class="top-spacer" aria-hidden="true"></div>
-  <div id="drawerToggle" class="drawer-toggle hidden"><button class="drawer-btn" data-action="toggle-drawer" title="Показать/скрыть исходники и лог"><svg id="drawerIcon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg><span id="drawerToggleText">Показать исходники / лог</span></button></div>
 
   <main class="wrap">
-    <div id="setupDrawer" class="setup-drawer">
+    <div id="sourcesView" class="app-view sources-view-only" role="tabpanel" aria-labelledby="sourcesTab">
     <section class="source-files" aria-label="Загрузка исходных файлов">
       <div class="file-grid">
         <div>
@@ -69,12 +74,32 @@
           <div id="infoMax" class="file-info">файл не загружен</div>
         </div>
         <div>
-          <div id="dropAmo" class="drop">
-            <div><strong>Источник 2: amoCRM CSV</strong><div class="hint">ID=A, Ответственный=D, Создание=E, телефоны V:AA, Визит=CA, Город=BV</div></div>
-            <button id="btnAmoFile" class="btn cyan" data-action="pick-file" data-target="fileAmo">Выбрать amoCRM</button>
-            <input id="fileAmo" type="file" accept=".csv,.json,.txt" />
+          <div id="dropAmo" class="drop amo-drop">
+            <div class="amo-source-head">
+              <div><strong>Источник 2: amoCRM CSV</strong><div class="hint">Колонки определяются по заголовкам: ID/«-», Ответственный, Дата создания, Телефон, Дата визита, Город, ФИО</div></div>
+              <div class="source-mode" role="group" aria-label="Источник amoCRM">
+                <button id="amoModeOffline" class="mode-btn active" type="button" data-action="amo-source-mode" data-mode="offline" aria-pressed="true">Файл</button>
+                <button id="amoModeOnline" class="mode-btn" type="button" data-action="amo-source-mode" data-mode="online" aria-pressed="false">Онлайн /exec</button>
+              </div>
+            </div>
+            <div id="amoOfflinePanel" class="amo-source-panel">
+              <button id="btnAmoFile" class="btn cyan" data-action="pick-file" data-target="fileAmo">Выбрать amoCRM</button>
+              <input id="fileAmo" type="file" accept=".csv,.json,.txt" />
+            </div>
+            <div id="amoOnlinePanel" class="amo-source-panel online-source hidden">
+              <label class="online-field"><span>Google Apps Script /exec</span><input id="amoExecUrl" type="url" inputmode="url" autocomplete="url" spellcheck="false" placeholder="https://script.google.com/macros/s/.../exec" /></label>
+              <div class="online-field"><label for="amoExecToken">Токен доступа</label><div class="secret-input"><input id="amoExecToken" type="password" autocomplete="off" spellcheck="false" placeholder="Токен не сохраняется" /><button id="amoTokenVisibility" class="secret-toggle" type="button" data-action="toggle-amo-token" aria-label="Показать токен" aria-pressed="false" title="Показать токен"><span class="eye-shape" aria-hidden="true"></span></button></div></div>
+              <div class="online-options">
+                <label id="saveOnlineSnapshotLabel" class="save-snapshot"><input id="saveOnlineSnapshot" type="checkbox" checked /><span>Сохранить CSV-снимок на устройство</span></label>
+              </div>
+              <div class="online-actions">
+                <button id="btnAmoOnline" class="btn cyan" type="button" data-action="load-amo-online">Загрузить слепок</button>
+                <button id="btnCancelAmoOnline" class="btn danger hidden" type="button" data-action="cancel-amo-online">Отмена</button>
+              </div>
+              <div class="hint">Токен передаётся только POST-телом в указанный Apps Script и не записывается в URL, отчёты или браузерное хранилище. После загрузки CSV обрабатывается локально.</div>
+            </div>
           </div>
-          <div id="infoAmo" class="file-info">файл не загружен</div>
+          <div id="infoAmo" class="file-info" aria-live="polite">файл не загружен</div>
         </div>
         <div class="image-source-wide">
           <div id="dropImages" class="drop image-source-drop needs-images">
@@ -93,18 +118,20 @@
     <div id="mobileRunWrap" class="mobile-run-wrap" aria-hidden="true">
       <button id="mobileRunBtn" class="btn primary" data-action="run">ЗАПУСК</button>
     </div>
-    <div class="local-policy"><strong>Данные остаются на этом компьютере.</strong> GitHub Pages только открывает LeadBridge. Выбранные JSON/CSV/ZIP/папки читаются локально браузером и не отправляются на сервер.</div>
-    <div id="mobileAdvice" class="mobile-advice"><strong>Смартфон-режим:</strong> amoCRM CSV читается чанками после выбора файла. Большие MAX JSON и ZIP с картинками всё ещё могут упереться в память браузера; результаты на телефоне показываются порциями.</div>
+    <div class="local-policy"><strong>Обработка и отчёты остаются на этом компьютере.</strong> MAX, OCR, ZIP и выбранные файлы не загружаются в LeadBridge. В онлайн-режиме браузер отправляет токен только выбранному Google Apps Script `/exec`, получает CSV-снимок и разбирает его локально.</div>
+    <div id="mobileAdvice" class="mobile-advice"><strong>Смартфон-режим:</strong> локальный и онлайн CSV читаются потоком. Большие MAX JSON, число строк amoCRM и ZIP с картинками всё ещё могут упереться в память браузера; результаты показываются порциями.</div>
     <div id="releaseHint" class="release-hint hidden" aria-live="polite"></div>
     <div id="notice" class="notice">Загрузи MAX и amoCRM. Для поиска номеров из обычных текстовых сообщений MAX используй messages_ocr.json. Всё считается локально в браузере.</div>
     <div id="loader" class="loader hidden"></div>
     </div>
-    <section id="results">
-      <div id="startState" class="start-state">
-        <strong>Готов к загрузке файлов.</strong>
-        Выбери MAX и amoCRM; после запуска здесь появятся совпадения.
-      </div>
-    </section>
+    <div id="resultsView" class="app-view results-view-only" role="tabpanel" aria-labelledby="resultsTab" aria-hidden="true">
+      <section id="results">
+        <div id="startState" class="start-state">
+          <strong>Результатов пока нет.</strong>
+          Добавь источники и запусти сопоставление.
+        </div>
+      </section>
+    </div>
   </main>
 
   <div id="anketaPreviewModal" class="modal hidden" data-action="close-preview-backdrop">
@@ -124,6 +151,8 @@
 <script src="src/security.js"></script>
 <script src="src/csv.js"></script>
 <script src="src/matching.js"></script>
+<script src="src/amo-schema.js"></script>
+<script src="src/online-csv.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

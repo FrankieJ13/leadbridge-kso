@@ -2,7 +2,7 @@
 
 ## Install Tools Pack
 
-1. Download `leadbridge-kso-tools-macos-v8.2.09.1733.zip` from GitHub Releases or from `releases/packages/` and verify it against `releases/SHA256SUMS`.
+1. Download `leadbridge-kso-tools-macos-v8.2.10.0848.zip` from GitHub Releases or from `releases/packages/` and verify it against `releases/SHA256SUMS`.
 2. Unzip it.
 3. Run `install_macos.command`.
 
@@ -23,6 +23,8 @@ The installer creates:
     leadbridge/
     max-chat-local-exporter/
     max-chat-ocr-postprocessor/
+  integrations/
+    google-apps-script-amocrm/
   archives/
   launchers/
     open_leadbridge.command

@@ -16,7 +16,7 @@ echo "LeadBridge KSO macOS installer"
 echo "Source: $SOURCE_ROOT"
 echo "Target: $TARGET"
 
-mkdir -p "$TARGET/exports" "$TARGET/ocr_results" "$TARGET/tools" "$TARGET/archives" "$TARGET/launchers"
+mkdir -p "$TARGET/exports" "$TARGET/ocr_results" "$TARGET/tools" "$TARGET/integrations" "$TARGET/archives" "$TARGET/launchers"
 
 copy_dir() {
   SRC="$1"
@@ -44,6 +44,10 @@ if [ -d "$SOURCE_ROOT/apps/max-chat-ocr-postprocessor" ]; then
   copy_dir "$SOURCE_ROOT/apps/max-chat-ocr-postprocessor" "$TARGET/tools/max-chat-ocr-postprocessor"
 else
   copy_dir "$SOURCE_ROOT/tools/max-chat-ocr-postprocessor" "$TARGET/tools/max-chat-ocr-postprocessor"
+fi
+
+if [ -d "$SOURCE_ROOT/integrations/google-apps-script-amocrm" ]; then
+  copy_dir "$SOURCE_ROOT/integrations/google-apps-script-amocrm" "$TARGET/integrations/google-apps-script-amocrm"
 fi
 
 if [ -d "$SOURCE_ROOT/releases/packages" ]; then
@@ -88,4 +92,5 @@ echo "Installed."
 echo "Open: $TARGET/launchers/open_leadbridge.command"
 echo "OCR:  $TARGET/launchers/run_ocr_macos.command"
 echo "Chrome extension folder: $TARGET/tools/max-chat-local-exporter"
+echo "Online amoCRM setup: $TARGET/integrations/google-apps-script-amocrm/README.md"
 read -n 1 -s -r -p "Press any key to close"

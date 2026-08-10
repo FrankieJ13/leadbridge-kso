@@ -15,7 +15,7 @@ import zipfile
 from pathlib import Path
 
 
-APP_VERSION = "v8.2.09.1733"
+APP_VERSION = "v8.2.10.0848"
 PACKAGE_VERSION = APP_VERSION
 EXPORTER_VERSION = APP_VERSION
 OCR_VERSION = APP_VERSION
@@ -145,6 +145,7 @@ def build_tools_pack(platform_name: str, component_zips: list[Path], commit: str
     copy_web_bundle(pack / "tools" / "leadbridge")
     copytree(ROOT / "apps" / "max-chat-local-exporter", pack / "tools" / "max-chat-local-exporter")
     copytree(ROOT / "apps" / "max-chat-ocr-postprocessor", pack / "tools" / "max-chat-ocr-postprocessor")
+    copytree(ROOT / "integrations" / "google-apps-script-amocrm", pack / "integrations" / "google-apps-script-amocrm")
     for archive in component_zips:
         copy_file(archive, pack / "archives" / archive.name)
     write_build_info(pack / "BUILD_INFO.json", commit)
@@ -252,8 +253,8 @@ def build_manifest(outputs: list[Path], commit: str) -> dict[str, object]:
         "git_commit": commit,
         "pages_entry": "index.html",
         "release_tag": APP_VERSION,
-        "local_data_policy": "Files are processed locally by the browser/tools; GitHub is used only for code, static page hosting and releases.",
-        "local_data_policy_ru": "Файлы MAX, amoCRM, OCR и картинки обрабатываются локально в браузере или локальных инструментах. GitHub используется только для кода, страницы запуска и релизов.",
+        "local_data_policy": "MAX/OCR/ZIP files and all matching are local. Optional amoCRM online mode downloads a read-only CSV snapshot from the operator's token-protected Apps Script endpoint. GitHub receives no user data.",
+        "local_data_policy_ru": "MAX/OCR/ZIP и весь матчинг остаются локальными. Опциональный онлайн-режим amoCRM скачивает read-only CSV-снимок с защищённого токеном Apps Script оператора. Пользовательские данные не отправляются в GitHub.",
         "downloads": {
             "tools": {
                 "macos": with_integrity(download_entry("LeadBridge KSO tools for macOS", mac_tools, "install_macos.command")),

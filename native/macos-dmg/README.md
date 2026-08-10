@@ -35,7 +35,7 @@ Output:
 
 ```text
 build/LeadBridge KSO.app
-dist/LeadBridgeKSO-macOS-DMG-v8.2.09.1733.dmg
+dist/LeadBridgeKSO-macOS-DMG-v8.2.10.0848.dmg
 ```
 
 ## Distribution Note

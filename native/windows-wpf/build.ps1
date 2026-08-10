@@ -5,7 +5,7 @@ $ProjectDir = Join-Path $Root 'LeadBridgeKSO.Windows'
 $Project = Join-Path $ProjectDir 'LeadBridgeKSO.Windows.csproj'
 $WebDir = Join-Path $ProjectDir 'Web'
 $RepoRoot = Resolve-Path (Join-Path $Root '..\..') -ErrorAction SilentlyContinue
-$Version = 'v8.2.09.1733'
+$Version = 'v8.2.10.0848'
 $PublishDir = Join-Path $Root "dist\LeadBridgeKSO-Windows-WPF-$Version"
 $ZipPath = Join-Path $Root "dist\LeadBridgeKSO-Windows-WPF-$Version.zip"
 

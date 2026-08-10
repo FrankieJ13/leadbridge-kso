@@ -44,7 +44,7 @@ except Exception:  # pragma: no cover
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
 DEFAULT_LANG = "rus+eng"
-VERSION = "8.2.09.1733"
+VERSION = "8.2.10.0848"
 
 # MAX exports can be large, but archive-controlled resource use must remain finite.
 MAX_ZIP_FILES = 25_000

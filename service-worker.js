@@ -1,6 +1,6 @@
 importScripts('./src/security.js');
 
-const CACHE_NAME = 'leadbridge-kso-pwa-v8.2.09.1733-1';
+const CACHE_NAME = 'leadbridge-kso-pwa-v8.2.10.0848-5';
 const APP_SHELL = [
   './index.html',
   './app.css',
@@ -8,6 +8,8 @@ const APP_SHELL = [
   './src/security.js',
   './src/csv.js',
   './src/matching.js',
+  './src/amo-schema.js',
+  './src/online-csv.js',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/icon-192.png',

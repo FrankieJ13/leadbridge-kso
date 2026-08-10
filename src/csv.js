@@ -53,5 +53,97 @@
     };
   }
 
-  return { detectDelimiter, parseCsv };
+  async function parseCsvChunks(chunks, handlers = {}, clean = (value) => String(value ?? '').trim()) {
+    const maxDelimiterSample = 256 * 1024;
+    let delimiter = null;
+    let sample = '';
+    let headers = null;
+    let dataRows = 0;
+    let row = [];
+    let cell = '';
+    let quoted = false;
+    let pendingQuote = false;
+    let firstChunk = true;
+
+    const emitRecord = (cells) => {
+      if (!cells.some((value) => String(value).trim() !== '')) return;
+      if (!headers) {
+        headers = cells.map(clean);
+        if (handlers.onHeaders) handlers.onHeaders(headers, delimiter);
+        return;
+      }
+      const cleaned = cells.map(clean);
+      if (!cleaned.some(Boolean)) return;
+      const record = { __cells: cleaned, __rownum: dataRows + 2 };
+      if (handlers.onRow) handlers.onRow(record, dataRows);
+      dataRows += 1;
+    };
+
+    const consume = (text) => {
+      const source = String(text || '');
+      for (let i = 0; i < source.length; i += 1) {
+        const char = source[i];
+        const next = source[i + 1];
+        if (pendingQuote) {
+          if (char === '"') {
+            cell += '"';
+            pendingQuote = false;
+            continue;
+          }
+          pendingQuote = false;
+          quoted = false;
+        }
+        if (char === '"') {
+          if (quoted && next === '"') { cell += '"'; i += 1; }
+          else if (quoted && i === source.length - 1) pendingQuote = true;
+          else quoted = !quoted;
+        } else if (char === delimiter && !quoted) {
+          row.push(cell); cell = '';
+        } else if ((char === '\n' || char === '\r') && !quoted) {
+          row.push(cell); cell = '';
+          emitRecord(row);
+          row = [];
+          if (char === '\r' && next === '\n') i += 1;
+        } else {
+          cell += char;
+        }
+      }
+    };
+
+    for await (const rawChunk of chunks) {
+      const chunk = typeof rawChunk === 'string' ? { text: rawChunk } : (rawChunk || {});
+      let text = String(chunk.text || '');
+      if (firstChunk) {
+        text = text.replace(/^\uFEFF/, '');
+        firstChunk = false;
+      }
+      if (delimiter === null) {
+        sample += text;
+        if (!/[\r\n]/.test(sample) && sample.length < maxDelimiterSample) {
+          if (handlers.onProgress) handlers.onProgress({ loaded: chunk.loaded || 0, total: chunk.total || 0, rows: dataRows });
+          continue;
+        }
+        delimiter = detectDelimiter(sample);
+        consume(sample);
+        sample = '';
+      } else {
+        consume(text);
+      }
+      if (handlers.onProgress) handlers.onProgress({ loaded: chunk.loaded || 0, total: chunk.total || 0, rows: dataRows });
+    }
+
+    if (delimiter === null) {
+      delimiter = detectDelimiter(sample);
+      consume(sample);
+    }
+    if (pendingQuote) {
+      pendingQuote = false;
+      quoted = false;
+    }
+    row.push(cell);
+    emitRecord(row);
+    return { headers: headers || [], delimiter, rows: dataRows };
+  }
+
+  return { detectDelimiter, parseCsv, parseCsvChunks };
 }));

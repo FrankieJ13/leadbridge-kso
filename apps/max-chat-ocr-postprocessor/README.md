@@ -1,4 +1,4 @@
-# MAX Chat OCR Postprocessor v8.2.09.1733
+# MAX Chat OCR Postprocessor v8.2.10.0848
 
 Локальный OCR-процессор для ZIP/папки экспорта MAX.
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## v8.2.10.0848
+
+- Added offline/online amoCRM source selection with token-protected Google Apps Script `/exec` snapshots.
+- Restricted online requests to HTTPS `script.google.com/macros/s/.../exec` and documented `script.googleusercontent.com` redirects.
+- Kept access tokens out of URLs, local storage, logs, diagnostics and generated reports.
+- Added streaming network CSV parsing, cancellation and optional direct-to-disk snapshot saving where supported.
+- Added header-based support for the current 143-column amoCRM export while preserving legacy column fallbacks.
+- Added a read-only Google Sheet Apps Script template with SHA-256 token verification and token rotation.
+- Added masked token entry with an explicit show/hide control.
+- Split the interface into `Источники` and `Результаты` tabs with automatic result switching after a successful run.
+- Extended CSP, PWA cache, release packages, security documentation and regression tests for online snapshots.
+
 ## v8.2.09.1733
 
 - Hardened ZIP extraction against ZIP Slip, absolute paths, symlinks, suspicious compression and archive resource exhaustion.

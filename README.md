@@ -1,6 +1,6 @@
 # LeadBridge KSO
 
-LeadBridge KSO `v8.2.09.1733` is a local-first matcher for MAX questionnaires and amoCRM CSV exports. GitHub Pages serves only the application files. Selected MAX JSON/ZIP, OCR results, amoCRM CSV and images are processed on the user's device and are not uploaded to an application backend.
+LeadBridge KSO `v8.2.10.0848` is a local-first matcher for MAX questionnaires and amoCRM CSV exports. amoCRM can be loaded from a local file or downloaded as a read-only snapshot from a token-protected Google Apps Script `/exec`. Matching, filtering and reports remain on the user's device.
 
 Live app: <https://frankiej13.github.io/leadbridge-kso/>
 
@@ -11,6 +11,8 @@ apps/
   leadbridge-web/              canonical Web/PWA source
   max-chat-local-exporter/     Chrome extension
   max-chat-ocr-postprocessor/  local Python/Tesseract OCR
+integrations/
+  google-apps-script-amocrm/   read-only Google Sheet -> CSV /exec template
 tools/
   sync_web_assets.py           generates and verifies Pages/offline copies
   build_release_packages.py    deterministic release build + SHA-256
@@ -30,10 +32,18 @@ tests/
 1. Export a loaded MAX chat with `apps/max-chat-local-exporter`.
 2. Run `apps/max-chat-ocr-postprocessor/max_chat_ocr.py` locally.
 3. Open LeadBridge from Pages or the offline package.
-4. Select `messages_ocr.json`, the amoCRM CSV and the MAX ZIP or `attachments` folder.
+4. Select `messages_ocr.json`, then either a local amoCRM CSV or `Онлайн /exec`, and the MAX ZIP or `attachments` folder.
 5. Run matching and export CSV, Markdown or HTML ZIP reports.
 
 Large amoCRM CSV files are parsed in chunks. Mobile browsers still have finite memory, especially for large MAX JSON and ZIP/image previews.
+
+## Online amoCRM snapshot
+
+The optional online mode accepts only an HTTPS Google Apps Script deployment URL shaped like `https://script.google.com/macros/s/.../exec`. LeadBridge sends the custom access token in a POST body with cookies omitted. The token is not added to the URL, local storage, logs or generated reports. Only the validated `/exec` URL may be remembered locally.
+
+The response is parsed as a stream. On browsers with the File System Access API, LeadBridge can write the same stream to a local CSV file while parsing it. Other browsers keep only normalized rows in the current session; reload requires another snapshot download or selection of a saved local CSV.
+
+Setup instructions and the ready Apps Script are in [`integrations/google-apps-script-amocrm/`](integrations/google-apps-script-amocrm/README.md). Google Apps Script creates its response before download, so its own quotas still constrain very large sheets even though the LeadBridge client is streaming.
 
 ## Security Guarantees
 
@@ -41,7 +51,8 @@ Large amoCRM CSV files are parsed in chunks. Mobile browsers still have finite m
 - OCR attachment paths are confined to the selected export root.
 - Spreadsheet-controlled text is neutralized before CSV quoting.
 - The extension fetch bridge accepts only HTTPS MAX and documented MAX CDN domains, validates its sender and limits URL count, URL length, type and attachment size.
-- The Web CSP restricts scripts, styles and connections to the application origin; local data is never sent by application code.
+- The Web CSP restricts scripts/styles to the application origin and permits connections only to the app plus official Apps Script response hosts. MAX/OCR/ZIP data is never sent by application code.
+- Online amoCRM URLs are restricted to Google Apps Script `/exec`; requests omit cookies and put the short-lived custom token only in the POST body.
 - The service worker removes only old `leadbridge-kso-pwa-` caches.
 - Every generated release ZIP has `sha256` and `size_bytes` in `releases/manifest.json` and a matching entry in `releases/SHA256SUMS`.
 
@@ -76,14 +87,14 @@ The build creates seven deterministic ZIP files for Web, exporter, OCR, tools pa
 Before manual installation, verify a package:
 
 ```bash
-shasum -a 256 releases/packages/leadbridge-kso-tools-macos-v8.2.09.1733.zip
+shasum -a 256 releases/packages/leadbridge-kso-tools-macos-v8.2.10.0848.zip
 ```
 
 ```powershell
-Get-FileHash .\releases\packages\leadbridge-kso-tools-windows-v8.2.09.1733.zip -Algorithm SHA256
+Get-FileHash .\releases\packages\leadbridge-kso-tools-windows-v8.2.10.0848.zip -Algorithm SHA256
 ```
 
-Compare the result with `releases/SHA256SUMS`. For public distribution, upload the same ZIP files to GitHub Release `v8.2.09.1733`; committed packages remain available for the current Pages download flow.
+Compare the result with `releases/SHA256SUMS`. For public distribution, upload the same ZIP files to GitHub Release `v8.2.10.0848`; committed packages remain available for the current Pages download flow.
 
 ## Native Wrappers
 

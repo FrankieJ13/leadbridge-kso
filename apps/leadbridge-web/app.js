@@ -1,12 +1,14 @@
 'use strict';
 
 const AMO_BASE = 'https://ksocm66.amocrm.ru/leads/detail/';
-const PACKAGE_VERSION = 'v8.2.09.1733';
+const PACKAGE_VERSION = 'v8.2.10.0848';
+const AMO_EXEC_URL_STORAGE_KEY = 'leadbridge.amocrm.execUrl';
 const state = {
   maxRaw:null, amoRaw:null,
   maxRows:[], amoRows:[], groups:[], filtered:[],
   maxFileName:'', amoFileName:'',
-  imageFiles:new Map(), imageObjectUrls:new Map(), imageFolderName:'', imageKeyCounts:new Map(), setupCollapsed:false, expectedZipName:'MAX_CHAT_EXPORT_1201msg_1166att_23-06-26_01-11.zip', expectedZipPath:'C:\\LeadBridgeKSO\\exports\\MAX_CHAT_EXPORT_1201msg_1166att_23-06-26_01-11.zip',
+  amoSourceMode:'offline', amoOnlineController:null,
+  imageFiles:new Map(), imageObjectUrls:new Map(), imageFolderName:'', imageKeyCounts:new Map(), activeView:'sources', expectedZipName:'MAX_CHAT_EXPORT_1201msg_1166att_23-06-26_01-11.zip', expectedZipPath:'C:\\LeadBridgeKSO\\exports\\MAX_CHAT_EXPORT_1201msg_1166att_23-06-26_01-11.zip',
   mobileRenderLimit: Infinity,
 };
 
@@ -153,18 +155,37 @@ async function checkReleaseManifest(){
     console.info('LeadBridge release manifest is unavailable', err);
   }
 }
-function setSetupDrawer(collapsed, showToggle=true){
-  state.setupCollapsed = !!collapsed;
-  const drawer = $('setupDrawer');
-  const toggle = $('drawerToggle');
-  const text = $('drawerToggleText');
-  const icon = $('drawerIcon');
-  if(drawer) drawer.classList.toggle('collapsed', state.setupCollapsed);
-  if(toggle) toggle.classList.toggle('hidden', !showToggle);
-  if(text) text.textContent = state.setupCollapsed ? 'Показать исходники / лог' : 'Скрыть исходники / лог';
-  if(icon) icon.innerHTML = state.setupCollapsed ? '<path d="m6 9 6 6 6-6"/>' : '<path d="m18 15-6-6-6 6"/>';
+function setAppView(view, {focus=false, scrollTop=false}={}){
+  const next = view === 'results' ? 'results' : 'sources';
+  state.activeView = next;
+  document.body.dataset.activeView = next;
+  ['sources','results'].forEach(name=>{
+    const selected = name === next;
+    const tab = $(`${name}Tab`);
+    const panel = $(`${name}View`);
+    if(tab){
+      tab.classList.toggle('active', selected);
+      tab.setAttribute('aria-selected', String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+    }
+    if(panel){
+      panel.setAttribute('aria-hidden', String(!selected));
+      if('inert' in panel) panel.inert = !selected;
+    }
+  });
+  if(focus) $(`${next}Tab`)?.focus({preventScroll:true});
+  syncFixedTop();
+  if(scrollTop) requestAnimationFrame(()=>window.scrollTo({top:0, left:0, behavior:'auto'}));
 }
-function toggleSetupDrawer(){ setSetupDrawer(!state.setupCollapsed, true); }
+function handleAppTabKeydown(event){
+  const tab = event.target.closest('[role="tab"][data-view]');
+  if(!tab || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+  event.preventDefault();
+  let next = tab.dataset.view;
+  if(event.key === 'ArrowLeft' || event.key === 'Home') next = 'sources';
+  if(event.key === 'ArrowRight' || event.key === 'End') next = 'results';
+  setAppView(next, {focus:true});
+}
 
 function normalizePhone(raw){
   return LeadBridgeSecurity.normalizePhone(raw);
@@ -231,33 +252,6 @@ function dealIsWorkCandidate(r){
   return r && !r.isExcludedCloseReason && !dealIsClosed(r);
 }
 
-function splitCsvLine(line, delimiter){
-  const arr=[]; let cur='', q=false;
-  for(let i=0;i<line.length;i++){
-    const ch=line[i], nx=line[i+1];
-    if(ch==='"'){
-      if(q && nx==='"'){cur+='"'; i++;}
-      else q=!q;
-    } else if(ch===delimiter && !q){ arr.push(cur); cur=''; }
-    else cur+=ch;
-  }
-  arr.push(cur); return arr;
-}
-function detectCsvDelimiterFromText(text){
-  const value = String(text || '').replace(/^\uFEFF/, '');
-  const firstLineEnd = value.indexOf('\n') === -1 ? value.length : value.indexOf('\n');
-  const firstLine = value.slice(0, firstLineEnd).replace(/\r$/, '');
-  const counts = {',':0, ';':0, '\t':0};
-  let q0=false;
-  for(let i=0;i<firstLine.length;i++){
-    const ch=firstLine[i], nx=firstLine[i+1];
-    if(ch==='"'){
-      if(q0 && nx==='"') i++;
-      else q0=!q0;
-    } else if(!q0 && Object.prototype.hasOwnProperty.call(counts,ch)) counts[ch]++;
-  }
-  return counts['\t'] > counts[','] && counts['\t'] > counts[';'] ? '\t' : (counts[';'] > counts[','] ? ';' : ',');
-}
 function parseCsv(text){
   return LeadBridgeCsv.parseCsv(text, clean);
 }
@@ -344,77 +338,14 @@ async function* fileTextChunks(file, chunkSize){
     } else {
       text = await readBlobText(blob);
     }
-    yield {text, loaded:end};
+    yield {text, loaded:end, total:file.size};
     offset = end;
     await sleep(0);
   }
   if(decoder){
     const tail = decoder.decode();
-    if(tail) yield {text:tail, loaded:file.size};
+    if(tail) yield {text:tail, loaded:file.size, total:file.size};
   }
-}
-async function parseCsvFileStream(file, handlers={}){
-  const sample = await readBlobText(file.slice(0, Math.min(file.size, 256 * 1024)));
-  const delimiter = detectCsvDelimiterFromText(sample);
-  const chunkSize = handlers.chunkSize || csvStreamChunkSize();
-  let headers = null;
-  let dataRows = 0;
-  let row = [];
-  let cur = '';
-  let q = false;
-  let pendingQuote = false;
-
-  const emitRecord = (cells)=>{
-    if(!cells.some(v=>String(v).trim()!=='')) return;
-    if(!headers){
-      headers = cells.map(h=>clean(h));
-      if(handlers.onHeaders) handlers.onHeaders(headers, delimiter);
-      return;
-    }
-    const cleaned = cells.map(v=>clean(v));
-    if(!cleaned.some(Boolean)) return;
-    const rowObj = {__cells:cleaned, __rownum:dataRows + 2};
-    if(handlers.onRow) handlers.onRow(rowObj, dataRows);
-    dataRows++;
-  };
-
-  for await (const chunk of fileTextChunks(file, chunkSize)){
-    const text = String(chunk.text || '');
-    for(let i=0;i<text.length;i++){
-      const ch=text[i], nx=text[i+1];
-      if(pendingQuote){
-        if(ch==='"'){
-          cur+='"';
-          pendingQuote = false;
-          continue;
-        }
-        pendingQuote = false;
-        q = false;
-      }
-      if(ch==='"'){
-        if(q && nx==='"') { cur+='"'; i++; }
-        else if(q && i===text.length-1) pendingQuote = true;
-        else q=!q;
-      } else if(ch===delimiter && !q){
-        row.push(cur); cur='';
-      } else if((ch==='\n' || ch==='\r') && !q){
-        row.push(cur); cur='';
-        emitRecord(row);
-        row=[];
-        if(ch==='\r' && nx==='\n') i++;
-      } else {
-        cur+=ch;
-      }
-    }
-    if(handlers.onProgress) handlers.onProgress({loaded:chunk.loaded, total:file.size, rows:dataRows});
-  }
-  if(pendingQuote){
-    pendingQuote = false;
-    q = false;
-  }
-  row.push(cur);
-  emitRecord(row);
-  return {headers:headers || [], delimiter, rows:dataRows};
 }
 function shouldStreamAmoFile(file){
   if(!file) return false;
@@ -422,14 +353,17 @@ function shouldStreamAmoFile(file){
   return (name.endsWith('.csv') || name.endsWith('.txt')) && (isMobileConstrained() || file.size > 20 * MB);
 }
 async function normalizeAmoCsvFile(file){
+  return await normalizeAmoCsvChunks(fileTextChunks(file, csvStreamChunkSize()), file.name, file.size);
+}
+async function normalizeAmoCsvChunks(chunks, sourceLabel, totalBytes=0){
   const parsed = {headers:[], delimiter:','};
   const rows = [];
   const debugRows = [];
   let seen = 0;
   let lastPct = -10;
-  logLine(`amocrm_csv_stream: start ${formatBytes(file.size)}, chunk=${formatBytes(csvStreamChunkSize())}`);
-  await parseCsvFileStream(file, {
-    chunkSize: csvStreamChunkSize(),
+  let lastLoggedBytes = 0;
+  logLine(`amocrm_csv_stream: start ${escLog(sourceLabel)}, size=${totalBytes ? formatBytes(totalBytes) : 'unknown'}`);
+  await LeadBridgeCsv.parseCsvChunks(chunks, {
     onHeaders(headers, delimiter){
       parsed.headers = headers;
       parsed.delimiter = delimiter;
@@ -442,18 +376,231 @@ async function normalizeAmoCsvFile(file){
       if(normalized.id || normalized.phones.length || normalized.fullName) rows.push(normalized);
     },
     onProgress({loaded,total,rows:parsedRows}){
-      const pct = total ? Math.floor((loaded / total) * 100) : 100;
-      if(pct >= lastPct + 10 || (loaded >= total && lastPct < 100)){
+      const effectiveTotal = total || totalBytes;
+      const pct = effectiveTotal ? Math.floor((loaded / effectiveTotal) * 100) : 0;
+      if(effectiveTotal && (pct >= lastPct + 10 || (loaded >= effectiveTotal && lastPct < 100))){
         logLine(`amocrm_csv_stream: ${Math.min(100,pct)}%, rows=${parsedRows}`);
         lastPct = pct;
+      } else if(!effectiveTotal && loaded - lastLoggedBytes >= 10 * MB){
+        logLine(`amocrm_csv_stream: ${formatBytes(loaded)}, rows=${parsedRows}`);
+        lastLoggedBytes = loaded;
       }
     }
-  });
+  }, clean);
   logLine(`amocrm_csv: delimiter=${JSON.stringify(parsed.delimiter)}, rows=${seen}, kept=${rows.length}, cols=${parsed.headers.length}`);
   debugColumnSample(parsed, debugRows, 'amo_col Дата визита', findHeaderIndexExact(parsed, 'Дата визита', 78));
   debugColumnSample(parsed, debugRows, 'amo_col Дата создания сделки', findHeaderIndexExact(parsed, 'Дата создания сделки', 4));
   debugColumnSample(parsed, debugRows, 'amo_col Причина закрытия карточки', findHeaderIndexExact(parsed, 'Причина закрытия карточки', 65));
   return rows;
+}
+function escLog(value){ return String(value || '').replace(/[\r\n\0]+/g, ' ').slice(0, 160); }
+function setAmoSourceMode(mode){
+  const next = mode === 'online' ? 'online' : 'offline';
+  state.amoSourceMode = next;
+  $('amoOfflinePanel').classList.toggle('hidden', next !== 'offline');
+  $('amoOnlinePanel').classList.toggle('hidden', next !== 'online');
+  ['offline','online'].forEach(value=>{
+    const button = $(value === 'offline' ? 'amoModeOffline' : 'amoModeOnline');
+    const active = value === next;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+  syncFixedTop();
+}
+function storeAmoExecUrl(){
+  const input = $('amoExecUrl');
+  const parsed = LeadBridgeOnlineCsv.parseExecUrl(input.value);
+  try{
+    if(parsed) localStorage.setItem(AMO_EXEC_URL_STORAGE_KEY, parsed.href);
+  }catch(_){ /* storage can be unavailable in private mode */ }
+}
+function initAmoOnlineSource(){
+  try{ $('amoExecUrl').value = localStorage.getItem(AMO_EXEC_URL_STORAGE_KEY) || ''; }catch(_){ /* no-op */ }
+  const canSave = typeof window.showSaveFilePicker === 'function';
+  const save = $('saveOnlineSnapshot');
+  const label = $('saveOnlineSnapshotLabel');
+  save.checked = canSave;
+  save.disabled = !canSave;
+  label.classList.toggle('unavailable', !canSave);
+  if(!canSave) label.title = 'Браузер не поддерживает прямое потоковое сохранение. Снимок всё равно обработается локально в текущем сеансе.';
+  $('amoExecUrl').addEventListener('change', storeAmoExecUrl);
+  $('amoExecToken').addEventListener('keydown', event=>{
+    if(event.key === 'Enter'){
+      event.preventDefault();
+      void loadAmoOnlineSnapshot();
+    }
+  });
+  setAmoSourceMode('offline');
+}
+function setAmoOnlineLoading(loading){
+  const load = $('btnAmoOnline');
+  const cancel = $('btnCancelAmoOnline');
+  load.disabled = loading;
+  $('amoExecUrl').disabled = loading;
+  $('amoExecToken').disabled = loading;
+  $('amoTokenVisibility').disabled = loading;
+  $('saveOnlineSnapshot').disabled = loading || typeof window.showSaveFilePicker !== 'function';
+  $('amoModeOffline').disabled = loading;
+  $('amoModeOnline').disabled = loading;
+  cancel.classList.toggle('hidden', !loading);
+  if(loading){
+    load.classList.remove('file-ok');
+    load.textContent = 'Загрузка...';
+  } else if(!load.classList.contains('file-ok')){
+    load.textContent = 'Загрузить слепок';
+  }
+}
+function toggleAmoTokenVisibility(){
+  const input = $('amoExecToken');
+  const button = $('amoTokenVisibility');
+  const visible = input.type === 'password';
+  input.type = visible ? 'text' : 'password';
+  button.setAttribute('aria-pressed', visible ? 'true' : 'false');
+  button.setAttribute('aria-label', visible ? 'Скрыть токен' : 'Показать токен');
+  button.title = visible ? 'Скрыть токен' : 'Показать токен';
+  input.focus({preventScroll:true});
+}
+async function chooseSnapshotFileHandle(fileName){
+  if(!$('saveOnlineSnapshot').checked || typeof window.showSaveFilePicker !== 'function') return null;
+  try{
+    return await window.showSaveFilePicker({
+      suggestedName:fileName,
+      types:[{description:'amoCRM CSV', accept:{'text/csv':['.csv']}}]
+    });
+  }catch(err){
+    if(err && err.name === 'AbortError'){
+      $('saveOnlineSnapshot').checked = false;
+      return null;
+    }
+    throw err;
+  }
+}
+async function onlineResponseError(response){
+  let text = '';
+  try{ text = await response.text(); }catch(_){ /* no-op */ }
+  try{
+    const payload = JSON.parse(text);
+    const code = String(payload.error || '');
+    const messages = {
+      access_denied:'Токен не принят Apps Script.',
+      unsupported_action:'Apps Script не поддерживает запрос LeadBridge.',
+      snapshot_not_configured:'В Apps Script не настроены таблица и лист.',
+      sheet_not_found:'Настроенный лист Google Таблицы не найден.',
+      sheet_is_empty:'Настроенный лист Google Таблицы пуст.',
+      snapshot_failed:'Apps Script не смог сформировать CSV-снимок.'
+    };
+    return messages[code] || `Apps Script вернул ошибку HTTP ${response.status}.`;
+  }catch(_){
+    return `Apps Script вернул ошибку HTTP ${response.status}.`;
+  }
+}
+async function* onlineResponseTextChunks(response, writable, signal){
+  const totalHeader = Number(response.headers.get('content-length') || 0);
+  const total = Number.isFinite(totalHeader) && totalHeader > 0 ? totalHeader : 0;
+  const decoder = new TextDecoder('utf-8');
+  let loaded = 0;
+  let lastUi = 0;
+  if(!response.body || typeof response.body.getReader !== 'function'){
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if(bytes.byteLength > LeadBridgeOnlineCsv.MAX_SNAPSHOT_BYTES) throw new Error('CSV-снимок превышает допустимый размер 2 GB.');
+    if(writable) await writable.write(bytes);
+    yield {text:decoder.decode(bytes), loaded:bytes.byteLength, total:bytes.byteLength};
+    return;
+  }
+  const reader = response.body.getReader();
+  try{
+    while(true){
+      if(signal.aborted) throw new DOMException('Загрузка отменена', 'AbortError');
+      const part = await reader.read();
+      if(part.done) break;
+      loaded += part.value.byteLength;
+      if(loaded > LeadBridgeOnlineCsv.MAX_SNAPSHOT_BYTES){
+        await reader.cancel('snapshot size limit');
+        throw new Error('CSV-снимок превышает допустимый размер 2 GB.');
+      }
+      if(writable) await writable.write(part.value);
+      const now = Date.now();
+      if(now - lastUi > 350){
+        const progress = total ? ` (${Math.min(100, Math.floor(loaded / total * 100))}%)` : '';
+        $('infoAmo').textContent = `Получаю CSV-снимок: ${formatBytes(loaded)}${progress}; строки разбираются локально...`;
+        lastUi = now;
+      }
+      yield {text:decoder.decode(part.value, {stream:true}), loaded, total};
+      await sleep(0);
+    }
+    const tail = decoder.decode();
+    if(tail) yield {text:tail, loaded, total};
+  }finally{
+    reader.releaseLock();
+  }
+}
+async function loadAmoOnlineSnapshot(){
+  if(state.amoOnlineController) return;
+  let request;
+  try{
+    request = LeadBridgeOnlineCsv.createSnapshotRequest($('amoExecUrl').value, $('amoExecToken').value);
+  }catch(err){
+    setNotice(err.message, true);
+    return;
+  }
+  storeAmoExecUrl();
+  const fileName = LeadBridgeOnlineCsv.snapshotFileName();
+  let fileHandle = null;
+  let writable = null;
+  let saved = false;
+  try{
+    fileHandle = await chooseSnapshotFileHandle(fileName);
+    const controller = new AbortController();
+    state.amoOnlineController = controller;
+    request.options.signal = controller.signal;
+    setAmoOnlineLoading(true);
+    $('infoAmo').textContent = 'Подключаюсь к защищённому /exec...';
+    setNotice('Загружаю amoCRM CSV-снимок. Он обрабатывается потоком на этом устройстве.');
+    logLine('amocrm_online: request started');
+    const response = await fetch(request.url, request.options);
+    if(!LeadBridgeOnlineCsv.isAllowedResponseUrl(response.url)) throw new Error('Apps Script перенаправил запрос на неразрешённый адрес.');
+    const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+    if(!response.ok || contentType.includes('application/json')) throw new Error(await onlineResponseError(response));
+    const declaredSize = Number(response.headers.get('content-length') || 0);
+    if(declaredSize > LeadBridgeOnlineCsv.MAX_SNAPSHOT_BYTES) throw new Error('CSV-снимок превышает допустимый размер 2 GB.');
+    if(isMobileConstrained() && declaredSize > mobileBudget('amo').hard){
+      const proceed = window.confirm(`Онлайн CSV весит ${formatBytes(declaredSize)}. Он будет скачан и разобран потоком, но строки результата всё равно займут память смартфона. Продолжить?`);
+      if(!proceed){ controller.abort(); throw new DOMException('Загрузка отменена', 'AbortError'); }
+    }
+    if(fileHandle) writable = await fileHandle.createWritable();
+    const rows = await normalizeAmoCsvChunks(onlineResponseTextChunks(response, writable, controller.signal), fileName, declaredSize);
+    if(!rows.length) throw new Error('В полученном CSV не найдено строк amoCRM. Проверь лист и заголовки таблицы.');
+    if(writable){ await writable.close(); writable = null; saved = true; }
+    state.amoRaw = '';
+    state.amoRows = rows;
+    state.amoFileName = fileName;
+    $('amoExecToken').value = '';
+    $('infoAmo').innerHTML = `OK: <span class="ok">онлайн-снимок ${esc(fileName)}</span>; сделок/строк: <b>${rows.length}</b>; телефонов: <b>${countPhones(rows)}</b>${saved ? '; CSV сохранён на устройстве' : '; хранится в текущем сеансе'}`;
+    setPickButtonState('btnAmoFile', false, 'Выбрать amoCRM');
+    setPickButtonState('btnAmoOnline', true, 'Слепок загружен');
+    logLine(`amocrm_online: success rows=${rows.length}, phones=${countPhones(rows)}, saved=${saved}`);
+    buildFilterOptions();
+    updateMobileRunButton();
+    setNotice('Онлайн-снимок amoCRM загружен. Матчинг и отчёты выполняются локально.');
+  }catch(err){
+    if(writable){ try{ await writable.abort(); }catch(_){ /* no-op */ } }
+    if(err && err.name === 'AbortError'){
+      $('infoAmo').textContent = 'Загрузка онлайн-снимка отменена. Ранее загруженная база не изменена.';
+      setNotice('Загрузка amoCRM отменена.');
+    }else{
+      const safeMessage = LeadBridgeOnlineCsv.safeErrorMessage(err && err.message);
+      console.info('LeadBridge online amoCRM snapshot failed');
+      $('infoAmo').textContent = `Ошибка онлайн-загрузки: ${safeMessage}`;
+      setNotice(`Не удалось загрузить amoCRM: ${safeMessage} Проверь deployment /exec, токен и доступ Apps Script.`, true);
+    }
+  }finally{
+    state.amoOnlineController = null;
+    setAmoOnlineLoading(false);
+    updateMobileRunButton();
+  }
+}
+function cancelAmoOnlineSnapshot(){
+  if(state.amoOnlineController) state.amoOnlineController.abort();
 }
 function sleep(ms){ return new Promise(resolve=>setTimeout(resolve,ms)); }
 function svgCheck(){ return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"></path></svg>'; }
@@ -466,6 +613,7 @@ function setPickButtonState(id, ok, label){
 function resetPickButtons(){
   setPickButtonState('btnMaxFile', false, 'Выбрать файл MAX');
   setPickButtonState('btnAmoFile', false, 'Выбрать amoCRM');
+  setPickButtonState('btnAmoOnline', false, 'Загрузить слепок');
   setPickButtonState('btnZipFile', false, 'Выбрать ZIP MAX');
   setPickButtonState('btnImagesFolder', false, 'Выбрать папку');
 }
@@ -716,22 +864,27 @@ async function loadSource(kind, file){
       setPickButtonState('btnMaxFile', true, 'MAX выбран');
       logLine(`max_schema: rows=${state.maxRows.length}, phones=${countPhones(state.maxRows)}`);
     } else {
+      setAmoSourceMode('offline');
       const streamAmo = shouldStreamAmoFile(file);
-      state.amoFileName = file.name;
+      let amoRows;
+      let amoRaw = '';
       if(streamAmo){
-        state.amoRaw = '';
         $('infoAmo').innerHTML = `Читаю чанками: <span class="ok">${esc(file.name)}</span>; размер: <b>${formatBytes(file.size)}</b>`;
         logLine(`read_file_chunks: ${file.name}`);
         await sleep(20);
-        state.amoRows = await normalizeAmoCsvFile(file);
+        amoRows = await normalizeAmoCsvFile(file);
       } else {
         logLine(`read_file: ${file.name}`);
         const text = await readFile(file);
-        state.amoRaw = text;
-        state.amoRows = normalizeAmoSource(file.name, text);
+        amoRaw = text;
+        amoRows = normalizeAmoSource(file.name, text);
       }
+      state.amoFileName = file.name;
+      state.amoRaw = amoRaw;
+      state.amoRows = amoRows;
       $('infoAmo').innerHTML = `OK: <span class="ok">${esc(file.name)}</span>; сделок/строк: <b>${state.amoRows.length}</b>; телефонов: <b>${countPhones(state.amoRows)}</b>`;
       setPickButtonState('btnAmoFile', true, 'amoCRM выбран');
+      setPickButtonState('btnAmoOnline', false, 'Загрузить слепок');
       logLine(`amocrm_schema: rows=${state.amoRows.length}, phones=${countPhones(state.amoRows)}`);
     }
     buildFilterOptions();
@@ -1035,30 +1188,28 @@ function normalizeAmoSource(fileName, text){
   return parsed.rows.map((row,i)=>normalizeAmoRow(parsed,row,i)).filter(r=>r.id || r.phones.length || r.fullName);
 }
 function normalizeAmoRow(parsed,row,i, opts={}){
-  // amoCRM CSV: сначала ищем нужные колонки по точному заголовку, потом fallback на известные индексы.
-  // A=ID, D=Ответственный, E=Дата создания сделки, I=Дата закрытия, V:AA=телефоны, CA=Дата визита, BV=Город.
-  const id = rowGetExact(parsed,row,'ID',0) || String(i+1);
-  const responsible = rowGetExact(parsed,row,'Ответственный',3);              // D
-  const createdAt = rowGetExact(parsed,row,'Дата создания сделки',4);         // E
-  const closedAt = rowGetExact(parsed,row,'Дата закрытия',8);                 // I
-  const tags = safeCell(row, 9);                                             // J
-  const stage = safeCell(row, 15);                                           // P
-  const pipeline = safeCell(row, 16);                                        // Q
-  const fullName = rowGetExact(parsed,row,'Полное имя контакта',17);          // R
-  const visitDate = rowGetExact(parsed,row,'Дата визита',78);                 // CA, строго именно заголовок «Дата визита»
-  const city = rowGetExact(parsed,row,'Город',73);                            // BV, строго именно «Город»
-  const region = safeCell(row, 38);                                          // AM: REGION TIME - Область или город
-  const closeReasonCard = rowGetExact(parsed,row,'Причина закрытия карточки',65);
-  const closeReasonOld = safeCell(row,99);
+  // Заголовки имеют приоритет; fallback-индексы сохраняют поддержку старого amoCRM CSV.
+  const columns = parsed.__amoColumns || (parsed.__amoColumns = LeadBridgeAmoSchema.resolve(parsed.headers));
+  const id = safeCell(row, columns.id) || String(i+1);
+  const responsible = safeCell(row, columns.responsible);
+  const createdAt = safeCell(row, columns.createdAt);
+  const closedAt = safeCell(row, columns.closedAt);
+  const tags = safeCell(row, columns.tags);
+  const stage = safeCell(row, columns.stage);
+  const pipeline = safeCell(row, columns.pipeline);
+  const fullName = safeCell(row, columns.fullName);
+  const visitDate = safeCell(row, columns.visitDate);
+  const city = safeCell(row, columns.city);
+  const region = safeCell(row, columns.region);
+  const closeReasonCard = safeCell(row, columns.closeReason);
+  const closeReasonOld = safeCell(row, columns.closeReasonOld);
   const closeReason = closeReasonCard;
-  const comment = [safeCell(row,81),safeCell(row,10),safeCell(row,11),safeCell(row,12),safeCell(row,13),safeCell(row,14)].filter(Boolean).join('\n');
+  const comment = [...new Set([safeCell(row,columns.comment),safeCell(row,10),safeCell(row,11),safeCell(row,12),safeCell(row,13),safeCell(row,14)].filter(Boolean))].join('\n');
   const closeReasonKey = lowerKey(closeReasonCard).replace(/[\s-]+/g,'_');
   const isExcludedCloseReason = /(^|_)1_?(хоз|дубль|дубл)(_|$)/.test(closeReasonKey);
   const duplicateHaystack = lowerKey([stage,pipeline,tags,closeReasonCard,closeReasonOld,comment].join(' '));
   const isDuplicate = isExcludedCloseReason || /(^|\s|_)1?\s*дубл|дубликат|duplicate/.test(duplicateHaystack);
-  const phoneVals = [];
-  for(let col=21; col<=26; col++) phoneVals.push(safeCell(row,col)); // V:AA
-  phoneVals.push(safeCell(row,30), safeCell(row,100));
+  const phoneVals = columns.phones.map(col=>safeCell(row,col));
   const phones = uniquePhones(phoneVals);
   const dealUrl = id ? AMO_BASE + encodeURIComponent(id) : '';
   const result = {source:'amo', phones, id, dealUrl, otherLeadsUrl:dealUrl ? dealUrl + '?tab_id=amo_other_leads' : '', responsible, createdAt, createdAtMs:dateKey(createdAt), closedAt, fullName, visitDate, visitDateMs:dateKey(visitDate), city, region, stage, pipeline, tags, closeReason, closeReasonOld, isExcludedCloseReason, isDuplicate, comment};
@@ -1279,7 +1430,7 @@ function run(){
   applyFilters();
   render();
   setNotice('Матчинг готов. По amoCRM сначала выбирается сделка с визитом текущего месяца. Если таких нет — самая свежая по созданию, кроме 1_ХОЗ/1_ДУБЛЬ. Включённый фильтр показывает только телефоны, где среди найденных сделок есть визит текущего месяца.');
-  setSetupDrawer(true, true);
+  setAppView('results', {scrollTop:true});
 }
 
 function render(){
@@ -1309,7 +1460,7 @@ function showMoreResults(){
 function renderStartState(){
   const root = $('results');
   if(!root) return;
-  root.innerHTML = '<div id="startState" class="start-state"><strong>Готов к загрузке файлов.</strong>Выбери MAX и amoCRM; после запуска здесь появятся совпадения.</div>';
+  root.innerHTML = '<div id="startState" class="start-state"><strong>Результатов пока нет.</strong>Добавь источники и запусти сопоставление.</div>';
 }
 function makeMatchedKeySet(groups, side){
   const matched = new Set();
@@ -1770,7 +1921,11 @@ function initActions(){
     else if(action === 'install-pwa') void installPwa();
     else if(action === 'reset') resetAll();
     else if(action === 'toggle-theme') toggleTheme();
-    else if(action === 'toggle-drawer') toggleSetupDrawer();
+    else if(action === 'switch-view') setAppView(control.dataset.view, {focus:true});
+    else if(action === 'amo-source-mode') setAmoSourceMode(control.dataset.mode);
+    else if(action === 'toggle-amo-token') toggleAmoTokenVisibility();
+    else if(action === 'load-amo-online') void loadAmoOnlineSnapshot();
+    else if(action === 'cancel-amo-online') cancelAmoOnlineSnapshot();
     else if(action === 'pick-file') $(control.dataset.target)?.click();
     else if(action === 'show-more') showMoreResults();
     else if(action === 'toggle-deals') toggleDealsPanel(control.dataset.groupId);
@@ -1780,12 +1935,14 @@ function initActions(){
 }
 
 function resetAll(){
+  cancelAmoOnlineSnapshot();
   state.maxRaw=state.amoRaw=null; state.maxRows=[]; state.amoRows=[]; state.groups=[]; state.filtered=[]; state.maxFileName=state.amoFileName=''; state.imageFiles.clear(); state.imageFolderName=''; clearImages(); resetPickButtons();
   ['fileMax','fileAmo','fileZip','fileImages'].forEach(id=>{ const el=$(id); if(el) el.value=''; });
-  $('infoMax').textContent='файл не загружен'; $('infoAmo').textContent='файл не загружен'; updateImageSourceStatus(false, expectedZipMessage()); renderStartState(); const actions=$('reportActions'); if(actions) actions.classList.add('hidden'); updateMobileRunButton(); setSetupDrawer(false, false); syncFixedTop(); $('loader').textContent=''; $('loader').classList.add('hidden'); setNotice('Сброшено. Загрузи файлы.');
+  $('amoExecToken').value=''; $('amoExecToken').type='password'; $('amoTokenVisibility').setAttribute('aria-pressed','false'); $('amoTokenVisibility').setAttribute('aria-label','Показать токен'); $('amoTokenVisibility').title='Показать токен'; setAmoSourceMode('offline');
+  $('infoMax').textContent='файл не загружен'; $('infoAmo').textContent='файл не загружен'; updateImageSourceStatus(false, expectedZipMessage()); renderStartState(); const actions=$('reportActions'); if(actions) actions.classList.add('hidden'); updateMobileRunButton(); setAppView('sources', {scrollTop:true}); $('loader').textContent=''; $('loader').classList.add('hidden'); setNotice('Сброшено. Загрузи файлы.');
 }
 ['filterResponsible','filterCity','filterDateFrom','filterDateTo','filterSearch','sortBy','sortDir','onlyNoCrmVisit','showCrmVisitCol','onlyCurrentMax'].forEach(id=>{
   $(id).addEventListener('input', ()=>{ if(state.groups.length){ buildGroups(); applyFilters(); render(); } else { toggleCrmVisitColumn(); } });
   $(id).addEventListener('change', ()=>{ if(state.groups.length){ buildGroups(); applyFilters(); render(); } else { toggleCrmVisitColumn(); } });
 });
-bindFileInput('max'); bindFileInput('amo'); bindImageFolder(); initActions(); document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAnketaPreview(); }); setSetupDrawer(false, false); initTheme(); initMobileMode(); toggleCrmVisitColumn(); initFixedTop(); checkReleaseManifest(); initPwaInstall(); updateMobileRunButton(); registerServiceWorker();
+bindFileInput('max'); bindFileInput('amo'); bindImageFolder(); initActions(); initAmoOnlineSource(); $('appTabs')?.addEventListener('keydown', handleAppTabKeydown); document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAnketaPreview(); }); setAppView('sources'); initTheme(); initMobileMode(); toggleCrmVisitColumn(); initFixedTop(); checkReleaseManifest(); initPwaInstall(); updateMobileRunButton(); registerServiceWorker();

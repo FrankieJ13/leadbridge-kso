@@ -1,9 +1,10 @@
-LeadBridge KSO — Windows tools pack v8.2.09.1733
+LeadBridge KSO — Windows tools pack v8.2.10.0848
 
 Что внутри:
 - tools\leadbridge\ — локальная копия LeadBridge matcher.
 - tools\max-chat-local-exporter\ — Chrome extension для экспорта MAX.
 - tools\max-chat-ocr-postprocessor\ — OCR-процессор MAX ZIP/attachments.
+- integrations\google-apps-script-amocrm\ — шаблон защищённого онлайн CSV-снимка.
 - archives\ — исходные ZIP-архивы компонентов.
 - exports\ — сюда удобно класть ZIP экспортов MAX.
 - ocr_results\ — сюда складываются результаты OCR.
@@ -27,4 +28,4 @@ OCR:
 2. Запустите C:\LeadBridgeKSO\launchers\run_ocr_windows.bat
 3. Для LeadBridge используйте messages_ocr.json из результата.
 
-Данные MAX/amoCRM остаются локально на компьютере.
+MAX, OCR, матчинг и отчёты остаются локально. Онлайн amoCRM только скачивает read-only CSV-снимок с настроенного Apps Script.

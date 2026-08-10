@@ -8,9 +8,9 @@
     <AssemblyName>LeadBridgeKSO</AssemblyName>
     <RootNamespace>LeadBridgeKSO.Windows</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>8.2.9.1733</Version>
-    <AssemblyVersion>8.2.9.1733</AssemblyVersion>
-    <FileVersion>8.2.9.1733</FileVersion>
+    <Version>8.2.10.848</Version>
+    <AssemblyVersion>8.2.10.848</AssemblyVersion>
+    <FileVersion>8.2.10.848</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

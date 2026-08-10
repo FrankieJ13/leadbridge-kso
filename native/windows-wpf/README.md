@@ -27,8 +27,8 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 Output:
 
 ```text
-dist\LeadBridgeKSO-Windows-WPF-v8.2.09.1733\
-dist\LeadBridgeKSO-Windows-WPF-v8.2.09.1733.zip
+dist\LeadBridgeKSO-Windows-WPF-v8.2.10.0848\
+dist\LeadBridgeKSO-Windows-WPF-v8.2.10.0848.zip
 ```
 
 ## Configuration

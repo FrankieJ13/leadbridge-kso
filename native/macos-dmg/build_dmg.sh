@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$ROOT/../.." 2>/dev/null && pwd || true)"
-VERSION="v8.2.09.1733"
+VERSION="v8.2.10.0848"
 APP_NAME="LeadBridge KSO"
 BUNDLE_ID="ru.leadbridge.kso"
 EXECUTABLE="LeadBridgeKSO"

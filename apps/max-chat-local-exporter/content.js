@@ -2,7 +2,7 @@
   'use strict';
 
   const APP_ID = 'max-local-exporter-panel';
-  const EXPORTER_VERSION = '8.2.09.1733';
+  const EXPORTER_VERSION = '8.2.10.0848';
   const STORAGE_VERSION = 3;
 
   const state = {

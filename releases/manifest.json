@@ -1,114 +1,114 @@
 {
-  "app_version": "v8.2.09.1733",
-  "package_version": "v8.2.09.1733",
-  "build_version": "v8.2.09.1733",
+  "app_version": "v8.2.10.0848",
+  "package_version": "v8.2.10.0848",
+  "build_version": "v8.2.10.0848",
   "schema_version": 2,
-  "git_commit": "7bc63d390843c0b28d5dcf8ce62b99cb8728b5b0",
+  "git_commit": "e2559557f4a7e9426eb03afde9b4768d8289f702",
   "pages_entry": "index.html",
-  "release_tag": "v8.2.09.1733",
-  "local_data_policy": "Files are processed locally by the browser/tools; GitHub is used only for code, static page hosting and releases.",
-  "local_data_policy_ru": "Файлы MAX, amoCRM, OCR и картинки обрабатываются локально в браузере или локальных инструментах. GitHub используется только для кода, страницы запуска и релизов.",
+  "release_tag": "v8.2.10.0848",
+  "local_data_policy": "MAX/OCR/ZIP files and all matching are local. Optional amoCRM online mode downloads a read-only CSV snapshot from the operator's token-protected Apps Script endpoint. GitHub receives no user data.",
+  "local_data_policy_ru": "MAX/OCR/ZIP и весь матчинг остаются локальными. Опциональный онлайн-режим amoCRM скачивает read-only CSV-снимок с защищённого токеном Apps Script оператора. Пользовательские данные не отправляются в GitHub.",
   "downloads": {
     "tools": {
       "macos": {
         "label": "LeadBridge KSO tools for macOS",
-        "version": "v8.2.09.1733",
-        "file": "leadbridge-kso-tools-macos-v8.2.09.1733.zip",
-        "github_release_asset": "leadbridge-kso-tools-macos-v8.2.09.1733.zip",
-        "download_url": "releases/packages/leadbridge-kso-tools-macos-v8.2.09.1733.zip",
+        "version": "v8.2.10.0848",
+        "file": "leadbridge-kso-tools-macos-v8.2.10.0848.zip",
+        "github_release_asset": "leadbridge-kso-tools-macos-v8.2.10.0848.zip",
+        "download_url": "releases/packages/leadbridge-kso-tools-macos-v8.2.10.0848.zip",
         "installer": "install_macos.command",
-        "sha256": "f0aad548750a404d983cdd6cd2aa7eb286f6d48c9d7d1263879f0b4a19b937cc",
-        "size_bytes": 197834
+        "sha256": "bd08891902f3cd01bb32a5b3a858e8877c7ce26a8e4308f2ef00ca45d4cbcebb",
+        "size_bytes": 217150
       },
       "windows": {
         "label": "LeadBridge KSO tools for Windows",
-        "version": "v8.2.09.1733",
-        "file": "leadbridge-kso-tools-windows-v8.2.09.1733.zip",
-        "github_release_asset": "leadbridge-kso-tools-windows-v8.2.09.1733.zip",
-        "download_url": "releases/packages/leadbridge-kso-tools-windows-v8.2.09.1733.zip",
+        "version": "v8.2.10.0848",
+        "file": "leadbridge-kso-tools-windows-v8.2.10.0848.zip",
+        "github_release_asset": "leadbridge-kso-tools-windows-v8.2.10.0848.zip",
+        "download_url": "releases/packages/leadbridge-kso-tools-windows-v8.2.10.0848.zip",
         "installer": "install_windows.ps1",
-        "sha256": "93f8f58598edba6131d43faf733ab4d0e237480e626d56ebd93422caa54d9632",
-        "size_bytes": 198194
+        "sha256": "9623a6187d5cc778f3adeadaba479a6ee69c4d0cfad78db9a45266e72b451dd2",
+        "size_bytes": 217525
       }
     },
     "components": {
       "leadbridge_offline_html": {
         "label": "LeadBridge offline Web",
-        "version": "v8.2.09.1733",
-        "file": "leadbridge-offline-html-v8.2.09.1733.zip",
-        "github_release_asset": "leadbridge-offline-html-v8.2.09.1733.zip",
-        "download_url": "releases/packages/leadbridge-offline-html-v8.2.09.1733.zip",
-        "sha256": "086388e25f07e7fa45d0fe61f894bf325617f18eb3ff483225f142b269ab1330",
-        "size_bytes": 53718
+        "version": "v8.2.10.0848",
+        "file": "leadbridge-offline-html-v8.2.10.0848.zip",
+        "github_release_asset": "leadbridge-offline-html-v8.2.10.0848.zip",
+        "download_url": "releases/packages/leadbridge-offline-html-v8.2.10.0848.zip",
+        "sha256": "d334313805ea0640e064b398494723f0a0b9f965eda1632e7ee6b66e397a47b2",
+        "size_bytes": 62639
       },
       "max_chat_local_exporter": {
         "label": "MAX Chat Local Exporter",
-        "version": "v8.2.09.1733",
-        "file": "max-chat-local-exporter-v8.2.09.1733.zip",
-        "github_release_asset": "max-chat-local-exporter-v8.2.09.1733.zip",
-        "download_url": "releases/packages/max-chat-local-exporter-v8.2.09.1733.zip",
-        "sha256": "2bf3122ea12653450593e5c5baef87b6f5ea2d81f16438e273db2cc4b6576776",
+        "version": "v8.2.10.0848",
+        "file": "max-chat-local-exporter-v8.2.10.0848.zip",
+        "github_release_asset": "max-chat-local-exporter-v8.2.10.0848.zip",
+        "download_url": "releases/packages/max-chat-local-exporter-v8.2.10.0848.zip",
+        "sha256": "8fe82168aab589718b73f83be3d02d9a5a2e3047d100d5c6320f0066732aad16",
         "size_bytes": 25948
       },
       "max_chat_ocr_postprocessor": {
         "label": "MAX Chat OCR Postprocessor",
-        "version": "v8.2.09.1733",
-        "file": "max-chat-ocr-postprocessor-v8.2.09.1733.zip",
-        "github_release_asset": "max-chat-ocr-postprocessor-v8.2.09.1733.zip",
-        "download_url": "releases/packages/max-chat-ocr-postprocessor-v8.2.09.1733.zip",
-        "sha256": "e212a650f956278eede6651f0dcd9d6090969b99cf60df977825de49c29ee2e0",
-        "size_bytes": 20503
+        "version": "v8.2.10.0848",
+        "file": "max-chat-ocr-postprocessor-v8.2.10.0848.zip",
+        "github_release_asset": "max-chat-ocr-postprocessor-v8.2.10.0848.zip",
+        "download_url": "releases/packages/max-chat-ocr-postprocessor-v8.2.10.0848.zip",
+        "sha256": "a2bf12484649f2d5e441f704c6463f75558cce6e8a6444ec855192afc30d9b8c",
+        "size_bytes": 20510
       }
     },
     "native_builds": {
       "windows_wpf": {
         "label": "LeadBridge KSO native Windows WPF build package",
-        "version": "v8.2.09.1733",
-        "file": "leadbridge-kso-native-windows-wpf-build-v8.2.09.1733.zip",
-        "github_release_asset": "leadbridge-kso-native-windows-wpf-build-v8.2.09.1733.zip",
-        "download_url": "releases/packages/leadbridge-kso-native-windows-wpf-build-v8.2.09.1733.zip",
-        "sha256": "233a6e9d7fe98a12a66b5329acb462acd0bfcf55e192fb694830a5783dddd683",
-        "size_bytes": 55157
+        "version": "v8.2.10.0848",
+        "file": "leadbridge-kso-native-windows-wpf-build-v8.2.10.0848.zip",
+        "github_release_asset": "leadbridge-kso-native-windows-wpf-build-v8.2.10.0848.zip",
+        "download_url": "releases/packages/leadbridge-kso-native-windows-wpf-build-v8.2.10.0848.zip",
+        "sha256": "4b355cc4192d601336d4947708495ef0012b2c96f0331ce11190519064d6cd28",
+        "size_bytes": 63135
       },
       "macos_dmg": {
         "label": "LeadBridge KSO native macOS DMG build package",
-        "version": "v8.2.09.1733",
-        "file": "leadbridge-kso-native-macos-dmg-build-v8.2.09.1733.zip",
-        "github_release_asset": "leadbridge-kso-native-macos-dmg-build-v8.2.09.1733.zip",
-        "download_url": "releases/packages/leadbridge-kso-native-macos-dmg-build-v8.2.09.1733.zip",
-        "sha256": "150b36964d0b41c2eb4efc208014a6382a8e17c9cfaebcadc3fd28491468ad52",
-        "size_bytes": 52963
+        "version": "v8.2.10.0848",
+        "file": "leadbridge-kso-native-macos-dmg-build-v8.2.10.0848.zip",
+        "github_release_asset": "leadbridge-kso-native-macos-dmg-build-v8.2.10.0848.zip",
+        "download_url": "releases/packages/leadbridge-kso-native-macos-dmg-build-v8.2.10.0848.zip",
+        "sha256": "a51bfd17dd0af9ce3bfc7f77d9ccd53b838a94a2711d6c826ef09a3e86055d47",
+        "size_bytes": 60852
       }
     }
   },
   "artifacts": {
-    "leadbridge-kso-native-macos-dmg-build-v8.2.09.1733.zip": {
-      "sha256": "150b36964d0b41c2eb4efc208014a6382a8e17c9cfaebcadc3fd28491468ad52",
-      "size_bytes": 52963
+    "leadbridge-kso-native-macos-dmg-build-v8.2.10.0848.zip": {
+      "sha256": "a51bfd17dd0af9ce3bfc7f77d9ccd53b838a94a2711d6c826ef09a3e86055d47",
+      "size_bytes": 60852
     },
-    "leadbridge-kso-native-windows-wpf-build-v8.2.09.1733.zip": {
-      "sha256": "233a6e9d7fe98a12a66b5329acb462acd0bfcf55e192fb694830a5783dddd683",
-      "size_bytes": 55157
+    "leadbridge-kso-native-windows-wpf-build-v8.2.10.0848.zip": {
+      "sha256": "4b355cc4192d601336d4947708495ef0012b2c96f0331ce11190519064d6cd28",
+      "size_bytes": 63135
     },
-    "leadbridge-kso-tools-macos-v8.2.09.1733.zip": {
-      "sha256": "f0aad548750a404d983cdd6cd2aa7eb286f6d48c9d7d1263879f0b4a19b937cc",
-      "size_bytes": 197834
+    "leadbridge-kso-tools-macos-v8.2.10.0848.zip": {
+      "sha256": "bd08891902f3cd01bb32a5b3a858e8877c7ce26a8e4308f2ef00ca45d4cbcebb",
+      "size_bytes": 217150
     },
-    "leadbridge-kso-tools-windows-v8.2.09.1733.zip": {
-      "sha256": "93f8f58598edba6131d43faf733ab4d0e237480e626d56ebd93422caa54d9632",
-      "size_bytes": 198194
+    "leadbridge-kso-tools-windows-v8.2.10.0848.zip": {
+      "sha256": "9623a6187d5cc778f3adeadaba479a6ee69c4d0cfad78db9a45266e72b451dd2",
+      "size_bytes": 217525
     },
-    "leadbridge-offline-html-v8.2.09.1733.zip": {
-      "sha256": "086388e25f07e7fa45d0fe61f894bf325617f18eb3ff483225f142b269ab1330",
-      "size_bytes": 53718
+    "leadbridge-offline-html-v8.2.10.0848.zip": {
+      "sha256": "d334313805ea0640e064b398494723f0a0b9f965eda1632e7ee6b66e397a47b2",
+      "size_bytes": 62639
     },
-    "max-chat-local-exporter-v8.2.09.1733.zip": {
-      "sha256": "2bf3122ea12653450593e5c5baef87b6f5ea2d81f16438e273db2cc4b6576776",
+    "max-chat-local-exporter-v8.2.10.0848.zip": {
+      "sha256": "8fe82168aab589718b73f83be3d02d9a5a2e3047d100d5c6320f0066732aad16",
       "size_bytes": 25948
     },
-    "max-chat-ocr-postprocessor-v8.2.09.1733.zip": {
-      "sha256": "e212a650f956278eede6651f0dcd9d6090969b99cf60df977825de49c29ee2e0",
-      "size_bytes": 20503
+    "max-chat-ocr-postprocessor-v8.2.10.0848.zip": {
+      "sha256": "a2bf12484649f2d5e441f704c6463f75558cce6e8a6444ec855192afc30d9b8c",
+      "size_bytes": 20510
     }
   }
 }

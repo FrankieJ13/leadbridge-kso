@@ -19,6 +19,7 @@ New-Item -ItemType Directory -Force -Path $Target | Out-Null
 New-Item -ItemType Directory -Force -Path "$Target\exports" | Out-Null
 New-Item -ItemType Directory -Force -Path "$Target\ocr_results" | Out-Null
 New-Item -ItemType Directory -Force -Path "$Target\tools" | Out-Null
+New-Item -ItemType Directory -Force -Path "$Target\integrations" | Out-Null
 New-Item -ItemType Directory -Force -Path "$Target\archives" | Out-Null
 New-Item -ItemType Directory -Force -Path "$Target\launchers" | Out-Null
 
@@ -46,6 +47,10 @@ if (Test-Path (Join-Path $SourceRoot 'apps\max-chat-ocr-postprocessor')) {
   Copy-CleanDir (Join-Path $SourceRoot 'apps\max-chat-ocr-postprocessor') "$Target\tools\max-chat-ocr-postprocessor"
 } else {
   Copy-CleanDir (Join-Path $SourceRoot 'tools\max-chat-ocr-postprocessor') "$Target\tools\max-chat-ocr-postprocessor"
+}
+
+if (Test-Path (Join-Path $SourceRoot 'integrations\google-apps-script-amocrm')) {
+  Copy-CleanDir (Join-Path $SourceRoot 'integrations\google-apps-script-amocrm') "$Target\integrations\google-apps-script-amocrm"
 }
 
 if (Test-Path (Join-Path $SourceRoot 'releases\packages')) {
@@ -101,4 +106,5 @@ Write-Host 'Installed.' -ForegroundColor Green
 Write-Host "Open: $Target\launchers\open_leadbridge.bat"
 Write-Host "OCR:  $Target\launchers\run_ocr_windows.bat"
 Write-Host "Chrome extension folder: $Target\tools\max-chat-local-exporter"
+Write-Host "Online amoCRM setup: $Target\integrations\google-apps-script-amocrm\README.md"
 Read-Host 'Press Enter to exit'
