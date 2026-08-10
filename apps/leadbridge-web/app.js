@@ -875,6 +875,12 @@ function basename(p){ return normalizeFsPath(p).split('/').filter(Boolean).pop()
 function imageKey(p){ return normalizeFsPath(p).toLowerCase(); }
 function addImageKey(key, file){
   const k=imageKey(key); if(!k) return;
+  if(state.imageFiles.has(k)){
+    if(state.imageFiles.get(k) === file) return;
+    state.imageKeyCounts.set(k,(state.imageKeyCounts.get(k)||1)+1);
+    state.imageFiles.set(k,null);
+    return;
+  }
   const count=(state.imageKeyCounts.get(k)||0)+1;
   state.imageKeyCounts.set(k,count);
   if(count===1) state.imageFiles.set(k,file);
@@ -1059,6 +1065,13 @@ function objectUrlForImage(path){
   if(!state.imageObjectUrls.has(key)) state.imageObjectUrls.set(key, URL.createObjectURL(file));
   return state.imageObjectUrls.get(key);
 }
+function setPreviewZoomEnabled(enabled){
+  const viewport = document.querySelector('meta[name="viewport"]');
+  if(!viewport) return;
+  viewport.setAttribute('content', enabled
+    ? 'width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover'
+    : 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
+}
 function openAnketaPreview(path){
   const file = findImageFile(path);
   const url = file ? objectUrlForImage(path) : normalizeFsPath(path);
@@ -1068,12 +1081,14 @@ function openAnketaPreview(path){
   $('previewWarn').classList.toggle('hidden', !!file);
   $('previewWarn').textContent = file ? '' : 'Файл картинки не найден. Выбери исходный ZIP MAX или папку attachments, чтобы открыть точную OCR-картинку.';
   $('previewImg').src = url;
+  setPreviewZoomEnabled(true);
   document.body.classList.add('preview-zoom-open');
   $('anketaPreviewModal').classList.remove('hidden');
 }
 function closeAnketaPreview(){
   $('anketaPreviewModal').classList.add('hidden');
   $('previewImg').removeAttribute('src');
+  setPreviewZoomEnabled(false);
   document.body.classList.remove('preview-zoom-open');
 }
 function detectExpectedZipFromText(text){
@@ -1662,10 +1677,10 @@ function run(){
   logLine('normalize_phone: +7/8/7xxxxxxxxxx/(xxx) -> 10 digits');
   buildGroups();
   logLine(`match_by_phone: groups=${state.groups.length}`);
-  logLine('amocrm_select: 1) сделка с визитом текущего месяца; 2) если таких нет — свежая по созданию без 1_ХОЗ/1_ДУБЛЬ; фильтр-чип скрывает телефоны без визита текущего месяца');
+  logLine('amocrm_select: 1) сделка с визитом текущего месяца; 2) если таких нет — свежая по созданию без 1_ХОЗ/1_ДУБЛЬ; фильтр-чип скрывает телефоны с визитом текущего месяца');
   applyFilters();
   render();
-  setNotice('Матчинг готов. По amoCRM сначала выбирается сделка с визитом текущего месяца. Если таких нет — самая свежая по созданию, кроме 1_ХОЗ/1_ДУБЛЬ. Включённый фильтр показывает только телефоны, где среди найденных сделок есть визит текущего месяца.');
+  setNotice('Матчинг готов. По amoCRM сначала выбирается сделка с визитом текущего месяца. Если таких нет — самая свежая по созданию, кроме 1_ХОЗ/1_ДУБЛЬ. Включённый фильтр «Без визита в CRM» скрывает телефоны, где хотя бы в одной сделке уже есть визит текущего месяца.');
   setAppView('results', {scrollTop:true});
 }
 
@@ -1734,36 +1749,98 @@ function renderStats(){
   board.classList.remove('hidden');
   syncFixedTop();
 }
+function formatPhoneForCard(phone){
+  const digits = String(phone || '').replace(/\D/g,'');
+  if(digits.length !== 10) return String(phone || '');
+  return `8 ${digits.slice(0,3)} ${digits.slice(3,6)}-${digits.slice(6,8)}-${digits.slice(8)}`;
+}
+function compactClientPresentation(g){
+  const names = LeadBridgeMatching.clientNamePresentation(g.max || [], g.amoAll || g.amo || []);
+  const maxRow = (g.max || [])[0] || null;
+  const sourceStatus = String(maxRow && (maxRow._leadbridgeOriginalVersionStatus || maxRow.versionStatus) || '').toUpperCase();
+  return {
+    ...names,
+    needsReview: names.hasMismatch || sourceStatus === 'SUPERSEDED',
+    reviewLabel: names.hasMismatch ? 'ФИО отличаются' : 'нужна сверка'
+  };
+}
+function renderCompactAnketa(r){
+  const path = clean(r && r.attachmentPath || '');
+  if(!path) return '<div class="compact-no-anketa">нет анкеты</div>';
+  const file = findImageFile(path);
+  if(!file) return `<div class="compact-no-anketa" title="${escAttr(path)}">фото не найдено</div>`;
+  const url = objectUrlForImage(path);
+  return `<button class="compact-anketa-button" type="button" data-action="open-preview" data-path="${escAttr(path)}" title="Открыть анкету крупнее"><img class="compact-anketa-thumb" src="${escAttr(url)}" alt="Анкета"><span>Анкета</span></button>`;
+}
+function renderPrimaryDealAction(deal){
+  const url = deal && safeAmoUrl(deal.dealUrl);
+  if(!url) return '<span class="compact-deal-primary disabled"><span>Сделка не найдена</span></span>';
+  return `<a class="compact-deal-primary" href="${escAttr(url)}" target="_blank" rel="noopener" title="Открыть выбранную сделку amoCRM"><span>Открыть сделку <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5M19 5l-9 9"/><path d="M19 13v6H5V5h6"/></svg></span><small>#${esc(deal.id || '—')}</small></a>`;
+}
+function dealSelectionReasonText(deal){
+  if(!deal) return 'нет выбранной сделки';
+  if(deal._leadbridgeSelectReason === 'visit_current_month_nearest') return 'ближайший визит текущего месяца';
+  if(deal._leadbridgeSelectReason === 'latest_created_not_hoz_not_double') return 'самая свежая, кроме 1_ХОЗ/1_ДУБЛЬ';
+  if(deal._leadbridgeSelectReason === 'fallback_only_hoz_double') return 'запасной выбор: все сделки 1_ХОЗ/1_ДУБЛЬ';
+  return 'выбрана по текущему правилу';
+}
+function renderMatchingDetails(g){
+  const maxRow = (g.max || [])[0] || null;
+  const deal = (g.amo || [])[0] || null;
+  const originalStatus = clean(maxRow && (maxRow._leadbridgeOriginalVersionStatus || maxRow.versionStatus) || 'нет');
+  const city = deal ? [deal.city,deal.region].filter(Boolean).join(' / ') : '';
+  const summary = [
+    ['Ключ совпадения', formatPhoneForCard(g.phone)],
+    ['Метод', 'точные 10 цифр телефона'],
+    ['Выбор сделки', dealSelectionReasonText(deal)],
+    ['Статус MAX', originalStatus],
+    ['Ответственный', deal && deal.responsible || '—'],
+    ['Город / регион', city || '—']
+  ];
+  const rows = [...(g.max || []).map(r=>renderRow('max',g.phone,r)), ...(g.amo || []).map(r=>renderRow('amo',g.phone,r))].join('');
+  return `<div class="match-details-summary">${summary.map(([label,value])=>`<div class="match-detail-item"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join('')}</div>
+    <div class="match-details-note">Ниже показаны выбранная строка MAX и одна сделка, которая попадает в отчёт. Остальные сделки по телефону доступны через «Все сделки».</div>
+    <div class="match-details-table-wrap"><table class="match-details-table"><colgroup><col class="source-cell"><col class="id-cell"><col class="phone-cell"><col class="fio-cell"><col class="mop-cell"><col class="city-cell"><col class="date-cell"><col class="date-cell crm-visit-col"><col class="date-cell"><col class="link-cell"><col class="comment-cell"></colgroup><thead><tr><th>Источник</th><th>ID / сообщение</th><th>Телефон</th><th>ФИО клиента</th><th>МОП</th><th>Город</th><th>Визит анкеты</th><th class="crm-visit-col">Визит CRM</th><th>Создание CRM</th><th>Анкета</th><th>Комментарий</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function openMatchDetails(phone){
+  const g = state.filtered.find(group=>String(group.phone)===String(phone));
+  if(!g) return;
+  const names = compactClientPresentation(g);
+  state.matchDetailsReturnFocus = document.activeElement;
+  $('matchDetailsTitle').textContent = `${formatPhoneForCard(g.phone)} · ${names.primaryName || 'ФИО не найдено'}`;
+  $('matchDetailsBody').innerHTML = renderMatchingDetails(g);
+  $('matchDetailsModal').classList.remove('hidden');
+  document.body.classList.add('match-details-open');
+  $('closeMatchDetailsBtn')?.focus();
+}
+function closeMatchDetails(){
+  const modal = $('matchDetailsModal');
+  if(!modal || modal.classList.contains('hidden')) return;
+  modal.classList.add('hidden');
+  $('matchDetailsBody').innerHTML = '';
+  document.body.classList.remove('match-details-open');
+  const target = state.matchDetailsReturnFocus;
+  state.matchDetailsReturnFocus = null;
+  if(target && document.contains(target)) target.focus();
+}
 function renderGroup(g, idx){
   const groupId = `deals_${idx}_${String(g.phone).replace(/\D/g, '')}`;
-  const mainName = g.names[0] || '';
-  const mainCity = g.cities[0] || '';
-  const mainRegion = g.regions[0] || '';
-  const totalAmo = g.amoAll?.length || g.amo.length;
-  const chips = [
-    `<span class="pill max">анкеты: ${g.max.length}</span>`,
-    `<span class="pill amo">amoCRM: ${g.amo.length}</span>`,
-    totalAmo>g.amo.length ? `<span class="pill">всего сделок: ${totalAmo}</span>` : '',
-    ...g.amo.slice(0,3).map(r=>r.responsible?`<span class="pill">${esc(r.responsible)}</span>`:''),
-    mainCity?`<span class="pill">${esc(mainCity)}</span>`:'',
-    mainRegion?`<span class="pill">${esc(mainRegion)}</span>`:'',
-    g.amo.some(r=>r.visitDate)?`<span class="pill warn">есть визит CRM</span>`:`<span class="pill max">визит CRM пусто</span>`
-  ].filter(Boolean).join('');
+  const names = compactClientPresentation(g);
+  const deal = (g.amo || [])[0] || null;
   const dealsBtn = renderDealsToggle(g, groupId);
   const dealsPanel = renderDealsPanel(g, groupId);
-  const rows = [...g.max.map(r=>renderRow('max', g.phone, r)), ...g.amo.map(r=>renderRow('amo', g.phone, r))].join('');
-  return `<article class="match" data-phone="${esc(g.phone)}">
-    <div class="match-head">
-      <div class="head-main">
-        <div class="head-line"><div class="phone">☎ ${esc(g.phone)}</div><div class="head-title">${esc(mainName || 'ФИО не найдено')}</div></div>
-        <div class="head-sub"><span>нормализованный телефон / один блок совпадения</span>${mainCity?`<span>${esc(mainCity)}</span>`:''}${mainRegion?`<span>${esc(mainRegion)}</span>`:''}</div>
+  return `<article class="match compact-match" data-phone="${esc(g.phone)}">
+    <div class="compact-match-main">
+      <div class="compact-phone-block"><span class="compact-phone-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.69 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.33 1.85.56 2.81.69A2 2 0 0 1 22 16.9z"/></svg></span><strong class="compact-phone">${esc(formatPhoneForCard(g.phone))}</strong></div>
+      <div class="compact-identity">
+        <div class="compact-identity-line"><span class="compact-client-name">${esc(names.primaryName || 'ФИО не найдено')}</span>${names.needsReview?`<span class="compact-review-label">${esc(names.reviewLabel)}</span>`:''}</div>
+        ${names.amoLine?`<div class="compact-amo-name"><span>amoCRM:</span> ${esc(names.amoLine)}</div>`:''}
       </div>
-      <div class="head-meta">${chips}${dealsBtn}</div>
+      <div class="compact-anketa">${renderCompactAnketa((g.max || [])[0])}</div>
+      <div class="compact-deal-actions">${renderPrimaryDealAction(deal)}${dealsBtn}</div>
+      <button class="match-info-btn" type="button" data-action="open-match-details" data-phone="${escAttr(g.phone)}" title="Детали матчинга" aria-label="Показать детали матчинга"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></button>
     </div>
     ${dealsPanel}
-    <div class="tablebox"><table><colgroup><col class="source-cell"><col class="id-cell"><col class="phone-cell"><col class="fio-cell"><col class="mop-cell"><col class="city-cell"><col class="date-cell"><col class="date-cell crm-visit-col"><col class="date-cell"><col class="link-cell"><col class="comment-cell"></colgroup><thead><tr>
-      <th>Источник</th><th>ID / сообщение</th><th>Телефон</th><th>ФИО клиента</th><th>МОП</th><th>Город</th><th>Визит анкеты</th><th class="crm-visit-col">Визит CRM</th><th>Создание CRM</th><th>Анкета</th><th>Комментарий</th>
-    </tr></thead><tbody>${rows}</tbody></table></div>
   </article>`;
 }
 function toggleDealsPanel(id){
@@ -1779,7 +1856,7 @@ function toggleDealsPanel(id){
 function renderDealsToggle(g, groupId){
   const deals = g.amoAll || g.amo || [];
   if(!deals.length) return '';
-  return `<button id="btn_${escAttr(groupId)}" class="deals-toggle" data-action="toggle-deals" data-group-id="${escAttr(groupId)}" title="Показать все сделки amoCRM, найденные по номеру" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg><span>сделки: ${esc(deals.length)}</span></button>`;
+  return `<button id="btn_${escAttr(groupId)}" class="deals-toggle compact-deals-link" type="button" data-action="toggle-deals" data-group-id="${escAttr(groupId)}" title="Показать все сделки amoCRM, найденные по номеру" aria-expanded="false"><span>Все сделки · ${esc(deals.length)}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>`;
 }
 function renderDealsPanel(g, groupId){
   const deals = (g.amoAll || g.amo || []).slice().sort((a,b)=>{
@@ -1812,9 +1889,7 @@ function renderAnketaCell(r){
   if(!file){
     return `<div class="anketa-preview-stack"><span class="anketa-missing" title="${escAttr(path)}">картинка не найдена</span>${reviewChips}</div>`;
   }
-  const url = URL.createObjectURL(file);
-  state.previewUrls = state.previewUrls || [];
-  state.previewUrls.push(url);
+  const url = objectUrlForImage(path);
   return `<div class="anketa-preview-cell"><div class="anketa-preview-stack"><img class="anketa-thumb" src="${escAttr(url)}" alt="Анкета" title="Открыть превью: ${escAttr(path)}" data-action="open-preview" data-path="${escAttr(path)}">${reviewChips}</div></div>`;
 }
 
@@ -2148,7 +2223,7 @@ function initActions(){
     const control = event.target.closest('[data-action]');
     if(!control) return;
     const action = control.dataset.action;
-    if(action === 'close-preview-backdrop' && event.target !== control) return;
+    if((action === 'close-preview-backdrop' || action === 'close-match-details-backdrop') && event.target !== control) return;
     if(action === 'download-csv') downloadUnifiedCsv();
     else if(action === 'download-markdown') downloadMarkdown();
     else if(action === 'download-html') void downloadHtmlReport();
@@ -2166,8 +2241,10 @@ function initActions(){
     else if(action === 'pick-file') $(control.dataset.target)?.click();
     else if(action === 'show-more') showMoreResults();
     else if(action === 'toggle-deals') toggleDealsPanel(control.dataset.groupId);
+    else if(action === 'open-match-details') openMatchDetails(control.dataset.phone || '');
     else if(action === 'open-preview') openAnketaPreview(control.dataset.path || '');
     else if(action === 'close-preview' || action === 'close-preview-backdrop') closeAnketaPreview();
+    else if(action === 'close-match-details' || action === 'close-match-details-backdrop') closeMatchDetails();
   });
 }
 
@@ -2183,4 +2260,4 @@ function resetAll(){
   $(id).addEventListener('input', ()=>{ if(state.groups.length){ buildGroups(); applyFilters(); render(); } else { toggleCrmVisitColumn(); } });
   $(id).addEventListener('change', ()=>{ if(state.groups.length){ buildGroups(); applyFilters(); render(); } else { toggleCrmVisitColumn(); } });
 });
-bindFileInput('max'); bindFileInput('amo'); bindImageFolder(); initActions(); initAmoOnlineSource(); $('appTabs')?.addEventListener('keydown', handleAppTabKeydown); document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAnketaPreview(); }); setAppView('sources'); initTheme(); initMobileMode(); toggleCrmVisitColumn(); initFixedTop(); checkReleaseManifest(); initPwaInstall(); updateMobileRunButton(); registerServiceWorker();
+bindFileInput('max'); bindFileInput('amo'); bindImageFolder(); initActions(); initAmoOnlineSource(); $('appTabs')?.addEventListener('keydown', handleAppTabKeydown); document.addEventListener('keydown', e=>{ if(e.key!=='Escape') return; if(!$('anketaPreviewModal').classList.contains('hidden')) closeAnketaPreview(); else closeMatchDetails(); }); setAppView('sources'); initTheme(); initMobileMode(); toggleCrmVisitColumn(); initFixedTop(); checkReleaseManifest(); initPwaInstall(); updateMobileRunButton(); registerServiceWorker();

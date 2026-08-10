@@ -9,6 +9,44 @@
     return String(value || '').toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9]+/g, ' ').trim();
   }
 
+  function splitClientNames(value) {
+    return String(value || '')
+      .split(/\s*(?:\/|;|\n)\s*/)
+      .map((name) => name.trim())
+      .filter(Boolean);
+  }
+
+  function uniqueClientNames(rows) {
+    const names = [];
+    const seen = new Set();
+    (rows || []).forEach((row) => splitClientNames(row && row.fullName).forEach((name) => {
+      const normalized = normalizeName(name);
+      if (!normalized || seen.has(normalized)) return;
+      seen.add(normalized);
+      names.push(name);
+    }));
+    return names;
+  }
+
+  function clientNamePresentation(maxRows, amoRows) {
+    const maxNames = uniqueClientNames(maxRows);
+    const amoNames = uniqueClientNames(amoRows);
+    const maxKeys = new Set(maxNames.map(normalizeName));
+    const amoKeys = new Set(amoNames.map(normalizeName));
+    const hasMismatch = Boolean(maxKeys.size && amoKeys.size && (
+      maxKeys.size !== amoKeys.size
+      || [...maxKeys].some((name) => !amoKeys.has(name))
+      || [...amoKeys].some((name) => !maxKeys.has(name))
+    ));
+    return {
+      primaryName: maxNames[0] || amoNames[0] || '',
+      maxNames,
+      amoNames,
+      amoLine: hasMismatch ? amoNames.join(' / ') : '',
+      hasMismatch
+    };
+  }
+
   function groupByExactPhone(maxRows, amoRows) {
     const map = new Map();
     const add = (phone, side, row) => {
@@ -31,5 +69,5 @@
     };
   }
 
-  return { basicMatch, groupByExactPhone, normalizeName };
+  return { basicMatch, clientNamePresentation, groupByExactPhone, normalizeName, splitClientNames };
 }));

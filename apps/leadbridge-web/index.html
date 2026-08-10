@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>LeadBridge: поиск сделок по анкетам КСО v8.2.10.0848</title>
   <meta name="theme-color" content="#05070a" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -21,13 +21,13 @@
         <div class="brand-copy">
           <div class="heading-row">
             <h1><span class="title-full">LeadBridge: поиск сделок по анкетам КСО</span><span class="title-compact">LeadBridge KSO</span> <span class="version">v8.2.10.0848</span></h1>
-            <nav id="appTabs" class="app-tabs" role="tablist" aria-label="Разделы LeadBridge">
-              <button id="sourcesTab" class="app-tab active" type="button" role="tab" aria-selected="true" aria-controls="sourcesView" tabindex="0" data-action="switch-view" data-view="sources">Источники</button>
-              <button id="resultsTab" class="app-tab" type="button" role="tab" aria-selected="false" aria-controls="resultsView" tabindex="-1" data-action="switch-view" data-view="results">Результаты</button>
-            </nav>
           </div>
           <div class="sub">Локальный matcher. MAX читается с устройства, amoCRM — из выбранного CSV или защищённого слепка /exec → нормализация телефонов до 10 цифр → один блок совпадения на один телефон → отчёт CSV / MD / HTML. <span class="author">Авторство и идея разработки: Бочаров Ю.С.</span> <span id="buildMeta">Build commit: local/offline</span></div>
         </div>
+        <nav id="appTabs" class="app-tabs" role="tablist" aria-label="Разделы LeadBridge">
+          <button id="sourcesTab" class="app-tab active" type="button" role="tab" aria-selected="true" aria-controls="sourcesView" tabindex="0" data-action="switch-view" data-view="sources">Источники</button>
+          <button id="resultsTab" class="app-tab" type="button" role="tab" aria-selected="false" aria-controls="resultsView" tabindex="-1" data-action="switch-view" data-view="results">Результаты</button>
+        </nav>
         <div class="top-actions">
           <div id="reportActions" class="report-actions results-view-only hidden">
             <button class="btn icon-btn" data-action="download-csv" title="Скачать единый CSV со всеми совпадениями"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>.CSV</button>
@@ -151,6 +151,19 @@
         <button class="btn danger" data-action="close-preview">Закрыть</button>
       </div>
       <div class="modal-body"><img id="previewImg" alt="Анкета"></div>
+    </div>
+  </div>
+
+  <div id="matchDetailsModal" class="modal hidden" data-action="close-match-details-backdrop">
+    <div class="modal-card match-details-modal-card" role="dialog" aria-modal="true" aria-labelledby="matchDetailsTitle">
+      <div class="modal-head">
+        <div>
+          <strong id="matchDetailsTitle">Детали матчинга</strong>
+          <div class="muted small">Технические данные MAX и выбранной сделки amoCRM</div>
+        </div>
+        <button id="closeMatchDetailsBtn" class="btn danger icon-btn" data-action="close-match-details" title="Закрыть" aria-label="Закрыть детали матчинга"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </div>
+      <div id="matchDetailsBody" class="modal-body match-details-modal-body"></div>
     </div>
   </div>
 

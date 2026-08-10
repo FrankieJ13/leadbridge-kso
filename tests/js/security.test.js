@@ -170,3 +170,20 @@ test('synthetic matching fixtures preserve exact-phone matches and unmatched row
   assert.deepEqual(result.unmatchedMax.map((row) => row.id), ['max-only']);
   assert.deepEqual(result.unmatchedAmo.map((row) => row.id), ['amo-only']);
 });
+
+test('compact client presentation only exposes the amoCRM name line when names differ', () => {
+  const same = matching.clientNamePresentation(
+    [{fullName: 'Ёлкин Иван'}],
+    [{fullName: 'Елкин Иван'}]
+  );
+  assert.equal(same.hasMismatch, false);
+  assert.equal(same.amoLine, '');
+
+  const different = matching.clientNamePresentation(
+    [{fullName: 'Гилева Наталья Валерьевна'}],
+    [{fullName: 'Гилев Роман Владимирович / Гилева Наталья Валерьевна'}]
+  );
+  assert.equal(different.primaryName, 'Гилева Наталья Валерьевна');
+  assert.equal(different.hasMismatch, true);
+  assert.match(different.amoLine, /Гилев Роман/);
+});
