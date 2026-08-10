@@ -31,7 +31,10 @@
 - Токен передаётся в теле POST-запроса и не добавляется в URL.
 - В свойствах скрипта хранится только SHA-256 токена, ID таблицы и название листа.
 - LeadBridge получает CSV-снимок и разбирает его локально. GitHub не получает содержимое amoCRM.
-- При поддержке браузером CSV-снимок можно сразу сохранить на устройство. Иначе нормализованные строки хранятся только в текущем сеансе LeadBridge.
+- Последний нормализованный слепок хранится порциями в локальном IndexedDB браузера и автоматически восстанавливается без обращения к Apps Script. В интерфейсе показывается дата слепка; кнопки `Обновить` и `Удалить` управляют только этой локальной копией.
+- Токен в IndexedDB не сохраняется: для обновления слепка его нужно ввести снова.
+- При поддержке браузером исходный CSV-снимок можно дополнительно сохранить отдельным файлом на устройство.
+- На смартфоне операционная система может очистить хранилище сайта при критической нехватке свободного места.
 
 ### Безопасность и ограничения
 
@@ -66,4 +69,6 @@ Run `setupLeadBridgeSnapshot` again to select the currently active tab and rotat
 - Do not use `ScriptApp.getOAuthToken()` and do not put the LeadBridge token in a URL.
 - Google Apps Script Content Service redirects successful output to `script.googleusercontent.com`; LeadBridge permits only that documented redirect host.
 - Apps Script creates the CSV before returning it. Very large sheets remain subject to Google Apps Script execution, memory and response limits. LeadBridge itself consumes the response as a stream.
+- LeadBridge stores the latest normalized snapshot in chunked browser IndexedDB and restores it without calling Apps Script. Refresh and delete remain explicit user actions, and the access token is never stored with the snapshot.
+- Mobile operating systems may evict site storage under critical storage pressure; saving a separate CSV file remains an optional backup where supported.
 - Anyone with both the `/exec` URL and token can download the snapshot. Rotate the token after suspected disclosure and limit editors of the Apps Script project.

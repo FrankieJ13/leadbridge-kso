@@ -92,11 +92,15 @@
               <div class="online-options">
                 <label id="saveOnlineSnapshotLabel" class="save-snapshot"><input id="saveOnlineSnapshot" type="checkbox" checked /><span>Сохранить CSV-снимок на устройство</span></label>
               </div>
+              <div id="amoCacheBar" class="amo-cache-bar" aria-live="polite">
+                <div class="amo-cache-copy"><strong>Локальный слепок</strong><span id="amoCacheMeta">Проверяю сохранённую копию...</span></div>
+              </div>
               <div class="online-actions">
                 <button id="btnAmoOnline" class="btn cyan" type="button" data-action="load-amo-online">Загрузить слепок</button>
+                <button id="btnDeleteAmoCache" class="btn danger hidden" type="button" data-action="delete-amo-cache">Удалить</button>
                 <button id="btnCancelAmoOnline" class="btn danger hidden" type="button" data-action="cancel-amo-online">Отмена</button>
               </div>
-              <div class="hint">Токен передаётся только POST-телом в указанный Apps Script и не записывается в URL, отчёты или браузерное хранилище. После загрузки CSV обрабатывается локально.</div>
+              <div class="hint">Токен передаётся только POST-телом в указанный Apps Script и не сохраняется. Нормализованный слепок amoCRM хранится локально в браузере; запрос к /exec выполняется только при загрузке или обновлении. На смартфоне система может очистить кэш при нехватке места.</div>
             </div>
             <div id="infoAmo" class="file-info" aria-live="polite">файл не загружен</div>
           </div>
@@ -155,6 +159,7 @@
 <script src="src/matching.js"></script>
 <script src="src/amo-schema.js"></script>
 <script src="src/online-csv.js"></script>
+<script src="src/amo-snapshot-cache.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

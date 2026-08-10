@@ -9,6 +9,7 @@
 - Added header-based support for the current 143-column amoCRM export while preserving legacy column fallbacks.
 - Added a read-only Google Sheet Apps Script template with SHA-256 token verification and token rotation.
 - Fixed the Apps Script spreadsheet authorization scope for deployed `/exec` requests and added an owner-side access test with precise client diagnostics.
+- Added a persistent chunked IndexedDB cache for the latest normalized amoCRM snapshot with timestamp, automatic local restore, explicit refresh and deletion controls.
 - Added masked token entry with an explicit show/hide control.
 - Split the interface into `Источники` and `Результаты` tabs with automatic result switching after a successful run.
 - Aligned the three source cards and three information cards into compact desktop rows and fixed their light-theme heading contrast.

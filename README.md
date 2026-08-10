@@ -41,7 +41,7 @@ Large amoCRM CSV files are parsed in chunks. Mobile browsers still have finite m
 
 The optional online mode accepts only an HTTPS Google Apps Script deployment URL shaped like `https://script.google.com/macros/s/.../exec`. LeadBridge sends the custom access token in a POST body with cookies omitted. The token is not added to the URL, local storage, logs or generated reports. Only the validated `/exec` URL may be remembered locally.
 
-The response is parsed as a stream. On browsers with the File System Access API, LeadBridge can write the same stream to a local CSV file while parsing it. Other browsers keep only normalized rows in the current session; reload requires another snapshot download or selection of a saved local CSV.
+The response is parsed as a stream. LeadBridge stores the latest normalized snapshot in chunked browser IndexedDB and restores it locally on the next launch without calling Apps Script. The interface shows the snapshot date and provides explicit refresh and delete controls. The token is never stored and is required again only for refresh. On browsers with the File System Access API, LeadBridge can additionally write the original stream to a separate local CSV file while parsing it. Mobile operating systems may evict site storage under critical storage pressure.
 
 Setup instructions and the ready Apps Script are in [`integrations/google-apps-script-amocrm/`](integrations/google-apps-script-amocrm/README.md). Google Apps Script creates its response before download, so its own quotas still constrain very large sheets even though the LeadBridge client is streaming.
 

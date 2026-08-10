@@ -7,7 +7,7 @@ const state = {
   maxRaw:null, amoRaw:null,
   maxRows:[], amoRows:[], groups:[], filtered:[],
   maxFileName:'', amoFileName:'',
-  amoSourceMode:'offline', amoOnlineController:null,
+  amoSourceMode:'offline', amoSourceKind:'none', amoOnlineController:null, amoCacheMeta:null, amoCacheLoading:false, amoLoadedAt:0, amoDeleteArmedUntil:0,
   imageFiles:new Map(), imageObjectUrls:new Map(), imageFolderName:'', imageKeyCounts:new Map(), activeView:'sources', expectedZipName:'MAX_CHAT_EXPORT_1201msg_1166att_23-06-26_01-11.zip', expectedZipPath:'C:\\LeadBridgeKSO\\exports\\MAX_CHAT_EXPORT_1201msg_1166att_23-06-26_01-11.zip',
   mobileRenderLimit: Infinity,
 };
@@ -417,6 +417,9 @@ function setAmoSourceMode(mode){
     button.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
   syncFixedTop();
+  if(next === 'online' && state.amoCacheMeta && state.amoSourceKind !== 'online' && !state.amoCacheLoading){
+    void restoreCachedAmoSnapshot();
+  }
 }
 function storeAmoExecUrl(){
   const input = $('amoExecUrl');
@@ -424,6 +427,47 @@ function storeAmoExecUrl(){
   try{
     if(parsed) localStorage.setItem(AMO_EXEC_URL_STORAGE_KEY, parsed.href);
   }catch(_){ /* storage can be unavailable in private mode */ }
+}
+function formatAmoSnapshotTime(value){
+  const date = new Date(Number(value || 0));
+  if(!Number.isFinite(date.getTime())) return 'дата неизвестна';
+  return date.toLocaleString('ru-RU', {
+    day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false
+  }).replace(',', '');
+}
+function updateAmoOnlineButton(){
+  const button = $('btnAmoOnline');
+  if(!button || state.amoOnlineController || state.amoCacheLoading) return;
+  const activeOnline = state.amoSourceKind === 'online' && state.amoRows.length;
+  button.classList.toggle('file-ok', !!activeOnline);
+  button.innerHTML = activeOnline
+    ? `${svgCheck()}Обновить`
+    : (state.amoCacheMeta ? 'Обновить' : 'Загрузить слепок');
+}
+function renderAmoCacheStatus(meta, options={}){
+  const bar = $('amoCacheBar');
+  const copy = $('amoCacheMeta');
+  const remove = $('btnDeleteAmoCache');
+  if(!bar || !copy || !remove) return;
+  bar.classList.toggle('ready', !!meta && !options.error);
+  bar.classList.toggle('bad', !!options.error);
+  remove.classList.toggle('hidden', !meta);
+  if(!state.amoDeleteArmedUntil && !state.amoCacheLoading) remove.textContent = 'Удалить';
+  if(options.error){
+    copy.textContent = options.error;
+  }else if(options.loading){
+    copy.textContent = 'Открываю сохранённую копию...';
+  }else if(meta){
+    const rows = Number(meta.rowCount || 0).toLocaleString('ru-RU');
+    const size = meta.sizeBytes ? ` · ${formatBytes(meta.sizeBytes)}` : '';
+    copy.textContent = `Слепок от ${formatAmoSnapshotTime(meta.createdAt)} · ${rows} строк${size}`;
+  }else if(LeadBridgeAmoSnapshotCache.isSupported()){
+    copy.textContent = 'Сохранённой копии пока нет.';
+  }else{
+    copy.textContent = 'Постоянное хранилище недоступно в этом браузере.';
+  }
+  updateAmoOnlineButton();
+  syncFixedTop();
 }
 function initAmoOnlineSource(){
   try{ $('amoExecUrl').value = localStorage.getItem(AMO_EXEC_URL_STORAGE_KEY) || ''; }catch(_){ /* no-op */ }
@@ -433,7 +477,7 @@ function initAmoOnlineSource(){
   save.checked = canSave;
   save.disabled = !canSave;
   label.classList.toggle('unavailable', !canSave);
-  if(!canSave) label.title = 'Браузер не поддерживает прямое потоковое сохранение. Снимок всё равно обработается локально в текущем сеансе.';
+  if(!canSave) label.title = 'Браузер не поддерживает сохранение отдельного CSV-файла. Локальный слепок LeadBridge всё равно сохранится в браузере.';
   $('amoExecUrl').addEventListener('change', storeAmoExecUrl);
   $('amoExecToken').addEventListener('keydown', event=>{
     if(event.key === 'Enter'){
@@ -442,6 +486,8 @@ function initAmoOnlineSource(){
     }
   });
   setAmoSourceMode('offline');
+  renderAmoCacheStatus(null, {loading:true});
+  void restoreCachedAmoSnapshot();
 }
 function setAmoOnlineLoading(loading){
   const load = $('btnAmoOnline');
@@ -451,15 +497,14 @@ function setAmoOnlineLoading(loading){
   $('amoExecToken').disabled = loading;
   $('amoTokenVisibility').disabled = loading;
   $('saveOnlineSnapshot').disabled = loading || typeof window.showSaveFilePicker !== 'function';
+  $('btnDeleteAmoCache').disabled = loading;
   $('amoModeOffline').disabled = loading;
   $('amoModeOnline').disabled = loading;
-  cancel.classList.toggle('hidden', !loading);
+  cancel.classList.toggle('hidden', !loading || !state.amoOnlineController);
   if(loading){
     load.classList.remove('file-ok');
     load.textContent = 'Загрузка...';
-  } else if(!load.classList.contains('file-ok')){
-    load.textContent = 'Загрузить слепок';
-  }
+  } else updateAmoOnlineButton();
 }
 function toggleAmoTokenVisibility(){
   const input = $('amoExecToken');
@@ -486,6 +531,113 @@ async function chooseSnapshotFileHandle(fileName){
     throw err;
   }
 }
+function invalidateMatchingResults(){
+  state.groups = [];
+  state.filtered = [];
+  state.mobileRenderLimit = mobileInitialRenderLimit();
+  renderStartState();
+  const actions = $('reportActions');
+  if(actions) actions.classList.add('hidden');
+  const board = $('stickyBoard');
+  if(board){ board.classList.add('hidden'); board.innerHTML = ''; }
+}
+function activateOnlineAmoRows(rows, meta){
+  invalidateMatchingResults();
+  state.amoRaw = '';
+  state.amoRows = rows;
+  state.amoFileName = meta.fileName || 'amocrm_snapshot.csv';
+  state.amoSourceKind = 'online';
+  state.amoLoadedAt = Number(meta.createdAt || Date.now());
+  setPickButtonState('btnAmoFile', false, 'Выбрать amoCRM');
+  buildFilterOptions();
+  updateMobileRunButton();
+}
+async function restoreCachedAmoSnapshot(){
+  if(state.amoCacheLoading || state.amoOnlineController) return;
+  if(!LeadBridgeAmoSnapshotCache.isSupported()){
+    state.amoCacheMeta = null;
+    renderAmoCacheStatus(null);
+    return;
+  }
+  state.amoCacheLoading = true;
+  renderAmoCacheStatus(state.amoCacheMeta, {loading:true});
+  setAmoOnlineLoading(true);
+  try{
+    const storedMeta = await LeadBridgeAmoSnapshotCache.getLatestMeta();
+    if(!storedMeta){
+      state.amoCacheMeta = null;
+      renderAmoCacheStatus(null);
+      return;
+    }
+    state.amoCacheMeta = storedMeta;
+    setAmoSourceMode('online');
+    const cached = await LeadBridgeAmoSnapshotCache.loadLatest();
+    state.amoCacheMeta = cached.meta;
+    $('infoAmo').textContent = 'Открываю локальный слепок amoCRM...';
+    await sleep(0);
+    activateOnlineAmoRows(cached.rows, cached.meta);
+    const phones = Number(cached.meta.phoneCount || countPhones(cached.rows));
+    $('infoAmo').innerHTML = `OK: <span class="ok">локальный слепок от ${esc(formatAmoSnapshotTime(cached.meta.createdAt))}</span>; сделок/строк: <b>${cached.rows.length}</b>; телефонов: <b>${phones}</b>`;
+    renderAmoCacheStatus(cached.meta);
+    logLine(`amocrm_cache: restored rows=${cached.rows.length}, phones=${phones}`);
+    setNotice(`Используется локальный слепок amoCRM от ${formatAmoSnapshotTime(cached.meta.createdAt)}. Для свежей версии нажми «Обновить».`);
+  }catch(err){
+    const message = LeadBridgeOnlineCsv.safeErrorMessage(err && err.message);
+    renderAmoCacheStatus(state.amoCacheMeta, {error:`Не удалось открыть локальный слепок: ${message}`});
+    $('infoAmo').textContent = `Локальный слепок не открыт: ${message}`;
+  }finally{
+    state.amoCacheLoading = false;
+    setAmoOnlineLoading(false);
+    updateMobileRunButton();
+  }
+}
+async function deleteCachedAmoSnapshot(){
+  if(!state.amoCacheMeta || state.amoCacheLoading || state.amoOnlineController) return;
+  const remove = $('btnDeleteAmoCache');
+  const now = Date.now();
+  if(now > state.amoDeleteArmedUntil){
+    state.amoDeleteArmedUntil = now + 5000;
+    remove.textContent = 'Точно удалить?';
+    setNotice('Повторно нажми «Точно удалить?» в течение 5 секунд, чтобы удалить локальный слепок amoCRM.');
+    setTimeout(()=>{
+      if(Date.now() >= state.amoDeleteArmedUntil){
+        state.amoDeleteArmedUntil = 0;
+        if(remove && !state.amoCacheLoading) remove.textContent = 'Удалить';
+      }
+    }, 5100);
+    return;
+  }
+  state.amoDeleteArmedUntil = 0;
+  remove.textContent = 'Удаление...';
+  state.amoCacheLoading = true;
+  setAmoOnlineLoading(true);
+  try{
+    await LeadBridgeAmoSnapshotCache.deleteLatest();
+    state.amoCacheMeta = null;
+    renderAmoCacheStatus(null);
+    if(state.amoSourceKind === 'online'){
+      state.amoRaw = null;
+      state.amoRows = [];
+      state.amoFileName = '';
+      state.amoSourceKind = 'none';
+      state.amoLoadedAt = 0;
+      invalidateMatchingResults();
+      buildFilterOptions();
+      $('infoAmo').textContent = 'Локальный слепок удалён. Введи токен и загрузи свежую версию.';
+      setAppView('sources');
+    }
+    setNotice('Локальный слепок amoCRM удалён с этого устройства.');
+  }catch(err){
+    const message = LeadBridgeOnlineCsv.safeErrorMessage(err && err.message);
+    renderAmoCacheStatus(state.amoCacheMeta, {error:`Не удалось удалить слепок: ${message}`});
+    setNotice(`Не удалось удалить локальный слепок: ${message}`, true);
+  }finally{
+    state.amoCacheLoading = false;
+    remove.textContent = 'Удалить';
+    setAmoOnlineLoading(false);
+    updateMobileRunButton();
+  }
+}
 async function onlineResponseError(response){
   let text = '';
   try{ text = await response.text(); }catch(_){ /* no-op */ }
@@ -507,7 +659,7 @@ async function onlineResponseError(response){
     return `Apps Script вернул ошибку HTTP ${response.status}.`;
   }
 }
-async function* onlineResponseTextChunks(response, writable, signal){
+async function* onlineResponseTextChunks(response, writable, signal, transfer){
   const totalHeader = Number(response.headers.get('content-length') || 0);
   const total = Number.isFinite(totalHeader) && totalHeader > 0 ? totalHeader : 0;
   const decoder = new TextDecoder('utf-8');
@@ -517,6 +669,7 @@ async function* onlineResponseTextChunks(response, writable, signal){
     const bytes = new Uint8Array(await response.arrayBuffer());
     if(bytes.byteLength > LeadBridgeOnlineCsv.MAX_SNAPSHOT_BYTES) throw new Error('CSV-снимок превышает допустимый размер 2 GB.');
     if(writable) await writable.write(bytes);
+    if(transfer) transfer.loaded = bytes.byteLength;
     yield {text:decoder.decode(bytes), loaded:bytes.byteLength, total:bytes.byteLength};
     return;
   }
@@ -527,6 +680,7 @@ async function* onlineResponseTextChunks(response, writable, signal){
       const part = await reader.read();
       if(part.done) break;
       loaded += part.value.byteLength;
+      if(transfer) transfer.loaded = loaded;
       if(loaded > LeadBridgeOnlineCsv.MAX_SNAPSHOT_BYTES){
         await reader.cancel('snapshot size limit');
         throw new Error('CSV-снимок превышает допустимый размер 2 GB.');
@@ -548,7 +702,7 @@ async function* onlineResponseTextChunks(response, writable, signal){
   }
 }
 async function loadAmoOnlineSnapshot(){
-  if(state.amoOnlineController) return;
+  if(state.amoOnlineController || state.amoCacheLoading) return;
   let request;
   try{
     request = LeadBridgeOnlineCsv.createSnapshotRequest($('amoExecUrl').value, $('amoExecToken').value);
@@ -560,7 +714,7 @@ async function loadAmoOnlineSnapshot(){
   const fileName = LeadBridgeOnlineCsv.snapshotFileName();
   let fileHandle = null;
   let writable = null;
-  let saved = false;
+  let fileSaved = false;
   try{
     fileHandle = await chooseSnapshotFileHandle(fileName);
     const controller = new AbortController();
@@ -581,20 +735,42 @@ async function loadAmoOnlineSnapshot(){
       if(!proceed){ controller.abort(); throw new DOMException('Загрузка отменена', 'AbortError'); }
     }
     if(fileHandle) writable = await fileHandle.createWritable();
-    const rows = await normalizeAmoCsvChunks(onlineResponseTextChunks(response, writable, controller.signal), fileName, declaredSize);
+    const transfer = {loaded:0};
+    const rows = await normalizeAmoCsvChunks(onlineResponseTextChunks(response, writable, controller.signal, transfer), fileName, declaredSize);
     if(!rows.length) throw new Error('В полученном CSV не найдено строк amoCRM. Проверь лист и заголовки таблицы.');
-    if(writable){ await writable.close(); writable = null; saved = true; }
-    state.amoRaw = '';
-    state.amoRows = rows;
-    state.amoFileName = fileName;
+    if(writable){ await writable.close(); writable = null; fileSaved = true; }
+    const loadedAt = Date.now();
+    const phoneCount = countPhones(rows);
+    activateOnlineAmoRows(rows, {fileName, createdAt:loadedAt});
+    let cacheMeta = null;
+    let cacheError = '';
+    renderAmoCacheStatus(state.amoCacheMeta, {loading:true});
+    $('infoAmo').textContent = 'Сохраняю локальный слепок amoCRM...';
+    try{
+      cacheMeta = await LeadBridgeAmoSnapshotCache.saveLatest({
+        rows,
+        fileName,
+        createdAt:loadedAt,
+        sizeBytes:transfer.loaded || declaredSize,
+        phoneCount
+      });
+      state.amoCacheMeta = cacheMeta;
+      renderAmoCacheStatus(cacheMeta);
+      void LeadBridgeAmoSnapshotCache.requestPersistence();
+    }catch(cacheFailure){
+      cacheError = LeadBridgeOnlineCsv.safeErrorMessage(cacheFailure && cacheFailure.message);
+      renderAmoCacheStatus(state.amoCacheMeta, {error:`Слепок загружен, но не сохранён: ${cacheError}`});
+    }
     $('amoExecToken').value = '';
-    $('infoAmo').innerHTML = `OK: <span class="ok">онлайн-снимок ${esc(fileName)}</span>; сделок/строк: <b>${rows.length}</b>; телефонов: <b>${countPhones(rows)}</b>${saved ? '; CSV сохранён на устройстве' : '; хранится в текущем сеансе'}`;
-    setPickButtonState('btnAmoFile', false, 'Выбрать amoCRM');
-    setPickButtonState('btnAmoOnline', true, 'Слепок загружен');
-    logLine(`amocrm_online: success rows=${rows.length}, phones=${countPhones(rows)}, saved=${saved}`);
-    buildFilterOptions();
-    updateMobileRunButton();
-    setNotice('Онлайн-снимок amoCRM загружен. Матчинг и отчёты выполняются локально.');
+    const cacheText = cacheMeta ? `; локальный слепок от <b>${esc(formatAmoSnapshotTime(loadedAt))}</b>` : '; хранится только в текущем сеансе';
+    const fileText = fileSaved ? '; отдельный CSV сохранён на устройство' : '';
+    $('infoAmo').innerHTML = `OK: <span class="ok">онлайн-снимок ${esc(fileName)}</span>; сделок/строк: <b>${rows.length}</b>; телефонов: <b>${phoneCount}</b>${cacheText}${fileText}`;
+    updateAmoOnlineButton();
+    logLine(`amocrm_online: success rows=${rows.length}, phones=${phoneCount}, cached=${!!cacheMeta}, file_saved=${fileSaved}`);
+    setNotice(cacheMeta
+      ? `Онлайн-снимок сохранён локально от ${formatAmoSnapshotTime(loadedAt)}. Для свежей версии используй «Обновить».`
+      : `Онлайн-снимок загружен, но локальная копия не сохранена: ${cacheError}`,
+      false);
   }catch(err){
     if(writable){ try{ await writable.abort(); }catch(_){ /* no-op */ } }
     if(err && err.name === 'AbortError'){
@@ -895,9 +1071,11 @@ async function loadSource(kind, file){
       state.amoFileName = file.name;
       state.amoRaw = amoRaw;
       state.amoRows = amoRows;
+      state.amoSourceKind = 'offline';
+      state.amoLoadedAt = 0;
       $('infoAmo').innerHTML = `OK: <span class="ok">${esc(file.name)}</span>; сделок/строк: <b>${state.amoRows.length}</b>; телефонов: <b>${countPhones(state.amoRows)}</b>`;
       setPickButtonState('btnAmoFile', true, 'amoCRM выбран');
-      setPickButtonState('btnAmoOnline', false, 'Загрузить слепок');
+      updateAmoOnlineButton();
       logLine(`amocrm_schema: rows=${state.amoRows.length}, phones=${countPhones(state.amoRows)}`);
     }
     buildFilterOptions();
@@ -1938,6 +2116,7 @@ function initActions(){
     else if(action === 'amo-source-mode') setAmoSourceMode(control.dataset.mode);
     else if(action === 'toggle-amo-token') toggleAmoTokenVisibility();
     else if(action === 'load-amo-online') void loadAmoOnlineSnapshot();
+    else if(action === 'delete-amo-cache') void deleteCachedAmoSnapshot();
     else if(action === 'cancel-amo-online') cancelAmoOnlineSnapshot();
     else if(action === 'pick-file') $(control.dataset.target)?.click();
     else if(action === 'show-more') showMoreResults();
@@ -1950,9 +2129,10 @@ function initActions(){
 function resetAll(){
   cancelAmoOnlineSnapshot();
   state.maxRaw=state.amoRaw=null; state.maxRows=[]; state.amoRows=[]; state.groups=[]; state.filtered=[]; state.maxFileName=state.amoFileName=''; state.imageFiles.clear(); state.imageFolderName=''; clearImages(); resetPickButtons();
+  state.amoSourceKind='none'; state.amoLoadedAt=0; state.amoDeleteArmedUntil=0;
   ['fileMax','fileAmo','fileZip','fileImages'].forEach(id=>{ const el=$(id); if(el) el.value=''; });
   $('amoExecToken').value=''; $('amoExecToken').type='password'; $('amoTokenVisibility').setAttribute('aria-pressed','false'); $('amoTokenVisibility').setAttribute('aria-label','Показать токен'); $('amoTokenVisibility').title='Показать токен'; setAmoSourceMode('offline');
-  $('infoMax').textContent='файл не загружен'; $('infoAmo').textContent='файл не загружен'; updateImageSourceStatus(false, expectedZipMessage()); renderStartState(); const actions=$('reportActions'); if(actions) actions.classList.add('hidden'); updateMobileRunButton(); setAppView('sources', {scrollTop:true}); $('loader').textContent=''; $('loader').classList.add('hidden'); setNotice('Сброшено. Загрузи файлы.');
+  $('infoMax').textContent='файл не загружен'; $('infoAmo').textContent='файл не загружен'; updateAmoOnlineButton(); updateImageSourceStatus(false, expectedZipMessage()); renderStartState(); const actions=$('reportActions'); if(actions) actions.classList.add('hidden'); updateMobileRunButton(); setAppView('sources', {scrollTop:true}); $('loader').textContent=''; $('loader').classList.add('hidden'); setNotice('Сброшено. Локальный слепок amoCRM сохранён и будет доступен в режиме «Онлайн /exec».');
 }
 ['filterResponsible','filterCity','filterDateFrom','filterDateTo','filterSearch','sortBy','sortDir','onlyNoCrmVisit','showCrmVisitCol','onlyCurrentMax'].forEach(id=>{
   $(id).addEventListener('input', ()=>{ if(state.groups.length){ buildGroups(); applyFilters(); render(); } else { toggleCrmVisitColumn(); } });

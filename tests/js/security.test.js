@@ -10,6 +10,7 @@ const csv = require('../../apps/leadbridge-web/src/csv.js');
 const matching = require('../../apps/leadbridge-web/src/matching.js');
 const amoSchema = require('../../apps/leadbridge-web/src/amo-schema.js');
 const onlineCsv = require('../../apps/leadbridge-web/src/online-csv.js');
+const amoSnapshotCache = require('../../apps/leadbridge-web/src/amo-snapshot-cache.js');
 const exporterPolicy = require('../../apps/max-chat-local-exporter/url_policy.js');
 
 test('normalizePhone accepts Russian phone formats and rejects long identifiers', () => {
@@ -83,6 +84,24 @@ test('online amoCRM request keeps token out of URL and restricts Apps Script red
   assert.equal(onlineCsv.isAllowedResponseUrl('https://evil.test/macros/echo'), false);
   assert.equal(onlineCsv.parseExecUrl(`${endpoint}?token=${token}`), null);
   assert.equal(onlineCsv.parseExecUrl('https://script.googleusercontent.com/macros/s/id/exec'), null);
+});
+
+test('amoCRM local snapshot cache chunks rows and excludes token metadata', () => {
+  const rows = Array.from({ length: 1201 }, (_, index) => ({id: String(index + 1)}));
+  const chunks = amoSnapshotCache.partitionRows(rows);
+  assert.deepEqual(chunks.map(chunk => chunk.length), [500, 500, 201]);
+  const meta = amoSnapshotCache.normalizeMeta({
+    snapshotId: 'amo-test',
+    formatVersion: amoSnapshotCache.CACHE_FORMAT_VERSION,
+    createdAt: 123,
+    fileName: 'snapshot.csv',
+    sizeBytes: 456,
+    rowCount: rows.length,
+    phoneCount: 789,
+    token: 'must-not-be-stored'
+  });
+  assert.equal(meta.token, undefined);
+  assert.deepEqual(Object.keys(meta), ['key', 'snapshotId', 'formatVersion', 'createdAt', 'fileName', 'sizeBytes', 'rowCount', 'phoneCount']);
 });
 
 test('Apps Script deployment can open the configured spreadsheet by ID', () => {
