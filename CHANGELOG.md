@@ -16,6 +16,7 @@
 - Extended CSP, PWA cache, release packages, security documentation and regression tests for online snapshots.
 - Added a ready Universal 2 macOS DMG for Apple Silicon and Intel with a real macOS 12 deployment target, ad-hoc integrity signature and direct Pages download.
 - Added automatic Python 3.12 installation and resilient Python/Pillow/Tesseract discovery for the Windows OCR installer and launcher.
+- Added a single offline Windows setup EXE that installs LeadBridge, Python, Pillow, Tesseract and `rus+eng` models, creates shortcuts and launches the product automatically.
 
 ## v8.2.09.1733
 

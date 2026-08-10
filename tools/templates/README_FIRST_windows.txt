@@ -1,5 +1,11 @@
 LeadBridge KSO — Windows tools pack v8.2.10.0848
 
+Для обычного пользователя рекомендуется единый автономный файл:
+LeadBridgeKSO-Setup-Windows-v8.2.10.0848.exe
+Он сам устанавливает LeadBridge, Python, Pillow, Tesseract, OCR-модели, создаёт ярлыки и запускает продукт.
+
+Этот ZIP предназначен для ручной установки или разработки.
+
 Что внутри:
 - tools\leadbridge\ — локальная копия LeadBridge matcher.
 - tools\max-chat-local-exporter\ — Chrome extension для экспорта MAX.

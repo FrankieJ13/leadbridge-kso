@@ -7,6 +7,7 @@ LeadBridge KSO v8.2.10.0848 — полный проект
 - интеграция Google Apps Script для онлайн-снимка amoCRM;
 - исходники нативных сборок Windows WPF и macOS DMG;
 - актуальные ZIP-пакеты компонентов в releases/packages.
+- автономный установщик Windows `LeadBridgeKSO-Setup-Windows-v8.2.10.0848.exe` в releases/packages.
 
 Быстрый локальный запуск Web-версии:
 1. Полностью распакуйте архив.

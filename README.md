@@ -82,7 +82,7 @@ python3 tools/build_release_packages.py
 python3 tools/build_release_packages.py --verify
 ```
 
-The build creates seven deterministic component ZIP files plus `leadbridge-kso-full-project-v8.2.10.0848.zip`. When the native macOS DMG is present in `releases/packages`, it is included in the manifest and the full archive as well. The full archive contains the source tree and current packages for local use. The build records the real build-time Git commit, regenerates `releases/manifest.json` and writes `releases/SHA256SUMS`. Release signing is not yet configured; no fake Developer ID signature is generated. A future detached signature belongs at `releases/SHA256SUMS.sig`.
+The build creates seven deterministic component ZIP files plus `leadbridge-kso-full-project-v8.2.10.0848.zip`. When the autonomous Windows setup EXE or native macOS DMG is present in `releases/packages`, it is included in the manifest and full archive as well. The Windows EXE embeds Python, Pillow, Tesseract and `rus+eng` OCR models for an offline one-click install. The build records the real build-time Git commit, regenerates `releases/manifest.json` and writes `releases/SHA256SUMS`. Code-signing certificates are not configured.
 
 Before manual installation, verify a package:
 
@@ -98,7 +98,7 @@ Compare the result with `releases/SHA256SUMS`. For public distribution, upload t
 
 ## Native Wrappers
 
-- Windows: WPF + WebView2 source package, with canonical Web fallback.
+- Windows: autonomous NSIS setup EXE for normal users plus a WPF + WebView2 source package for native development.
 - macOS: Universal 2 AppKit + WKWebView DMG for Apple Silicon and Intel, with canonical Web fallback and minimum macOS 12.
 
 Native wrappers add no telemetry or data-processing backend. Public macOS distribution still requires Developer ID signing and notarization.

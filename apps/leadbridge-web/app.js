@@ -125,7 +125,9 @@ function renderReleaseHint(manifest){
   const tools = manifest.downloads && manifest.downloads.tools && manifest.downloads.tools[os];
   const fullProject = manifest.downloads && manifest.downloads.full_project;
   const nativeDmg = os === 'macos' && manifest.downloads && manifest.downloads.native_apps && manifest.downloads.native_apps.macos_dmg;
-  if((!tools || !tools.download_url) && (!fullProject || !fullProject.download_url) && (!nativeDmg || !nativeDmg.download_url)) return;
+  const nativeSetup = os === 'windows' && manifest.downloads && manifest.downloads.native_apps && manifest.downloads.native_apps.windows_setup;
+  const hasNativeApp = (nativeDmg && nativeDmg.download_url) || (nativeSetup && nativeSetup.download_url);
+  if((!tools || !tools.download_url) && (!fullProject || !fullProject.download_url) && !hasNativeApp) return;
 
   box.textContent = '';
   const row = document.createElement('div');
@@ -134,14 +136,18 @@ function renderReleaseHint(manifest){
   copy.className = 'release-copy';
   const title = document.createElement('div');
   title.className = 'release-title';
-  title.textContent = nativeDmg && nativeDmg.download_url
+  title.textContent = nativeSetup && nativeSetup.download_url
+    ? `LeadBridge KSO ${manifest.package_version || PACKAGE_VERSION} для Windows`
+    : nativeDmg && nativeDmg.download_url
     ? `LeadBridge KSO ${manifest.package_version || PACKAGE_VERSION} для macOS`
     : tools && tools.download_url
     ? `Пакет тулзов LeadBridge KSO ${manifest.package_version || PACKAGE_VERSION} для ${labels[os] || 'вашей ОС'}`
     : `LeadBridge KSO ${manifest.package_version || PACKAGE_VERSION}`;
   const details = document.createElement('div');
   details.className = 'small muted';
-  details.textContent = nativeDmg && nativeDmg.download_url
+  details.textContent = nativeSetup && nativeSetup.download_url
+    ? 'Один автономный EXE устанавливает LeadBridge, Python, Pillow, Tesseract и OCR-модели, создаёт ярлыки и сразу запускает продукт.'
+    : nativeDmg && nativeDmg.download_url
     ? 'Готовое нативное приложение доступно в DMG. Пакет тулзов содержит OCR, MAX exporter, установщик и локальную Web-копию.'
     : tools && tools.download_url
     ? `Сайт не устанавливает программы сам: скачай ZIP, распакуй и запусти ${tools.installer || 'установщик'} вручную. Полный архив содержит весь проект и пакеты для обеих ОС.`
@@ -150,6 +156,15 @@ function renderReleaseHint(manifest){
 
   const actions = document.createElement('div');
   actions.className = 'release-actions';
+  if(nativeSetup && nativeSetup.download_url){
+    const setupDownload = document.createElement('a');
+    setupDownload.className = 'btn primary';
+    setupDownload.href = repoAssetUrl(nativeSetup.download_url);
+    setupDownload.target = '_blank';
+    setupDownload.rel = 'noopener';
+    setupDownload.textContent = 'Установить EXE';
+    actions.append(setupDownload);
+  }
   if(nativeDmg && nativeDmg.download_url){
     const dmgDownload = document.createElement('a');
     dmgDownload.className = 'btn primary';
@@ -161,7 +176,7 @@ function renderReleaseHint(manifest){
   }
   if(tools && tools.download_url){
     const download = document.createElement('a');
-    download.className = nativeDmg && nativeDmg.download_url ? 'btn' : 'btn primary';
+    download.className = hasNativeApp ? 'btn' : 'btn primary';
     download.href = repoAssetUrl(tools.download_url);
     download.target = '_blank';
     download.rel = 'noopener';
