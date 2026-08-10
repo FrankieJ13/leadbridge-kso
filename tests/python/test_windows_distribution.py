@@ -21,5 +21,15 @@ class WindowsDistributionTests(unittest.TestCase):
         self.assertIn("& $Dotnet publish", script)
 
 
+class MacOSDistributionTests(unittest.TestCase):
+    def test_dmg_builder_creates_universal_macos_12_app(self):
+        script = (ROOT / "native" / "macos-dmg" / "build_dmg.sh").read_text(encoding="utf-8")
+        self.assertIn('MIN_MACOS_VERSION="12.0"', script)
+        self.assertIn('arm64-apple-macosx$MIN_MACOS_VERSION', script)
+        self.assertIn('x86_64-apple-macosx$MIN_MACOS_VERSION', script)
+        self.assertIn("lipo -create", script)
+        self.assertIn("codesign --force --deep --sign -", script)
+
+
 if __name__ == "__main__":
     unittest.main()

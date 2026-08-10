@@ -1,53 +1,57 @@
-# LeadBridge KSO macOS Native DMG Build
+# LeadBridge KSO: сборка macOS DMG
 
-This package builds a native macOS desktop shell for LeadBridge KSO.
+Этот пакет собирает нативное приложение LeadBridge KSO для macOS на AppKit и WKWebView.
 
-The app uses AppKit + WKWebView. It opens the published GitHub Pages app by default:
+По умолчанию приложение открывает опубликованную версию GitHub Pages:
 
 ```text
 https://frankiej13.github.io/leadbridge-kso/
 ```
 
-If GitHub Pages is unavailable, it can load the bundled offline `Web/index.html` copy. MAX, amoCRM and attachment files are still selected by the operator and processed locally by WKWebView.
+Если GitHub Pages недоступен, приложение загружает вложенную офлайн-копию `Web/index.html`. MAX, amoCRM и изображения выбираются пользователем и обрабатываются локально в WKWebView.
 
-## Requirements
+Готовая сборка Universal 2 поддерживает Apple Silicon и Intel, минимальная версия системы — macOS 12.
 
-- macOS with Xcode command line tools
+## Требования
+
+- macOS с Xcode Command Line Tools
 - `swiftc`
 - `hdiutil`
 
-Install command line tools if needed:
+Если инструменты не установлены:
 
 ```bash
 xcode-select --install
 ```
 
-## Build
+## Сборка
 
-Run from this folder:
+Запустите из этой папки:
 
 ```bash
 chmod +x build_dmg.sh
 ./build_dmg.sh
 ```
 
-Output:
+Результат:
 
 ```text
 build/LeadBridge KSO.app
 dist/LeadBridgeKSO-macOS-DMG-v8.2.10.0848.dmg
 ```
 
-## Distribution Note
+## Подпись и распространение
 
-The script creates an unsigned local build. For broad distribution outside your own machines, sign and notarize the app with an Apple Developer ID before sharing the DMG.
+Скрипт создаёт локальную ad-hoc подпись, чтобы проверить целостность приложения. Сертификат Apple Developer ID и notarization в неё не входят. На другом Mac при первом запуске может потребоваться открыть приложение через контекстное меню Finder → «Открыть».
 
-## Configuration
+Для публичного распространения без предупреждений Gatekeeper подпишите приложение сертификатом Developer ID Application и выполните notarization до создания итогового DMG.
 
-Change the GitHub Pages URL in:
+## Настройка
+
+Адрес GitHub Pages задаётся в файле:
 
 ```text
 Sources/LeadBridgeKSOApp.swift
 ```
 
-The build package includes a generated `Web/` fallback. When building directly from the repository, `build_dmg.sh` hydrates that folder from canonical `apps/leadbridge-web/`.
+Пакет сборки содержит резервную папку `Web/`. При сборке непосредственно из репозитория `build_dmg.sh` подготавливает её из основной папки `apps/leadbridge-web/`.

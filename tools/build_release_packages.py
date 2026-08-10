@@ -245,6 +245,7 @@ def build_manifest(outputs: list[Path], commit: str) -> dict[str, object]:
     ocr = f"max-chat-ocr-postprocessor-{OCR_VERSION}.zip"
     win_native = f"leadbridge-kso-native-windows-wpf-build-{PACKAGE_VERSION}.zip"
     mac_native = f"leadbridge-kso-native-macos-dmg-build-{PACKAGE_VERSION}.zip"
+    mac_dmg_app = f"LeadBridgeKSO-macOS-DMG-{PACKAGE_VERSION}.dmg"
     full_project = f"leadbridge-kso-full-project-{PACKAGE_VERSION}.zip"
     downloads = {
         "tools": {
@@ -261,6 +262,10 @@ def build_manifest(outputs: list[Path], commit: str) -> dict[str, object]:
             "macos_dmg": with_integrity(download_entry("LeadBridge KSO native macOS DMG build package", mac_native)),
         },
     }
+    if mac_dmg_app in artifacts:
+        downloads["native_apps"] = {
+            "macos_dmg": with_integrity(download_entry("LeadBridge KSO — готовое приложение macOS DMG", mac_dmg_app))
+        }
     if full_project in artifacts:
         downloads["full_project"] = with_integrity(download_entry("LeadBridge KSO — полный проект", full_project))
     return {
@@ -315,10 +320,10 @@ def copy_repo_for_github_ready(target: Path) -> None:
             continue
         target_item = target / item.name
         if item.is_dir():
-            ignore_names = [".DS_Store", "__pycache__", "*.pyc"]
+            ignore_names = [".DS_Store", "__pycache__", "*.pyc", "build", "dist", "bin", "obj"]
             if item.name == "releases":
                 ignore_names.append("packages")
-            shutil.copytree(item, target_item, ignore=shutil.ignore_patterns(*ignore_names))
+            shutil.copytree(item, target_item, symlinks=True, ignore=shutil.ignore_patterns(*ignore_names))
         else:
             shutil.copy2(item, target_item)
 
@@ -351,6 +356,9 @@ def build() -> list[Path]:
     outputs.append(build_tools_pack("windows", component_zips, commit))
     outputs.append(build_native_source_zip("windows-wpf", commit))
     outputs.append(build_native_source_zip("macos-dmg", commit))
+    mac_dmg_app = PACKAGES / f"LeadBridgeKSO-macOS-DMG-{PACKAGE_VERSION}.dmg"
+    if mac_dmg_app.is_file():
+        outputs.append(mac_dmg_app)
     write_integrity_metadata(outputs, commit)
     sync()
     outputs.append(build_full_project_zip(outputs, commit))

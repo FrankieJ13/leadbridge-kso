@@ -14,6 +14,7 @@
 - Split the interface into `Источники` and `Результаты` tabs with automatic result switching after a successful run.
 - Aligned the three source cards and three information cards into compact desktop rows and fixed their light-theme heading contrast.
 - Extended CSP, PWA cache, release packages, security documentation and regression tests for online snapshots.
+- Added a ready Universal 2 macOS DMG for Apple Silicon and Intel with a real macOS 12 deployment target, ad-hoc integrity signature and direct Pages download.
 
 ## v8.2.09.1733
 

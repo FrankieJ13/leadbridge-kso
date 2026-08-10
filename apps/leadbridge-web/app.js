@@ -124,7 +124,8 @@ function renderReleaseHint(manifest){
   const labels = {macos:'macOS', windows:'Windows'};
   const tools = manifest.downloads && manifest.downloads.tools && manifest.downloads.tools[os];
   const fullProject = manifest.downloads && manifest.downloads.full_project;
-  if((!tools || !tools.download_url) && (!fullProject || !fullProject.download_url)) return;
+  const nativeDmg = os === 'macos' && manifest.downloads && manifest.downloads.native_apps && manifest.downloads.native_apps.macos_dmg;
+  if((!tools || !tools.download_url) && (!fullProject || !fullProject.download_url) && (!nativeDmg || !nativeDmg.download_url)) return;
 
   box.textContent = '';
   const row = document.createElement('div');
@@ -133,21 +134,34 @@ function renderReleaseHint(manifest){
   copy.className = 'release-copy';
   const title = document.createElement('div');
   title.className = 'release-title';
-  title.textContent = tools && tools.download_url
+  title.textContent = nativeDmg && nativeDmg.download_url
+    ? `LeadBridge KSO ${manifest.package_version || PACKAGE_VERSION} для macOS`
+    : tools && tools.download_url
     ? `Пакет тулзов LeadBridge KSO ${manifest.package_version || PACKAGE_VERSION} для ${labels[os] || 'вашей ОС'}`
     : `LeadBridge KSO ${manifest.package_version || PACKAGE_VERSION}`;
   const details = document.createElement('div');
   details.className = 'small muted';
-  details.textContent = tools && tools.download_url
+  details.textContent = nativeDmg && nativeDmg.download_url
+    ? 'Готовое нативное приложение доступно в DMG. Пакет тулзов содержит OCR, MAX exporter, установщик и локальную Web-копию.'
+    : tools && tools.download_url
     ? `Сайт не устанавливает программы сам: скачай ZIP, распакуй и запусти ${tools.installer || 'установщик'} вручную. Полный архив содержит весь проект и пакеты для обеих ОС.`
     : 'Полный архив содержит Web/PWA, установщики, интеграцию, нативные исходники и актуальные пакеты.';
   copy.append(title, details);
 
   const actions = document.createElement('div');
   actions.className = 'release-actions';
+  if(nativeDmg && nativeDmg.download_url){
+    const dmgDownload = document.createElement('a');
+    dmgDownload.className = 'btn primary';
+    dmgDownload.href = repoAssetUrl(nativeDmg.download_url);
+    dmgDownload.target = '_blank';
+    dmgDownload.rel = 'noopener';
+    dmgDownload.textContent = 'Приложение DMG';
+    actions.append(dmgDownload);
+  }
   if(tools && tools.download_url){
     const download = document.createElement('a');
-    download.className = 'btn primary';
+    download.className = nativeDmg && nativeDmg.download_url ? 'btn' : 'btn primary';
     download.href = repoAssetUrl(tools.download_url);
     download.target = '_blank';
     download.rel = 'noopener';
