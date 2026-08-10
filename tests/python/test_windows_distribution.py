@@ -11,7 +11,18 @@ class WindowsDistributionTests(unittest.TestCase):
         self.assertIn("Test-LeadBridgePayload", script)
         self.assertIn("Find-LeadBridgePayload", script)
         self.assertIn("leadbridge-kso-tools-windows-v8.2.10.0848.zip", script)
+        self.assertIn("Find-PythonCommand", script)
+        self.assertIn("Python.Python.3.12", script)
+        self.assertIn("-m pip install", script)
         self.assertLess(script.index("if (-not $SourceRoot)"), script.index("New-Item -ItemType Directory -Force -Path $Target"))
+
+    def test_ocr_launcher_self_checks_python_and_tesseract(self):
+        launcher = (ROOT / "tools" / "launcher" / "run_ocr_windows.bat").read_text(encoding="utf-8")
+        self.assertIn("where py", launcher)
+        self.assertIn("Python.Python.3.12", launcher)
+        self.assertIn('-c "import PIL"', launcher)
+        self.assertIn("where tesseract", launcher)
+        self.assertNotIn('\npy "%OCR%"', launcher)
 
     def test_wpf_builder_checks_for_dotnet_8(self):
         script = (ROOT / "native" / "windows-wpf" / "build.ps1").read_text(encoding="utf-8")

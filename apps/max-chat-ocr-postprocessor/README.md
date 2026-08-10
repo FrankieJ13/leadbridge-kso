@@ -32,9 +32,19 @@
 
 ## Установка
 
+Если команда `py` не найдена, установи Python 3.12:
+
+```powershell
+winget install --id Python.Python.3.12 -e --scope user
+```
+
+После установки закрой PowerShell, открой заново и проверь `py --version`. Затем:
+
 ```powershell
 py -m pip install -r requirements.txt
 ```
+
+В полном Windows tools pack установку Python и зависимостей выполняет `install_windows.ps1`. Launcher `C:\LeadBridgeKSO\launchers\run_ocr_windows.bat` также проверяет Python, Pillow и Tesseract перед запуском.
 
 Tesseract должен быть установлен отдельно. Для русского OCR в `tesseract --list-langs` должен быть `rus`.
 

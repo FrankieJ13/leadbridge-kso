@@ -1,18 +1,18 @@
-# Windows Install
+# Установка в Windows
 
-## Install Tools Pack
+## Установка tools pack
 
-1. Download `leadbridge-kso-tools-windows-v8.2.10.0848.zip` from GitHub Releases or from `releases/packages/` and verify it against `releases/SHA256SUMS`.
-2. Unzip it.
-3. Right-click `install_windows.ps1` and run with PowerShell.
+1. Скачайте `leadbridge-kso-tools-windows-v8.2.10.0848.zip` и полностью распакуйте его.
+2. Откройте распакованную папку: рядом с `install_windows.ps1` должны находиться `tools`, `launchers`, `integrations` и `archives`.
+3. Запустите `install_windows.ps1` через PowerShell.
 
-If script execution is blocked, open PowerShell in the unzipped folder and run:
+Если запуск сценариев заблокирован:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install_windows.ps1
 ```
 
-The installer creates:
+Установщик создаёт:
 
 ```text
 C:\LeadBridgeKSO\
@@ -30,21 +30,33 @@ C:\LeadBridgeKSO\
     run_ocr_windows.bat
 ```
 
-## Chrome Extension
+Установщик проверяет Python 3.10+, при необходимости устанавливает Python 3.12 через `winget`, ставит зависимости OCR и проверяет Tesseract.
 
-1. Open `chrome://extensions`.
-2. Enable Developer mode.
-3. Click Load unpacked.
-4. Select `C:\LeadBridgeKSO\tools\max-chat-local-exporter`.
+## Расширение Chrome
+
+1. Откройте `chrome://extensions`.
+2. Включите режим разработчика.
+3. Нажмите «Загрузить распакованное расширение».
+4. Выберите `C:\LeadBridgeKSO\tools\max-chat-local-exporter`.
 
 ## OCR
 
-The installer checks Python packages and tries to install Tesseract through `winget` when available. If needed, install Tesseract manually and make sure `tesseract.exe` is in `PATH`.
+Если команда `py` не найдена при ручном запуске OCR, выполните:
 
-Run OCR with:
+```powershell
+winget install --id Python.Python.3.12 -e --scope user
+```
+
+Закройте PowerShell, откройте заново и проверьте `py --version`. Для Tesseract:
+
+```powershell
+winget install --id UB-Mannheim.TesseractOCR -e
+```
+
+Запускайте OCR через готовый launcher:
 
 ```text
 C:\LeadBridgeKSO\launchers\run_ocr_windows.bat
 ```
 
-Use `messages_ocr.json` from `C:\LeadBridgeKSO\ocr_results` in LeadBridge.
+Launcher сам проверяет Python, Pillow и Tesseract. Готовый `messages_ocr.json` находится в `C:\LeadBridgeKSO\ocr_results`.

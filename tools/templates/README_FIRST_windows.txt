@@ -18,6 +18,13 @@ LeadBridge KSO — Windows tools pack v8.2.10.0848
 4. Инсталлятор создаст C:\LeadBridgeKSO и скопирует туда инструменты.
 5. Откройте C:\LeadBridgeKSO\launchers\open_leadbridge.bat.
 
+Python и OCR:
+- установщик автоматически ставит Python 3.12 через winget, если Python отсутствует;
+- затем устанавливает requirements.txt и проверяет Tesseract;
+- если команда py не найдена при ручном запуске, выполните:
+  winget install --id Python.Python.3.12 -e --scope user
+  после установки закройте PowerShell и откройте заново.
+
 Chrome extension:
 1. Chrome -> chrome://extensions
 2. Включить Developer mode.

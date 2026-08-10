@@ -132,38 +132,95 @@ if (Test-Path (Join-Path $SourceRoot 'README_FIRST.txt')) {
   Copy-Item (Join-Path $SourceRoot 'README.md') "$Target\README_FIRST.txt" -Force
 }
 
-$PyCmd = $null
-if (Get-Command py -ErrorAction SilentlyContinue) { $PyCmd = 'py' }
-elseif (Get-Command python -ErrorAction SilentlyContinue) { $PyCmd = 'python' }
+function Find-PythonCommand {
+  $Candidates = New-Object System.Collections.Generic.List[string]
+  foreach ($Name in @('py', 'python')) {
+    $Command = Get-Command $Name -ErrorAction SilentlyContinue
+    if ($Command -and $Command.Source) {
+      [void]$Candidates.Add($Command.Source)
+    }
+  }
 
-if ($PyCmd) {
-  Write-Host 'Installing Python requirements...' -ForegroundColor Cyan
-  & $PyCmd -m pip install -r "$Target\tools\max-chat-ocr-postprocessor\requirements.txt"
-} else {
-  Write-Host 'Python not found. Install Python 3, then run:' -ForegroundColor Yellow
-  Write-Host "py -m pip install -r $Target\tools\max-chat-ocr-postprocessor\requirements.txt"
+  foreach ($Pattern in @(
+    "$env:LocalAppData\Programs\Python\Python*\python.exe",
+    "$env:ProgramFiles\Python*\python.exe"
+  )) {
+    foreach ($File in @(Get-ChildItem -Path $Pattern -File -ErrorAction SilentlyContinue | Sort-Object FullName -Descending)) {
+      [void]$Candidates.Add($File.FullName)
+    }
+  }
+
+  foreach ($Candidate in @($Candidates | Select-Object -Unique)) {
+    try {
+      $Version = (& $Candidate --version 2>&1 | Out-String).Trim()
+      if ($LASTEXITCODE -eq 0 -and $Version -match '^Python 3\.(?:1[0-9]|[2-9][0-9])') {
+        return $Candidate
+      }
+    } catch {
+      continue
+    }
+  }
+  return $null
 }
 
-if (-not (Get-Command tesseract -ErrorAction SilentlyContinue)) {
+$InstallExitCode = 0
+$Python = Find-PythonCommand
+if (-not $Python -and (Get-Command winget -ErrorAction SilentlyContinue)) {
+  Write-Host 'Python 3.12 not found. Installing it via winget...' -ForegroundColor Cyan
+  winget install --id Python.Python.3.12 -e --scope user --accept-package-agreements --accept-source-agreements
+  if ($LASTEXITCODE -eq 0) {
+    $Python = Find-PythonCommand
+  }
+}
+
+if ($Python) {
+  Write-Host "Python found: $Python" -ForegroundColor Green
+  Write-Host 'Installing Python requirements...' -ForegroundColor Cyan
+  & $Python -m ensurepip --upgrade
+  & $Python -m pip install -r "$Target\tools\max-chat-ocr-postprocessor\requirements.txt"
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host 'Python requirements installation failed.' -ForegroundColor Red
+    $InstallExitCode = 2
+  }
+} else {
+  Write-Host 'Python 3.12 could not be installed automatically.' -ForegroundColor Red
+  Write-Host 'Run this command, reopen PowerShell, then run install_windows.ps1 again:' -ForegroundColor Yellow
+  Write-Host 'winget install --id Python.Python.3.12 -e --scope user' -ForegroundColor Cyan
+  $InstallExitCode = 2
+}
+
+$Tesseract = Get-Command tesseract -ErrorAction SilentlyContinue
+if (-not $Tesseract -and (Test-Path 'C:\Program Files\Tesseract-OCR\tesseract.exe' -PathType Leaf)) {
+  $Tesseract = Get-Item 'C:\Program Files\Tesseract-OCR\tesseract.exe'
+}
+
+if (-not $Tesseract) {
   Write-Host 'Tesseract not found.' -ForegroundColor Yellow
   if (Get-Command winget -ErrorAction SilentlyContinue) {
     Write-Host 'Trying to install Tesseract via winget...' -ForegroundColor Cyan
-    try {
-      winget install --id UB-Mannheim.TesseractOCR -e --accept-package-agreements --accept-source-agreements
-    } catch {
+    winget install --id UB-Mannheim.TesseractOCR -e --accept-package-agreements --accept-source-agreements
+    if ($LASTEXITCODE -ne 0) {
       Write-Host 'winget install failed. Install Tesseract manually.' -ForegroundColor Yellow
+      $InstallExitCode = 2
     }
   } else {
     Write-Host 'Install Tesseract OCR manually and make sure tesseract.exe is in PATH.' -ForegroundColor Yellow
+    $InstallExitCode = 2
   }
 } else {
-  Write-Host 'Tesseract found.' -ForegroundColor Green
+  $TesseractPath = if ($Tesseract.Source) { $Tesseract.Source } else { $Tesseract.FullName }
+  Write-Host "Tesseract found: $TesseractPath" -ForegroundColor Green
 }
 
 Write-Host ''
-Write-Host 'Installed.' -ForegroundColor Green
+if ($InstallExitCode -eq 0) {
+  Write-Host 'Installed.' -ForegroundColor Green
+} else {
+  Write-Host 'Tools were copied, but OCR dependencies need attention. See messages above.' -ForegroundColor Yellow
+}
 Write-Host "Open: $Target\launchers\open_leadbridge.bat"
 Write-Host "OCR:  $Target\launchers\run_ocr_windows.bat"
 Write-Host "Chrome extension folder: $Target\tools\max-chat-local-exporter"
 Write-Host "Online amoCRM setup: $Target\integrations\google-apps-script-amocrm\README.md"
 Read-Host 'Press Enter to exit'
+exit $InstallExitCode
