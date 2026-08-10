@@ -10,3 +10,4 @@ native/windows-wpf/LeadBridgeKSO.Windows/Web/
 native/macos-dmg/build/
 native/macos-dmg/dist/
 native/macos-dmg/Web/
+releases/packages/LeadBridgeKSO-Setup-Windows-*.exe

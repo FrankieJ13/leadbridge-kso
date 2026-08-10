@@ -82,7 +82,7 @@ python3 tools/build_release_packages.py
 python3 tools/build_release_packages.py --verify
 ```
 
-The build creates seven deterministic component ZIP files plus `leadbridge-kso-full-project-v8.2.10.0848.zip`. When the autonomous Windows setup EXE or native macOS DMG is present in `releases/packages`, it is included in the manifest and full archive as well. The Windows EXE embeds Python, Pillow, Tesseract and `rus+eng` OCR models for an offline one-click install. The build records the real build-time Git commit, regenerates `releases/manifest.json` and writes `releases/SHA256SUMS`. Code-signing certificates are not configured.
+The release build creates seven deterministic component ZIP files plus `leadbridge-kso-full-project-v8.2.10.0848.zip`. The native macOS DMG is included when present. The autonomous Windows EXE is built separately, embeds Python, Pillow, Tesseract and `rus+eng` OCR models, and is intentionally kept as a local ignored artifact rather than committed or nested in release ZIPs. The build records the real build-time Git commit, regenerates `releases/manifest.json` and writes `releases/SHA256SUMS`. Code-signing certificates are not configured.
 
 Before manual installation, verify a package:
 

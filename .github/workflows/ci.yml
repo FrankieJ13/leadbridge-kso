@@ -56,7 +56,6 @@ jobs:
           python tools/build_release_packages.py --verify
           python tools/sync_web_assets.py --verify
           for archive in releases/packages/*.zip; do unzip -tqq "$archive"; done
-          test "$(head -c 2 releases/packages/LeadBridgeKSO-Setup-Windows-v8.2.10.0848.exe)" = "MZ"
 
       - name: Reject common committed secret formats
         run: |
@@ -64,45 +63,3 @@ jobs:
             echo 'Potential secret found in tracked text files.' >&2
             exit 1
           fi
-
-  windows-installer-smoke:
-    runs-on: windows-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install the autonomous EXE
-        shell: powershell
-        run: |
-          $setup = Resolve-Path 'releases/packages/LeadBridgeKSO-Setup-Windows-v8.2.10.0848.exe'
-          $process = Start-Process -FilePath $setup -ArgumentList '/S' -PassThru
-          if (-not $process.WaitForExit(300000)) {
-            Get-Process | Where-Object {
-              $_.ProcessName -match 'LeadBridge|python|tesseract'
-            } | Format-Table -AutoSize | Out-String | Write-Host
-            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-            throw 'Installer did not finish within 5 minutes.'
-          }
-          if ($process.ExitCode -ne 0) { throw "Installer failed with exit code $($process.ExitCode)" }
-
-      - name: Verify installed product and OCR runtime
-        shell: powershell
-        run: |
-          $required = @(
-            'C:\LeadBridgeKSO\tools\leadbridge\index.html',
-            'C:\LeadBridgeKSO\tools\max-chat-ocr-postprocessor\max_chat_ocr.py',
-            'C:\LeadBridgeKSO\launchers\run_ocr_windows.bat',
-            'C:\LeadBridgeKSO\runtime\python\python.exe',
-            'C:\LeadBridgeKSO\runtime\tesseract\tesseract.exe',
-            'C:\LeadBridgeKSO\runtime\tesseract\tessdata\rus.traineddata',
-            'C:\LeadBridgeKSO\runtime\tesseract\tessdata\eng.traineddata',
-            'C:\Users\Public\Desktop\LeadBridge KSO.lnk'
-          )
-          foreach ($path in $required) {
-            if (-not (Test-Path $path)) { throw "Missing installed file: $path" }
-          }
-          & 'C:\LeadBridgeKSO\runtime\python\python.exe' -c 'import PIL; print(PIL.__version__)'
-          $languages = & 'C:\LeadBridgeKSO\runtime\tesseract\tesseract.exe' --list-langs
-          if ($languages -notcontains 'rus' -or $languages -notcontains 'eng') {
-            throw "Tesseract languages are incomplete: $($languages -join ', ')"
-          }

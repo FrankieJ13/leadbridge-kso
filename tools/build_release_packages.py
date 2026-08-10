@@ -245,7 +245,6 @@ def build_manifest(outputs: list[Path], commit: str) -> dict[str, object]:
     ocr = f"max-chat-ocr-postprocessor-{OCR_VERSION}.zip"
     win_native = f"leadbridge-kso-native-windows-wpf-build-{PACKAGE_VERSION}.zip"
     mac_native = f"leadbridge-kso-native-macos-dmg-build-{PACKAGE_VERSION}.zip"
-    win_setup_app = f"LeadBridgeKSO-Setup-Windows-{PACKAGE_VERSION}.exe"
     mac_dmg_app = f"LeadBridgeKSO-macOS-DMG-{PACKAGE_VERSION}.dmg"
     full_project = f"leadbridge-kso-full-project-{PACKAGE_VERSION}.zip"
     downloads = {
@@ -264,10 +263,6 @@ def build_manifest(outputs: list[Path], commit: str) -> dict[str, object]:
         },
     }
     native_apps = {}
-    if win_setup_app in artifacts:
-        native_apps["windows_setup"] = with_integrity(
-            download_entry("LeadBridge KSO — автономный установщик Windows", win_setup_app)
-        )
     if mac_dmg_app in artifacts:
         native_apps["macos_dmg"] = with_integrity(
             download_entry("LeadBridge KSO — готовое приложение macOS DMG", mac_dmg_app)
@@ -364,9 +359,6 @@ def build() -> list[Path]:
     outputs.append(build_tools_pack("windows", component_zips, commit))
     outputs.append(build_native_source_zip("windows-wpf", commit))
     outputs.append(build_native_source_zip("macos-dmg", commit))
-    win_setup_app = PACKAGES / f"LeadBridgeKSO-Setup-Windows-{PACKAGE_VERSION}.exe"
-    if win_setup_app.is_file():
-        outputs.append(win_setup_app)
     mac_dmg_app = PACKAGES / f"LeadBridgeKSO-macOS-DMG-{PACKAGE_VERSION}.dmg"
     if mac_dmg_app.is_file():
         outputs.append(mac_dmg_app)

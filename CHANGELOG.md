@@ -17,6 +17,7 @@
 - Added a ready Universal 2 macOS DMG for Apple Silicon and Intel with a real macOS 12 deployment target, ad-hoc integrity signature and direct Pages download.
 - Added automatic Python 3.12 installation and resilient Python/Pillow/Tesseract discovery for the Windows OCR installer and launcher.
 - Added a single offline Windows setup EXE with private Python/Pillow/Tesseract runtimes and `rus+eng` models that avoids system Python conflicts, creates shortcuts and launches the product automatically.
+- Kept the generated Windows EXE as a local ignored artifact, excluded from GitHub manifests and nested release ZIPs.
 
 ## v8.2.09.1733
 

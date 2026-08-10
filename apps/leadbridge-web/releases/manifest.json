@@ -3,7 +3,7 @@
   "package_version": "v8.2.10.0848",
   "build_version": "v8.2.10.0848",
   "schema_version": 2,
-  "git_commit": "ee385df3d402a9a8723b87838feace7e3c19cf58",
+  "git_commit": "939de5f28229ce469246a1d2ba09966b80ee4577",
   "pages_entry": "index.html",
   "release_tag": "v8.2.10.0848",
   "local_data_policy": "MAX/OCR/ZIP files and all matching are local. Optional amoCRM online mode downloads a read-only CSV snapshot from the operator's token-protected Apps Script endpoint. GitHub receives no user data.",
@@ -17,8 +17,8 @@
         "github_release_asset": "leadbridge-kso-tools-macos-v8.2.10.0848.zip",
         "download_url": "releases/packages/leadbridge-kso-tools-macos-v8.2.10.0848.zip",
         "installer": "install_macos.command",
-        "sha256": "f3107ae40aa93bac70d52128b73de0299210847d14ab56bd16c08c7d13eedd5f",
-        "size_bytes": 233208
+        "sha256": "ea4a1e4f46d6648fec1de5b873e6e50e7580e492575798cb41f9207a670ac872",
+        "size_bytes": 233209
       },
       "windows": {
         "label": "LeadBridge KSO tools for Windows",
@@ -27,8 +27,8 @@
         "github_release_asset": "leadbridge-kso-tools-windows-v8.2.10.0848.zip",
         "download_url": "releases/packages/leadbridge-kso-tools-windows-v8.2.10.0848.zip",
         "installer": "install_windows.ps1",
-        "sha256": "eec4fadda340b68849ace5549fc73891e871cc4198cb3b81e4173dae36144545",
-        "size_bytes": 235829
+        "sha256": "f17fcb1652a543983fd11aa1ef47cbea2da6f80c7748207949081f5c93e9e9d3",
+        "size_bytes": 235830
       }
     },
     "components": {
@@ -67,8 +67,8 @@
         "file": "leadbridge-kso-native-windows-wpf-build-v8.2.10.0848.zip",
         "github_release_asset": "leadbridge-kso-native-windows-wpf-build-v8.2.10.0848.zip",
         "download_url": "releases/packages/leadbridge-kso-native-windows-wpf-build-v8.2.10.0848.zip",
-        "sha256": "ef9bab390b6acd8a21dd865ed4ccf542aa0d8cb5c6099596de7060b1a28f88bb",
-        "size_bytes": 70212
+        "sha256": "4d5f532b45cbabfe4d05d06d9a290c42469fda97978c4afee62d66c7d7506612",
+        "size_bytes": 70213
       },
       "macos_dmg": {
         "label": "LeadBridge KSO native macOS DMG build package",
@@ -76,20 +76,11 @@
         "file": "leadbridge-kso-native-macos-dmg-build-v8.2.10.0848.zip",
         "github_release_asset": "leadbridge-kso-native-macos-dmg-build-v8.2.10.0848.zip",
         "download_url": "releases/packages/leadbridge-kso-native-macos-dmg-build-v8.2.10.0848.zip",
-        "sha256": "482d5e6dfd469e70b83f7406c6fcb3201767fd5d052ad86eb2791a5067b434aa",
-        "size_bytes": 67639
+        "sha256": "937cdb1c2d2d5f2047547b0cccdcd5cf1f0244d955e715d2dc60f67ca4af4e3a",
+        "size_bytes": 67640
       }
     },
     "native_apps": {
-      "windows_setup": {
-        "label": "LeadBridge KSO — автономный установщик Windows",
-        "version": "v8.2.10.0848",
-        "file": "LeadBridgeKSO-Setup-Windows-v8.2.10.0848.exe",
-        "github_release_asset": "LeadBridgeKSO-Setup-Windows-v8.2.10.0848.exe",
-        "download_url": "releases/packages/LeadBridgeKSO-Setup-Windows-v8.2.10.0848.exe",
-        "sha256": "8c73059bd3d4ad61ffad5305a42a52f80fb03a3bb8ae0a02be8e8519d6446258",
-        "size_bytes": 42807737
-      },
       "macos_dmg": {
         "label": "LeadBridge KSO — готовое приложение macOS DMG",
         "version": "v8.2.10.0848",
@@ -106,38 +97,34 @@
       "file": "leadbridge-kso-full-project-v8.2.10.0848.zip",
       "github_release_asset": "leadbridge-kso-full-project-v8.2.10.0848.zip",
       "download_url": "releases/packages/leadbridge-kso-full-project-v8.2.10.0848.zip",
-      "sha256": "2cddaa4f672e87be7f0549c95d0b4c69ee189d412a5a02cdc8006e0d51816530",
-      "size_bytes": 43957039
+      "sha256": "eb9c5f50487b6ed9efce6da98ef5b8b790a54b7c279d074bb79146ff1907f433",
+      "size_bytes": 1150614
     }
   },
   "artifacts": {
-    "LeadBridgeKSO-Setup-Windows-v8.2.10.0848.exe": {
-      "sha256": "8c73059bd3d4ad61ffad5305a42a52f80fb03a3bb8ae0a02be8e8519d6446258",
-      "size_bytes": 42807737
-    },
     "LeadBridgeKSO-macOS-DMG-v8.2.10.0848.dmg": {
       "sha256": "dbece01752f6321354c84ce80cd8e9e0791831a2aff5bb050295c0c96ac968bf",
       "size_bytes": 136705
     },
     "leadbridge-kso-full-project-v8.2.10.0848.zip": {
-      "sha256": "2cddaa4f672e87be7f0549c95d0b4c69ee189d412a5a02cdc8006e0d51816530",
-      "size_bytes": 43957039
+      "sha256": "eb9c5f50487b6ed9efce6da98ef5b8b790a54b7c279d074bb79146ff1907f433",
+      "size_bytes": 1150614
     },
     "leadbridge-kso-native-macos-dmg-build-v8.2.10.0848.zip": {
-      "sha256": "482d5e6dfd469e70b83f7406c6fcb3201767fd5d052ad86eb2791a5067b434aa",
-      "size_bytes": 67639
+      "sha256": "937cdb1c2d2d5f2047547b0cccdcd5cf1f0244d955e715d2dc60f67ca4af4e3a",
+      "size_bytes": 67640
     },
     "leadbridge-kso-native-windows-wpf-build-v8.2.10.0848.zip": {
-      "sha256": "ef9bab390b6acd8a21dd865ed4ccf542aa0d8cb5c6099596de7060b1a28f88bb",
-      "size_bytes": 70212
+      "sha256": "4d5f532b45cbabfe4d05d06d9a290c42469fda97978c4afee62d66c7d7506612",
+      "size_bytes": 70213
     },
     "leadbridge-kso-tools-macos-v8.2.10.0848.zip": {
-      "sha256": "f3107ae40aa93bac70d52128b73de0299210847d14ab56bd16c08c7d13eedd5f",
-      "size_bytes": 233208
+      "sha256": "ea4a1e4f46d6648fec1de5b873e6e50e7580e492575798cb41f9207a670ac872",
+      "size_bytes": 233209
     },
     "leadbridge-kso-tools-windows-v8.2.10.0848.zip": {
-      "sha256": "eec4fadda340b68849ace5549fc73891e871cc4198cb3b81e4173dae36144545",
-      "size_bytes": 235829
+      "sha256": "f17fcb1652a543983fd11aa1ef47cbea2da6f80c7748207949081f5c93e9e9d3",
+      "size_bytes": 235830
     },
     "leadbridge-offline-html-v8.2.10.0848.zip": {
       "sha256": "68334c48c78a684caa3c3cd7821aae4206e2403bc395699c3e6a86c829b17ed3",
