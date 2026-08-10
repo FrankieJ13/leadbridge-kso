@@ -245,6 +245,24 @@ def build_manifest(outputs: list[Path], commit: str) -> dict[str, object]:
     ocr = f"max-chat-ocr-postprocessor-{OCR_VERSION}.zip"
     win_native = f"leadbridge-kso-native-windows-wpf-build-{PACKAGE_VERSION}.zip"
     mac_native = f"leadbridge-kso-native-macos-dmg-build-{PACKAGE_VERSION}.zip"
+    full_project = f"leadbridge-kso-full-project-{PACKAGE_VERSION}.zip"
+    downloads = {
+        "tools": {
+            "macos": with_integrity(download_entry("LeadBridge KSO tools for macOS", mac_tools, "install_macos.command")),
+            "windows": with_integrity(download_entry("LeadBridge KSO tools for Windows", win_tools, "install_windows.ps1")),
+        },
+        "components": {
+            "leadbridge_offline_html": with_integrity(download_entry("LeadBridge offline Web", offline)),
+            "max_chat_local_exporter": with_integrity(download_entry("MAX Chat Local Exporter", exporter)),
+            "max_chat_ocr_postprocessor": with_integrity(download_entry("MAX Chat OCR Postprocessor", ocr)),
+        },
+        "native_builds": {
+            "windows_wpf": with_integrity(download_entry("LeadBridge KSO native Windows WPF build package", win_native)),
+            "macos_dmg": with_integrity(download_entry("LeadBridge KSO native macOS DMG build package", mac_native)),
+        },
+    }
+    if full_project in artifacts:
+        downloads["full_project"] = with_integrity(download_entry("LeadBridge KSO — полный проект", full_project))
     return {
         "app_version": APP_VERSION,
         "package_version": PACKAGE_VERSION,
@@ -255,21 +273,7 @@ def build_manifest(outputs: list[Path], commit: str) -> dict[str, object]:
         "release_tag": APP_VERSION,
         "local_data_policy": "MAX/OCR/ZIP files and all matching are local. Optional amoCRM online mode downloads a read-only CSV snapshot from the operator's token-protected Apps Script endpoint. GitHub receives no user data.",
         "local_data_policy_ru": "MAX/OCR/ZIP и весь матчинг остаются локальными. Опциональный онлайн-режим amoCRM скачивает read-only CSV-снимок с защищённого токеном Apps Script оператора. Пользовательские данные не отправляются в GitHub.",
-        "downloads": {
-            "tools": {
-                "macos": with_integrity(download_entry("LeadBridge KSO tools for macOS", mac_tools, "install_macos.command")),
-                "windows": with_integrity(download_entry("LeadBridge KSO tools for Windows", win_tools, "install_windows.ps1")),
-            },
-            "components": {
-                "leadbridge_offline_html": with_integrity(download_entry("LeadBridge offline Web", offline)),
-                "max_chat_local_exporter": with_integrity(download_entry("MAX Chat Local Exporter", exporter)),
-                "max_chat_ocr_postprocessor": with_integrity(download_entry("MAX Chat OCR Postprocessor", ocr)),
-            },
-            "native_builds": {
-                "windows_wpf": with_integrity(download_entry("LeadBridge KSO native Windows WPF build package", win_native)),
-                "macos_dmg": with_integrity(download_entry("LeadBridge KSO native macOS DMG build package", mac_native)),
-            },
-        },
+        "downloads": downloads,
         "artifacts": artifacts,
     }
 
@@ -319,10 +323,15 @@ def copy_repo_for_github_ready(target: Path) -> None:
             shutil.copy2(item, target_item)
 
 
-def build_github_ready_zip() -> Path:
+def build_full_project_zip(outputs: list[Path], commit: str) -> Path:
     ready_root = BUILD / "leadbridge-kso"
     copy_repo_for_github_ready(ready_root)
-    output = DIST / f"leadbridge-kso-github-ready-{PACKAGE_VERSION}.zip"
+    copy_file(WEB / "offline_phone_matcher.html", ready_root / "offline_phone_matcher.html")
+    copy_file(ROOT / "tools" / "templates" / "README_FULL_PROJECT.txt", ready_root / "README_LOCAL_FIRST.txt")
+    write_build_info(ready_root / "BUILD_INFO.json", commit)
+    for package in outputs:
+        copy_file(package, ready_root / "releases" / "packages" / package.name)
+    output = PACKAGES / f"leadbridge-kso-full-project-{PACKAGE_VERSION}.zip"
     zip_path(ready_root, output, arc_root="leadbridge-kso")
     return output
 
@@ -344,10 +353,12 @@ def build() -> list[Path]:
     outputs.append(build_native_source_zip("macos-dmg", commit))
     write_integrity_metadata(outputs, commit)
     sync()
+    outputs.append(build_full_project_zip(outputs, commit))
+    write_integrity_metadata(outputs, commit)
+    sync()
     verify_integrity()
-    github_ready = build_github_ready_zip()
     print("Built:")
-    for path in outputs + [github_ready, SHA256SUMS]:
+    for path in outputs + [SHA256SUMS]:
         print(f"- {path.relative_to(ROOT)}")
     return outputs
 

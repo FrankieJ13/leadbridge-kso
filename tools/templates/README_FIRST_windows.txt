@@ -10,12 +10,13 @@ LeadBridge KSO — Windows tools pack v8.2.10.0848
 - ocr_results\ — сюда складываются результаты OCR.
 
 Быстрый запуск:
-1. Распакуйте этот ZIP.
-2. Запустите install_windows.ps1 через PowerShell.
+1. Полностью распакуйте ZIP. Не запускайте установщик прямо из архива и не копируйте отдельно install_windows.ps1.
+2. Откройте распакованную папку LeadBridgeKSO-Windows-v8.2.10.0848: рядом с install_windows.ps1 должны находиться папки tools, launchers, integrations и archives.
+3. Запустите install_windows.ps1 через PowerShell.
    Если PowerShell блокирует файл, выполните:
    powershell -ExecutionPolicy Bypass -File .\install_windows.ps1
-3. Инсталлятор создаст C:\LeadBridgeKSO и скопирует туда инструменты.
-4. Откройте C:\LeadBridgeKSO\launchers\open_leadbridge.bat.
+4. Инсталлятор создаст C:\LeadBridgeKSO и скопирует туда инструменты.
+5. Откройте C:\LeadBridgeKSO\launchers\open_leadbridge.bat.
 
 Chrome extension:
 1. Chrome -> chrome://extensions

@@ -82,7 +82,7 @@ python3 tools/build_release_packages.py
 python3 tools/build_release_packages.py --verify
 ```
 
-The build creates seven deterministic ZIP files for Web, exporter, OCR, tools packs and native build sources. It records the real build-time Git commit, regenerates `releases/manifest.json` and writes `releases/SHA256SUMS`. Release signing is not yet configured; no fake signature is generated. A future detached signature belongs at `releases/SHA256SUMS.sig`.
+The build creates seven deterministic component ZIP files plus `leadbridge-kso-full-project-v8.2.10.0848.zip`. The full archive contains the source tree and the current component packages for local use. The build records the real build-time Git commit, regenerates `releases/manifest.json` and writes `releases/SHA256SUMS`. Release signing is not yet configured; no fake signature is generated. A future detached signature belongs at `releases/SHA256SUMS.sig`.
 
 Before manual installation, verify a package:
 

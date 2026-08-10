@@ -123,7 +123,8 @@ function renderReleaseHint(manifest){
   const os = detectPlatform();
   const labels = {macos:'macOS', windows:'Windows'};
   const tools = manifest.downloads && manifest.downloads.tools && manifest.downloads.tools[os];
-  if(!tools || !tools.download_url) return;
+  const fullProject = manifest.downloads && manifest.downloads.full_project;
+  if((!tools || !tools.download_url) && (!fullProject || !fullProject.download_url)) return;
 
   box.textContent = '';
   const row = document.createElement('div');
@@ -132,21 +133,36 @@ function renderReleaseHint(manifest){
   copy.className = 'release-copy';
   const title = document.createElement('div');
   title.className = 'release-title';
-  title.textContent = `Пакет тулзов LeadBridge KSO ${manifest.package_version || PACKAGE_VERSION} для ${labels[os] || 'вашей ОС'}`;
+  title.textContent = tools && tools.download_url
+    ? `Пакет тулзов LeadBridge KSO ${manifest.package_version || PACKAGE_VERSION} для ${labels[os] || 'вашей ОС'}`
+    : `LeadBridge KSO ${manifest.package_version || PACKAGE_VERSION}`;
   const details = document.createElement('div');
   details.className = 'small muted';
-  details.textContent = `Сайт не устанавливает программы сам: скачай ZIP, распакуй и запусти ${tools.installer || 'установщик'} вручную.`;
+  details.textContent = tools && tools.download_url
+    ? `Сайт не устанавливает программы сам: скачай ZIP, распакуй и запусти ${tools.installer || 'установщик'} вручную. Полный архив содержит весь проект и пакеты для обеих ОС.`
+    : 'Полный архив содержит Web/PWA, установщики, интеграцию, нативные исходники и актуальные пакеты.';
   copy.append(title, details);
 
   const actions = document.createElement('div');
   actions.className = 'release-actions';
-  const download = document.createElement('a');
-  download.className = 'btn primary';
-  download.href = repoAssetUrl(tools.download_url);
-  download.target = '_blank';
-  download.rel = 'noopener';
-  download.textContent = `Скачать пакет для ${labels[os] || 'ОС'}`;
-  actions.append(download);
+  if(tools && tools.download_url){
+    const download = document.createElement('a');
+    download.className = 'btn primary';
+    download.href = repoAssetUrl(tools.download_url);
+    download.target = '_blank';
+    download.rel = 'noopener';
+    download.textContent = `Пакет для ${labels[os] || 'ОС'}`;
+    actions.append(download);
+  }
+  if(fullProject && fullProject.download_url){
+    const fullDownload = document.createElement('a');
+    fullDownload.className = 'btn cyan';
+    fullDownload.href = repoAssetUrl(fullProject.download_url);
+    fullDownload.target = '_blank';
+    fullDownload.rel = 'noopener';
+    fullDownload.textContent = 'Полный проект ZIP';
+    actions.append(fullDownload);
+  }
 
   row.append(copy, actions);
   box.append(row);

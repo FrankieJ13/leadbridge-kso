@@ -1,19 +1,75 @@
 $ErrorActionPreference = 'Stop'
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-if (Test-Path (Join-Path $ScriptDir 'apps')) {
-  $SourceRoot = $ScriptDir
-} elseif (Test-Path (Join-Path $ScriptDir '..\..\apps')) {
-  $SourceRoot = (Resolve-Path (Join-Path $ScriptDir '..\..')).Path
-} else {
-  $SourceRoot = $ScriptDir
+$PackageDownloadUrl = 'https://frankiej13.github.io/leadbridge-kso/releases/packages/leadbridge-kso-tools-windows-v8.2.10.0848.zip'
+
+function Test-LeadBridgePayload($Path) {
+  if (-not $Path -or -not (Test-Path $Path -PathType Container)) {
+    return $false
+  }
+
+  $RepoPayload = (
+    (Test-Path (Join-Path $Path 'apps\leadbridge-web') -PathType Container) -and
+    (Test-Path (Join-Path $Path 'apps\max-chat-local-exporter') -PathType Container) -and
+    (Test-Path (Join-Path $Path 'apps\max-chat-ocr-postprocessor') -PathType Container) -and
+    (Test-Path (Join-Path $Path 'tools\launcher') -PathType Container)
+  )
+  $PackPayload = (
+    (Test-Path (Join-Path $Path 'tools\leadbridge') -PathType Container) -and
+    (Test-Path (Join-Path $Path 'tools\max-chat-local-exporter') -PathType Container) -and
+    (Test-Path (Join-Path $Path 'tools\max-chat-ocr-postprocessor') -PathType Container) -and
+    (Test-Path (Join-Path $Path 'launchers') -PathType Container)
+  )
+
+  return ($RepoPayload -or $PackPayload)
 }
 
+function Find-LeadBridgePayload($StartPath) {
+  $Candidates = New-Object System.Collections.Generic.List[string]
+  [void]$Candidates.Add($StartPath)
+
+  $Parent = Split-Path -Parent $StartPath
+  if ($Parent) {
+    [void]$Candidates.Add($Parent)
+    $GrandParent = Split-Path -Parent $Parent
+    if ($GrandParent) {
+      [void]$Candidates.Add($GrandParent)
+    }
+  }
+
+  $Children = @(Get-ChildItem -Path $StartPath -Directory -ErrorAction SilentlyContinue)
+  foreach ($Child in $Children) {
+    [void]$Candidates.Add($Child.FullName)
+    foreach ($GrandChild in @(Get-ChildItem -Path $Child.FullName -Directory -ErrorAction SilentlyContinue)) {
+      [void]$Candidates.Add($GrandChild.FullName)
+    }
+  }
+
+  foreach ($Candidate in @($Candidates | Select-Object -Unique)) {
+    if (Test-LeadBridgePayload $Candidate) {
+      return (Resolve-Path $Candidate).Path
+    }
+  }
+  return $null
+}
+
+$SourceRoot = Find-LeadBridgePayload $ScriptDir
 $Target = 'C:\LeadBridgeKSO'
 
 Write-Host 'LeadBridge KSO Windows installer' -ForegroundColor Green
-Write-Host "Source: $SourceRoot"
 Write-Host "Target: $Target"
+
+if (-not $SourceRoot) {
+  Write-Host ''
+  Write-Host 'The complete LeadBridge tools pack was not found next to this installer.' -ForegroundColor Red
+  Write-Host 'Do not copy install_windows.ps1 out of the extracted package.' -ForegroundColor Yellow
+  Write-Host 'Download and extract the complete Windows ZIP:' -ForegroundColor Yellow
+  Write-Host $PackageDownloadUrl -ForegroundColor Cyan
+  Write-Host 'Then open the LeadBridgeKSO-Windows-v8.2.10.0848 folder and run its install_windows.ps1.'
+  exit 2
+}
+
+Write-Host "Source: $SourceRoot"
 
 New-Item -ItemType Directory -Force -Path $Target | Out-Null
 New-Item -ItemType Directory -Force -Path "$Target\exports" | Out-Null
@@ -24,6 +80,9 @@ New-Item -ItemType Directory -Force -Path "$Target\archives" | Out-Null
 New-Item -ItemType Directory -Force -Path "$Target\launchers" | Out-Null
 
 function Copy-CleanDir($Source, $Destination) {
+  if (-not (Test-Path $Source -PathType Container)) {
+    throw "Required package folder is missing: $Source"
+  }
   if (Test-Path $Destination) {
     Remove-Item $Destination -Recurse -Force
   }
