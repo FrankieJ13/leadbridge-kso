@@ -3,7 +3,7 @@
   "short_name": "LeadBridge",
   "description": "Локальный matcher MAX и amoCRM. Данные выбираются пользователем и обрабатываются в браузере.",
   "lang": "ru",
-  "start_url": "./?pwa=v8.2.10.0848-6",
+  "start_url": "./?pwa=v8.2.10.0848-7",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",

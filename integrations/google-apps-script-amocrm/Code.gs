@@ -1,5 +1,3 @@
-/** @OnlyCurrentDoc */
-
 const LEADBRIDGE_ACTION = 'leadbridge_amocrm_snapshot';
 const LEADBRIDGE_TOKEN_HASH = 'LEADBRIDGE_TOKEN_SHA256';
 const LEADBRIDGE_SPREADSHEET_ID = 'LEADBRIDGE_SPREADSHEET_ID';
@@ -20,6 +18,30 @@ function setupLeadBridgeSnapshot() {
   SpreadsheetApp.getUi().alert(
     'LeadBridge: новый токен',
     'Скопируй токен сейчас. Он сохранён только как SHA-256 и повторно показан не будет.\n\n' + token,
+    SpreadsheetApp.getUi().ButtonSet.OK
+  );
+}
+
+function testLeadBridgeSnapshot() {
+  const properties = PropertiesService.getScriptProperties();
+  const spreadsheetId = properties.getProperty(LEADBRIDGE_SPREADSHEET_ID);
+  const sheetName = properties.getProperty(LEADBRIDGE_SHEET_NAME);
+  if (!spreadsheetId || !sheetName) {
+    throw new Error('Сначала запусти setupLeadBridgeSnapshot на нужном листе.');
+  }
+
+  const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+  const sheet = spreadsheet.getSheetByName(sheetName);
+  if (!sheet) throw new Error('Настроенный лист не найден: ' + sheetName);
+
+  const range = sheet.getDataRange();
+  const rows = range.getNumRows();
+  const columns = range.getNumColumns();
+  if (!rows || !columns) throw new Error('Настроенный лист пуст.');
+
+  SpreadsheetApp.getUi().alert(
+    'LeadBridge: доступ подтверждён',
+    'Таблица: ' + spreadsheet.getName() + '\nЛист: ' + sheetName + '\nСтрок: ' + rows + '\nСтолбцов: ' + columns,
     SpreadsheetApp.getUi().ButtonSet.OK
   );
 }
@@ -45,11 +67,23 @@ function doPost(event) {
     const sheetName = properties.getProperty(LEADBRIDGE_SHEET_NAME);
     if (!spreadsheetId || !sheetName) return jsonOutput_({ ok: false, error: 'snapshot_not_configured' });
 
-    const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+    let spreadsheet;
+    try {
+      spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+    } catch (error) {
+      console.error('LeadBridge spreadsheet access error', error && error.stack ? error.stack : error);
+      return jsonOutput_({ ok: false, error: 'spreadsheet_access_denied' });
+    }
     const sheet = spreadsheet.getSheetByName(sheetName);
     if (!sheet) return jsonOutput_({ ok: false, error: 'sheet_not_found' });
 
-    const values = sheet.getDataRange().getDisplayValues();
+    let values;
+    try {
+      values = sheet.getDataRange().getDisplayValues();
+    } catch (error) {
+      console.error('LeadBridge spreadsheet read error', error && error.stack ? error.stack : error);
+      return jsonOutput_({ ok: false, error: 'snapshot_limit_exceeded' });
+    }
     if (!values.length) return jsonOutput_({ ok: false, error: 'sheet_is_empty' });
     const csv = '\uFEFF' + values.map(csvRow_).join('\r\n');
     return ContentService.createTextOutput(csv).setMimeType(ContentService.MimeType.CSV);

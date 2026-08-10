@@ -2,6 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const security = require('../../apps/leadbridge-web/src/security.js');
 const csv = require('../../apps/leadbridge-web/src/csv.js');
@@ -81,6 +83,14 @@ test('online amoCRM request keeps token out of URL and restricts Apps Script red
   assert.equal(onlineCsv.isAllowedResponseUrl('https://evil.test/macros/echo'), false);
   assert.equal(onlineCsv.parseExecUrl(`${endpoint}?token=${token}`), null);
   assert.equal(onlineCsv.parseExecUrl('https://script.googleusercontent.com/macros/s/id/exec'), null);
+});
+
+test('Apps Script deployment can open the configured spreadsheet by ID', () => {
+  const code = fs.readFileSync(path.join(__dirname, '../../integrations/google-apps-script-amocrm/Code.gs'), 'utf8');
+  assert.equal(code.includes('@OnlyCurrentDoc'), false);
+  assert.equal(code.includes('SpreadsheetApp.openById(spreadsheetId)'), true);
+  assert.equal(code.includes("error: 'spreadsheet_access_denied'"), true);
+  assert.equal(code.includes('function testLeadBridgeSnapshot()'), true);
 });
 
 test('CSV cells neutralize spreadsheet formulas but preserve numbers, phones and URLs', () => {

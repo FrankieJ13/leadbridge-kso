@@ -496,8 +496,10 @@ async function onlineResponseError(response){
       access_denied:'Токен не принят Apps Script.',
       unsupported_action:'Apps Script не поддерживает запрос LeadBridge.',
       snapshot_not_configured:'В Apps Script не настроены таблица и лист.',
+      spreadsheet_access_denied:'Apps Script не получил доступ к Google Таблице. Владелец должен запустить testLeadBridgeSnapshot и подтвердить разрешения, затем опубликовать новую версию deployment.',
       sheet_not_found:'Настроенный лист Google Таблицы не найден.',
       sheet_is_empty:'Настроенный лист Google Таблицы пуст.',
+      snapshot_limit_exceeded:'Apps Script не смог прочитать лист: превышен лимит размера, времени или памяти Google Apps Script.',
       snapshot_failed:'Apps Script не смог сформировать CSV-снимок.'
     };
     return messages[code] || `Apps Script вернул ошибку HTTP ${response.status}.`;
@@ -602,7 +604,7 @@ async function loadAmoOnlineSnapshot(){
       const safeMessage = LeadBridgeOnlineCsv.safeErrorMessage(err && err.message);
       console.info('LeadBridge online amoCRM snapshot failed');
       $('infoAmo').textContent = `Ошибка онлайн-загрузки: ${safeMessage}`;
-      setNotice(`Не удалось загрузить amoCRM: ${safeMessage} Проверь deployment /exec, токен и доступ Apps Script.`, true);
+      setNotice(`Не удалось загрузить amoCRM: ${safeMessage}`, true);
     }
   }finally{
     state.amoOnlineController = null;
