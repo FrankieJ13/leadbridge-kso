@@ -1,6 +1,6 @@
 LeadBridge KSO Windows one-click installer — third-party components
 
-The installer includes unmodified installers or binary data from:
+The installer includes unmodified installers, portable runtimes or binary data from:
 
 1. Python 3.12.10 (Python Software Foundation License)
    https://www.python.org/downloads/release/python-31210/
@@ -15,4 +15,4 @@ The installer includes unmodified installers or binary data from:
    https://github.com/tesseract-ocr/tessdata_fast/tree/87416418657359cb625c412a48b6e1d6d41c29bd
 
 The dependency URLs and SHA-256 hashes are pinned in build_setup.py.
-Python and Tesseract are installed as shared system dependencies and are not removed by the LeadBridge uninstaller because other applications may use them.
+Python, Pillow and Tesseract are private LeadBridge runtime components under C:\LeadBridgeKSO\runtime and are removed by the LeadBridge uninstaller.

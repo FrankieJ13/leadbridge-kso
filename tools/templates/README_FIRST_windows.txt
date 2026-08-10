@@ -2,7 +2,7 @@ LeadBridge KSO — Windows tools pack v8.2.10.0848
 
 Для обычного пользователя рекомендуется единый автономный файл:
 LeadBridgeKSO-Setup-Windows-v8.2.10.0848.exe
-Он сам устанавливает LeadBridge, Python, Pillow, Tesseract, OCR-модели, создаёт ярлыки и запускает продукт.
+Он сам ставит LeadBridge со встроенными Python, Pillow, Tesseract и OCR-моделями, создаёт ярлыки и запускает продукт. Системный Python не затрагивается.
 
 Этот ZIP предназначен для ручной установки или разработки.
 

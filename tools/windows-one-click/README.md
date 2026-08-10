@@ -2,7 +2,7 @@
 
 Сборщик создаёт единый автономный `LeadBridgeKSO-Setup-Windows-v8.2.10.0848.exe` для 64-битной Windows 10/11.
 
-Внутрь установщика входят LeadBridge Web, MAX exporter, OCR postprocessor, Python 3.12.10, Pillow 12.3.0, Tesseract 5.5.3 и модели `rus+eng`. После скачивания EXE интернет для установки не требуется.
+Внутрь установщика входят LeadBridge Web, MAX exporter, OCR postprocessor, переносимый Python 3.12.10, Pillow 12.3.0, Tesseract 5.5.3 и модели `rus+eng`. Они живут в `C:\LeadBridgeKSO\runtime`, не конфликтуют с системным Python и удаляются вместе с LeadBridge. После скачивания EXE интернет для установки не требуется.
 
 Пользовательский сценарий:
 

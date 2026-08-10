@@ -75,64 +75,45 @@ Section "Установка" SEC_MAIN
 
   InitPluginsDir
   SetOutPath "$PLUGINSDIR"
-  File /oname=python-installer.exe "${VENDOR}\python-3.12.10-amd64.exe"
   File /oname=tesseract-installer.exe "${VENDOR}\tesseract-ocr-w64-setup-5.5.3.20260724.exe"
-  File /oname=pillow.whl "${VENDOR}\pillow-12.3.0-cp312-cp312-win_amd64.whl"
   File /oname=rus.traineddata "${VENDOR}\rus.traineddata"
   File /oname=eng.traineddata "${VENDOR}\eng.traineddata"
 
-  DetailPrint "Проверка Python 3.12..."
-  StrCpy $PythonExe "$PROGRAMFILES64\Python312\python.exe"
+  DetailPrint "Проверка встроенного Python 3.12..."
+  StrCpy $PythonExe "$INSTDIR\runtime\python\python.exe"
   ${IfNot} ${FileExists} "$PythonExe"
-    StrCpy $PythonExe "$LOCALAPPDATA\Programs\Python\Python312\python.exe"
-  ${EndIf}
-  ${IfNot} ${FileExists} "$PythonExe"
-    DetailPrint "Установка Python 3.12..."
-    StrCpy $PythonExe "$PROGRAMFILES64\Python312\python.exe"
-    nsExec::ExecToLog '"$PLUGINSDIR\python-installer.exe" /quiet InstallAllUsers=1 TargetDir="$PROGRAMFILES64\Python312" PrependPath=1 Include_launcher=1 InstallLauncherAllUsers=1 Include_pip=1 Include_test=0 SimpleInstall=1'
-    Pop $ExitCode
-    ${If} $ExitCode != 0
-      !insertmacro FailInstall 11 "Не удалось установить Python 3.12. Код: $ExitCode"
-    ${EndIf}
-  ${EndIf}
-  ${IfNot} ${FileExists} "$PythonExe"
-    !insertmacro FailInstall 12 "Python 3.12 установлен, но python.exe не найден."
+    !insertmacro FailInstall 11 "Встроенный Python 3.12 не найден в пакете."
   ${EndIf}
 
-  DetailPrint "Установка Pillow без доступа к интернету..."
-  nsExec::ExecToLog '"$PythonExe" -m pip install --disable-pip-version-check --no-index --force-reinstall "$PLUGINSDIR\pillow.whl"'
-  Pop $ExitCode
-  ${If} $ExitCode != 0
-    !insertmacro FailInstall 13 "Не удалось установить Pillow. Код: $ExitCode"
-  ${EndIf}
-
-  DetailPrint "Проверка Tesseract OCR..."
-  ${IfNot} ${FileExists} "$PROGRAMFILES64\Tesseract-OCR\tesseract.exe"
-    DetailPrint "Установка Tesseract OCR..."
-    nsExec::ExecToLog '"$PLUGINSDIR\tesseract-installer.exe" /S'
-    Pop $ExitCode
-    ${If} $ExitCode != 0
-      !insertmacro FailInstall 14 "Не удалось установить Tesseract OCR. Код: $ExitCode"
-    ${EndIf}
-  ${EndIf}
-  ${IfNot} ${FileExists} "$PROGRAMFILES64\Tesseract-OCR\tesseract.exe"
-    !insertmacro FailInstall 15 "Tesseract установлен, но tesseract.exe не найден."
-  ${EndIf}
-
-  CreateDirectory "$PROGRAMFILES64\Tesseract-OCR\tessdata"
-  CopyFiles /SILENT "$PLUGINSDIR\rus.traineddata" "$PROGRAMFILES64\Tesseract-OCR\tessdata\rus.traineddata"
-  CopyFiles /SILENT "$PLUGINSDIR\eng.traineddata" "$PROGRAMFILES64\Tesseract-OCR\tessdata\eng.traineddata"
-
-  DetailPrint "Проверка OCR-зависимостей..."
+  DetailPrint "Проверка встроенного Pillow..."
   nsExec::ExecToLog '"$PythonExe" -c "import PIL; print(PIL.__version__)"'
   Pop $ExitCode
   ${If} $ExitCode != 0
-    !insertmacro FailInstall 16 "Pillow не прошёл проверку. Код: $ExitCode"
+    !insertmacro FailInstall 12 "Встроенный Pillow не прошёл проверку. Код: $ExitCode"
   ${EndIf}
-  nsExec::ExecToLog '"$PROGRAMFILES64\Tesseract-OCR\tesseract.exe" --list-langs'
+
+  DetailPrint "Проверка Tesseract OCR..."
+  ${IfNot} ${FileExists} "$INSTDIR\runtime\tesseract\tesseract.exe"
+    DetailPrint "Установка Tesseract OCR..."
+    nsExec::ExecToLog '"$PLUGINSDIR\tesseract-installer.exe" /S /D=$INSTDIR\runtime\tesseract'
+    Pop $ExitCode
+    ${If} $ExitCode != 0
+      !insertmacro FailInstall 13 "Не удалось установить Tesseract OCR. Код: $ExitCode"
+    ${EndIf}
+  ${EndIf}
+  ${IfNot} ${FileExists} "$INSTDIR\runtime\tesseract\tesseract.exe"
+    !insertmacro FailInstall 14 "Tesseract установлен, но tesseract.exe не найден."
+  ${EndIf}
+
+  CreateDirectory "$INSTDIR\runtime\tesseract\tessdata"
+  CopyFiles /SILENT "$PLUGINSDIR\rus.traineddata" "$INSTDIR\runtime\tesseract\tessdata\rus.traineddata"
+  CopyFiles /SILENT "$PLUGINSDIR\eng.traineddata" "$INSTDIR\runtime\tesseract\tessdata\eng.traineddata"
+
+  DetailPrint "Проверка OCR-зависимостей..."
+  nsExec::ExecToLog '"$INSTDIR\runtime\tesseract\tesseract.exe" --list-langs'
   Pop $ExitCode
   ${If} $ExitCode != 0
-    !insertmacro FailInstall 17 "Tesseract не прошёл проверку. Код: $ExitCode"
+    !insertmacro FailInstall 15 "Tesseract не прошёл проверку. Код: $ExitCode"
   ${EndIf}
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"

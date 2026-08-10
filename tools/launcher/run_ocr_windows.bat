@@ -4,6 +4,8 @@ set "OCR=C:\LeadBridgeKSO\tools\max-chat-ocr-postprocessor\max_chat_ocr.py"
 set "REQ=C:\LeadBridgeKSO\tools\max-chat-ocr-postprocessor\requirements.txt"
 set "OUT=C:\LeadBridgeKSO\ocr_results"
 set "PYTHON_EXE="
+set "PRIVATE_PYTHON=C:\LeadBridgeKSO\runtime\python\python.exe"
+set "PRIVATE_TESSERACT=C:\LeadBridgeKSO\runtime\tesseract\tesseract.exe"
 
 if not exist "%OCR%" (
   echo OCR script not found: %OCR%
@@ -11,6 +13,7 @@ if not exist "%OCR%" (
   exit /b 1
 )
 
+if exist "%PRIVATE_PYTHON%" set "PYTHON_EXE=%PRIVATE_PYTHON%"
 for /f "delims=" %%P in ('where py 2^>nul') do if not defined PYTHON_EXE set "PYTHON_EXE=%%P"
 if not defined PYTHON_EXE if exist "%ProgramFiles%\Python312\python.exe" set "PYTHON_EXE=%ProgramFiles%\Python312\python.exe"
 for /d %%D in ("%LocalAppData%\Programs\Python\Python3*") do if not defined PYTHON_EXE if exist "%%~fD\python.exe" set "PYTHON_EXE=%%~fD\python.exe"
@@ -44,6 +47,7 @@ if errorlevel 1 (
   )
 )
 
+if exist "%PRIVATE_TESSERACT%" set "PATH=C:\LeadBridgeKSO\runtime\tesseract;%PATH%"
 where tesseract >nul 2>nul
 if errorlevel 1 if exist "C:\Program Files\Tesseract-OCR\tesseract.exe" set "PATH=C:\Program Files\Tesseract-OCR;%PATH%"
 where tesseract >nul 2>nul

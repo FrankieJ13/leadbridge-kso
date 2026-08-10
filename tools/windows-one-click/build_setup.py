@@ -10,6 +10,7 @@ import shutil
 import struct
 import subprocess
 import urllib.request
+import zipfile
 from pathlib import Path
 
 
@@ -22,9 +23,9 @@ OUTPUT = ROOT / "releases" / "packages" / "LeadBridgeKSO-Setup-Windows-v8.2.10.0
 VERSION = "v8.2.10.0848"
 
 DEPENDENCIES = {
-    "python-3.12.10-amd64.exe": {
-        "url": "https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe",
-        "sha256": "67b5635e80ea51072b87941312d00ec8927c4db9ba18938f7ad2d27b328b95fb",
+    "python-3.12.10-embed-amd64.zip": {
+        "url": "https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip",
+        "sha256": "4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3",
     },
     "tesseract-ocr-w64-setup-5.5.3.20260724.exe": {
         "url": "https://github.com/tesseract-ocr/tesseract/releases/download/5.5.3/tesseract-ocr-w64-setup-5.5.3.20260724.exe",
@@ -92,6 +93,18 @@ def prepare_stage() -> None:
     copytree(ROOT / "apps" / "max-chat-local-exporter", STAGE / "tools" / "max-chat-local-exporter")
     copytree(ROOT / "apps" / "max-chat-ocr-postprocessor", STAGE / "tools" / "max-chat-ocr-postprocessor")
     copytree(ROOT / "integrations" / "google-apps-script-amocrm", STAGE / "integrations" / "google-apps-script-amocrm")
+
+    python_runtime = STAGE / "runtime" / "python"
+    site_packages = python_runtime / "Lib" / "site-packages"
+    site_packages.mkdir(parents=True)
+    with zipfile.ZipFile(VENDOR / "python-3.12.10-embed-amd64.zip") as archive:
+        archive.extractall(python_runtime)
+    with zipfile.ZipFile(VENDOR / "pillow-12.3.0-cp312-cp312-win_amd64.whl") as archive:
+        archive.extractall(site_packages)
+    (python_runtime / "python312._pth").write_text(
+        "python312.zip\n.\nLib\\site-packages\nimport site\n",
+        encoding="utf-8",
+    )
 
     (STAGE / "launchers").mkdir(parents=True)
     shutil.copy2(ROOT / "tools" / "launcher" / "open_leadbridge_windows.bat", STAGE / "launchers" / "open_leadbridge.bat")

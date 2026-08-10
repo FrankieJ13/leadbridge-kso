@@ -92,17 +92,17 @@ jobs:
             'C:\LeadBridgeKSO\tools\leadbridge\index.html',
             'C:\LeadBridgeKSO\tools\max-chat-ocr-postprocessor\max_chat_ocr.py',
             'C:\LeadBridgeKSO\launchers\run_ocr_windows.bat',
-            'C:\Program Files\Python312\python.exe',
-            'C:\Program Files\Tesseract-OCR\tesseract.exe',
-            'C:\Program Files\Tesseract-OCR\tessdata\rus.traineddata',
-            'C:\Program Files\Tesseract-OCR\tessdata\eng.traineddata',
+            'C:\LeadBridgeKSO\runtime\python\python.exe',
+            'C:\LeadBridgeKSO\runtime\tesseract\tesseract.exe',
+            'C:\LeadBridgeKSO\runtime\tesseract\tessdata\rus.traineddata',
+            'C:\LeadBridgeKSO\runtime\tesseract\tessdata\eng.traineddata',
             'C:\Users\Public\Desktop\LeadBridge KSO.lnk'
           )
           foreach ($path in $required) {
             if (-not (Test-Path $path)) { throw "Missing installed file: $path" }
           }
-          & 'C:\Program Files\Python312\python.exe' -c 'import PIL; print(PIL.__version__)'
-          $languages = & 'C:\Program Files\Tesseract-OCR\tesseract.exe' --list-langs
+          & 'C:\LeadBridgeKSO\runtime\python\python.exe' -c 'import PIL; print(PIL.__version__)'
+          $languages = & 'C:\LeadBridgeKSO\runtime\tesseract\tesseract.exe' --list-langs
           if ($languages -notcontains 'rus' -or $languages -notcontains 'eng') {
             throw "Tesseract languages are incomplete: $($languages -join ', ')"
           }
