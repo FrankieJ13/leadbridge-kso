@@ -49,10 +49,20 @@ VIAddVersionKey /LANG=1049 "LegalCopyright" "LeadBridge KSO"
 Var PythonExe
 Var ExitCode
 
+!macro FailInstall Code Message
+  ${If} ${Silent}
+    DetailPrint "${Message}"
+    SetErrorLevel ${Code}
+    Quit
+  ${Else}
+    MessageBox MB_ICONSTOP "${Message}"
+    Abort
+  ${EndIf}
+!macroend
+
 Function .onInit
   ${IfNot} ${RunningX64}
-    MessageBox MB_ICONSTOP "LeadBridge KSO поддерживает только 64-битную Windows 10/11."
-    Quit
+    !insertmacro FailInstall 10 "LeadBridge KSO поддерживает только 64-битную Windows 10/11."
   ${EndIf}
   SetRegView 64
   SetShellVarContext all
@@ -82,21 +92,18 @@ Section "Установка" SEC_MAIN
     nsExec::ExecToLog '"$PLUGINSDIR\python-installer.exe" /quiet InstallAllUsers=1 TargetDir="$PROGRAMFILES64\Python312" PrependPath=1 Include_launcher=1 InstallLauncherAllUsers=1 Include_pip=1 Include_test=0 SimpleInstall=1'
     Pop $ExitCode
     ${If} $ExitCode != 0
-      MessageBox MB_ICONSTOP "Не удалось установить Python 3.12. Код: $ExitCode"
-      Abort
+      !insertmacro FailInstall 11 "Не удалось установить Python 3.12. Код: $ExitCode"
     ${EndIf}
   ${EndIf}
   ${IfNot} ${FileExists} "$PythonExe"
-    MessageBox MB_ICONSTOP "Python 3.12 установлен, но python.exe не найден."
-    Abort
+    !insertmacro FailInstall 12 "Python 3.12 установлен, но python.exe не найден."
   ${EndIf}
 
   DetailPrint "Установка Pillow без доступа к интернету..."
   nsExec::ExecToLog '"$PythonExe" -m pip install --disable-pip-version-check --no-index --force-reinstall "$PLUGINSDIR\pillow.whl"'
   Pop $ExitCode
   ${If} $ExitCode != 0
-    MessageBox MB_ICONSTOP "Не удалось установить Pillow. Код: $ExitCode"
-    Abort
+    !insertmacro FailInstall 13 "Не удалось установить Pillow. Код: $ExitCode"
   ${EndIf}
 
   DetailPrint "Проверка Tesseract OCR..."
@@ -105,13 +112,11 @@ Section "Установка" SEC_MAIN
     nsExec::ExecToLog '"$PLUGINSDIR\tesseract-installer.exe" /S'
     Pop $ExitCode
     ${If} $ExitCode != 0
-      MessageBox MB_ICONSTOP "Не удалось установить Tesseract OCR. Код: $ExitCode"
-      Abort
+      !insertmacro FailInstall 14 "Не удалось установить Tesseract OCR. Код: $ExitCode"
     ${EndIf}
   ${EndIf}
   ${IfNot} ${FileExists} "$PROGRAMFILES64\Tesseract-OCR\tesseract.exe"
-    MessageBox MB_ICONSTOP "Tesseract установлен, но tesseract.exe не найден."
-    Abort
+    !insertmacro FailInstall 15 "Tesseract установлен, но tesseract.exe не найден."
   ${EndIf}
 
   CreateDirectory "$PROGRAMFILES64\Tesseract-OCR\tessdata"
@@ -122,14 +127,12 @@ Section "Установка" SEC_MAIN
   nsExec::ExecToLog '"$PythonExe" -c "import PIL; print(PIL.__version__)"'
   Pop $ExitCode
   ${If} $ExitCode != 0
-    MessageBox MB_ICONSTOP "Pillow не прошёл проверку. Код: $ExitCode"
-    Abort
+    !insertmacro FailInstall 16 "Pillow не прошёл проверку. Код: $ExitCode"
   ${EndIf}
   nsExec::ExecToLog '"$PROGRAMFILES64\Tesseract-OCR\tesseract.exe" --list-langs'
   Pop $ExitCode
   ${If} $ExitCode != 0
-    MessageBox MB_ICONSTOP "Tesseract не прошёл проверку. Код: $ExitCode"
-    Abort
+    !insertmacro FailInstall 17 "Tesseract не прошёл проверку. Код: $ExitCode"
   ${EndIf}
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
