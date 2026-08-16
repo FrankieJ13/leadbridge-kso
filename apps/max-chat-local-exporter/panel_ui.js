@@ -61,15 +61,19 @@
         </span>
       </div>
       <div class="maxle-body">
+        <div class="maxle-step-heading">
+          <span class="maxle-step-number">1</span>
+          <strong>Собрать чат</strong>
+        </div>
         <div class="maxle-action-grid">
-          ${action('maxle-scan', 'maxle-primary', 'scan', 'Сканировать экран', 'Захват текущего чата')}
-          ${action('maxle-auto', '', 'chevronsUp', 'Автопрокрутка вверх', 'Прокрутить до начала')}
+          ${action('maxle-auto', 'maxle-primary', 'chevronsUp', 'Весь чат', 'До самого начала')}
+          ${action('maxle-scan', '', 'scan', 'Этот экран', 'Только видимые сообщения')}
           ${action('maxle-stop', 'maxle-danger', 'square', 'Стоп', 'Остановить процесс', true)}
-          ${action('maxle-clear', '', 'trash', 'Очистить', 'Очистить логи и выбор')}
+          ${action('maxle-clear', '', 'trash', 'Очистить', 'Начать заново')}
         </div>
         <div class="maxle-status-shell" role="status" aria-live="polite">
           <span class="maxle-status-icon">${icon('info')}</span>
-          <div class="maxle-status" id="maxle-status">Открой нужный чат и нажми «Автопрокрутка вверх». Затем экспортируй ZIP.</div>
+          <div class="maxle-status" id="maxle-status">Открой нужный чат и нажми «Весь чат». После завершения скачай результат.</div>
         </div>
         <div class="maxle-options">
           <label class="maxle-option">
@@ -85,27 +89,25 @@
             <span>Сканировать текущий экран перед экспортом</span>
           </label>
         </div>
-        <div class="maxle-section-title">Формат экспорта</div>
+        <div class="maxle-step-heading maxle-step-heading-export">
+          <span class="maxle-step-number">2</span>
+          <strong>Скачать результат</strong>
+        </div>
+        <button class="maxle-zip" data-maxle-export="zip" type="button">
+          <span class="maxle-zip-icon">${icon('fileArchive')}</span>
+          <span><strong>Скачать архив</strong><small>Сообщения + изображения · ZIP</small></span>
+        </button>
+        <div class="maxle-section-title">Или один файл</div>
         <div class="maxle-format-grid">
           ${format('json', 'database', 'json')}
           ${format('txt', 'fileText', 'txt')}
           ${format('html', 'globe', 'html')}
           ${format('csv', 'table', 'csv')}
         </div>
-        <button class="maxle-zip" data-maxle-export="zip" type="button">
-          <span class="maxle-zip-icon">${icon('fileArchive')}</span>
-          <span><strong>ZIP: сообщения + картинки</strong><small>Создать архив для экспорта</small></span>
-        </button>
         <div class="maxle-note">
           <div class="maxle-note-copy">
             <span class="maxle-note-shield">${icon('shieldCheck')}</span>
-            <p>ZIP создаёт папку с index.html, messages.json/csv/txt и attachments/msg_0001/att_01.jpg. Счётчик включает все уникальные фото и скриншоты, а не только анкеты.</p>
-          </div>
-          <div class="maxle-note-art" aria-hidden="true">
-            <span class="maxle-art-icon maxle-art-image">${icon('image')}</span>
-            <span class="maxle-art-icon maxle-art-message">${icon('message')}</span>
-            <span class="maxle-art-icon maxle-art-link">${icon('link')}</span>
-            <span class="maxle-folder"></span>
+            <p>В архиве будут сообщения, все найденные изображения и готовый HTML-отчёт.</p>
           </div>
         </div>
       </div>`;

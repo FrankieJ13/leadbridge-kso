@@ -212,11 +212,15 @@ test('exporter panel keeps every functional control in the redesigned markup', (
     .forEach((id) => assert.match(markup, new RegExp(`id="${id}"`)));
   ['json', 'txt', 'html', 'csv', 'zip']
     .forEach((format) => assert.match(markup, new RegExp(`data-maxle-export="${format}"`)));
+  assert.match(markup, />1<\/span>[\s\S]*Собрать чат/);
+  assert.match(markup, />2<\/span>[\s\S]*Скачать результат/);
+  assert.match(markup, /Скачать архив/);
+  assert.match(markup, /Сообщения \+ изображения · ZIP/);
 });
 
 test('exporter panel movement stays inside the visible tab area', () => {
-  assert.deepEqual(panelMotion.clampPosition(-100, -50, 360, 600, 1280, 900), {left: 8, top: 8});
-  assert.deepEqual(panelMotion.clampPosition(1200, 800, 360, 600, 1280, 900), {left: 912, top: 292});
+  assert.deepEqual(panelMotion.clampPosition(-100, -50, 240, 450, 1280, 900), {left: 8, top: 8});
+  assert.deepEqual(panelMotion.clampPosition(1200, 800, 240, 450, 1280, 900), {left: 1032, top: 442});
   assert.deepEqual(panelMotion.clampPosition(50, 40, 500, 700, 390, 640), {left: 8, top: 8});
 });
 

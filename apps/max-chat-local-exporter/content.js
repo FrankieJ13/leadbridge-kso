@@ -1103,7 +1103,7 @@ ${rows}
     const payload = buildPayload(format);
     const blob = new Blob([payload.data], { type: payload.mime });
     downloadBlob(blob, `${fileStem()}.${payload.ext}`);
-    setStatus(`Экспортировано: ${state.records.size}\nФормат: ${payload.ext.toUpperCase()}\nДля связки текст+фото используй ZIP.`);
+    setStatus(`Экспортировано: ${state.records.size}\nФормат: ${payload.ext.toUpperCase()}\nДля сообщений вместе с изображениями нажми «Скачать архив».`);
   }
 
   function downloadBlob(blob, filename) {
@@ -1431,7 +1431,7 @@ URL: ${meta.sourceUrl}
     state.running = false;
     setButtonsRunning(false);
     const attachmentTotal = Array.from(state.records.values()).reduce((sum, r) => sum + (r.attachments?.length || 0), 0);
-    setStatus(`Готово.\nСообщений/блоков: ${state.records.size}\nУникальных изображений: ${attachmentTotal}\nЭто все фото и скриншоты, не число анкет.\nПовторов сообщений пропущено: ${state.duplicateHits}\nПовторов изображений отсечено: ${state.duplicateMediaHits}\nТеперь нажми «ZIP: сообщения + картинки».`);
+    setStatus(`Готово.\nСообщений/блоков: ${state.records.size}\nУникальных изображений: ${attachmentTotal}\nЭто все фото и скриншоты, не число анкет.\nПовторов сообщений пропущено: ${state.duplicateHits}\nПовторов изображений отсечено: ${state.duplicateMediaHits}\nТеперь нажми «Скачать архив».`);
   }
 
   function stopAutoScroll() {
