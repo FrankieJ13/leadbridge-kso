@@ -32,6 +32,23 @@ class ReleaseIntegrityTests(unittest.TestCase):
             with zipfile.ZipFile(output) as archive:
                 self.assertEqual(archive.namelist(), ["tool.py"])
 
+    def test_component_zip_excludes_untracked_local_notes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "component"
+            source.mkdir()
+            tracked = source / "tool.py"
+            tracked.write_text("print('ok')\n", encoding="utf-8")
+            local_note = source / "private local note.txt"
+            local_note.write_text("do not publish\n", encoding="utf-8")
+            output = root / "component.zip"
+
+            with mock.patch.object(release, "git_untracked_files", return_value={local_note.resolve()}):
+                release.zip_path(source, output, exclude_untracked=True)
+
+            with zipfile.ZipFile(output) as archive:
+                self.assertEqual(archive.namelist(), ["tool.py"])
+
     def test_verify_rejects_unlisted_package_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

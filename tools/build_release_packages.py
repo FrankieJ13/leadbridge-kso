@@ -62,10 +62,45 @@ def clean_package_artifacts() -> None:
         path.unlink()
 
 
-def copytree(src: Path, dst: Path, *extra_ignores: str) -> None:
+def git_untracked_files() -> set[Path]:
+    try:
+        output = subprocess.check_output(
+            ["git", "ls-files", "--others", "--exclude-standard", "-z"],
+            cwd=ROOT,
+            stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return set()
+    return {
+        (ROOT / Path(raw.decode("utf-8"))).resolve()
+        for raw in output.split(b"\0")
+        if raw
+    }
+
+
+def ignore_for_copy(*patterns: str, exclude_untracked: bool = False):
+    pattern_ignore = shutil.ignore_patterns(*patterns)
+    untracked = git_untracked_files() if exclude_untracked else set()
+
+    def ignore(directory: str, names: list[str]) -> set[str]:
+        ignored = set(pattern_ignore(directory, names))
+        ignored.update(
+            name for name in names
+            if (Path(directory) / name).is_file()
+            and (Path(directory) / name).resolve() in untracked
+        )
+        return ignored
+
+    return ignore
+
+
+def copytree(src: Path, dst: Path, *extra_ignores: str, exclude_untracked: bool = False) -> None:
     if dst.exists():
         shutil.rmtree(dst)
-    ignore = shutil.ignore_patterns("__pycache__", ".DS_Store", "*.pyc", *extra_ignores)
+    ignore = ignore_for_copy(
+        "__pycache__", ".DS_Store", "*.pyc", *extra_ignores,
+        exclude_untracked=exclude_untracked,
+    )
     shutil.copytree(src, dst, ignore=ignore)
 
 
@@ -91,6 +126,7 @@ def zip_path(
     dst: Path,
     arc_root: str | None = None,
     exclude_patterns: tuple[str, ...] = (),
+    exclude_untracked: bool = False,
 ) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     if dst.exists():
@@ -101,8 +137,11 @@ def zip_path(
             zf.writestr(zip_info(arc_root or src.name, executable), src.read_bytes())
             return
         base = src.parent if arc_root else src
+        untracked = git_untracked_files() if exclude_untracked else set()
         for path in sorted(item for item in src.rglob("*") if item.is_file()):
             if path.name == ".DS_Store" or "__pycache__" in path.parts:
+                continue
+            if path.resolve() in untracked:
                 continue
             if any(path.match(pattern) or path.name == pattern for pattern in exclude_patterns):
                 continue
@@ -125,7 +164,7 @@ def copy_web_bundle(target: Path, *, include_pwa: bool = True) -> None:
 def build_component_zips() -> list[Path]:
     outputs = []
     exporter_zip = PACKAGES / f"max-chat-local-exporter-{EXPORTER_VERSION}.zip"
-    zip_path(ROOT / "apps" / "max-chat-local-exporter", exporter_zip)
+    zip_path(ROOT / "apps" / "max-chat-local-exporter", exporter_zip, exclude_untracked=True)
     outputs.append(exporter_zip)
 
     ocr_zip = PACKAGES / f"max-chat-ocr-postprocessor-{OCR_VERSION}.zip"
@@ -133,6 +172,7 @@ def build_component_zips() -> list[Path]:
         ROOT / "apps" / "max-chat-ocr-postprocessor",
         ocr_zip,
         exclude_patterns=("MAX_CHAT_EXPORT_*.zip",),
+        exclude_untracked=True,
     )
     outputs.append(ocr_zip)
 
@@ -167,14 +207,23 @@ def build_tools_pack(platform_name: str, component_zips: list[Path], commit: str
     pack = BUILD / folder_name
     reset_dir(pack)
     copy_web_bundle(pack / "tools" / "leadbridge")
-    copytree(ROOT / "apps" / "max-chat-local-exporter", pack / "tools" / "max-chat-local-exporter")
+    copytree(
+        ROOT / "apps" / "max-chat-local-exporter",
+        pack / "tools" / "max-chat-local-exporter",
+        exclude_untracked=True,
+    )
     copytree(
         ROOT / "apps" / "max-chat-ocr-postprocessor",
         pack / "tools" / "max-chat-ocr-postprocessor",
         "MAX_CHAT_EXPORT_*.zip",
+        exclude_untracked=True,
     )
-    copytree(ROOT / "tools" / "ocr-bridge", pack / "tools" / "ocr-bridge")
-    copytree(ROOT / "integrations" / "google-apps-script-amocrm", pack / "integrations" / "google-apps-script-amocrm")
+    copytree(ROOT / "tools" / "ocr-bridge", pack / "tools" / "ocr-bridge", exclude_untracked=True)
+    copytree(
+        ROOT / "integrations" / "google-apps-script-amocrm",
+        pack / "integrations" / "google-apps-script-amocrm",
+        exclude_untracked=True,
+    )
     for archive in component_zips:
         copy_file(archive, pack / "archives" / archive.name)
     write_build_info(pack / "BUILD_INFO.json", commit)
@@ -211,7 +260,7 @@ def build_native_source_zip(kind: str, commit: str) -> Path:
         reset_dir(package)
         shutil.copytree(
             ROOT / "native" / "windows-wpf", package, dirs_exist_ok=True,
-            ignore=shutil.ignore_patterns("bin", "obj", "dist", "Web", ".DS_Store"),
+            ignore=ignore_for_copy("bin", "obj", "dist", "Web", ".DS_Store", exclude_untracked=True),
         )
         copy_web_bundle(package / "LeadBridgeKSO.Windows" / "Web")
         output = PACKAGES / f"leadbridge-kso-native-windows-wpf-build-{PACKAGE_VERSION}.zip"
@@ -220,7 +269,7 @@ def build_native_source_zip(kind: str, commit: str) -> Path:
         reset_dir(package)
         shutil.copytree(
             ROOT / "native" / "macos-dmg", package, dirs_exist_ok=True,
-            ignore=shutil.ignore_patterns("build", "dist", "Web", ".DS_Store"),
+            ignore=ignore_for_copy("build", "dist", "Web", ".DS_Store", exclude_untracked=True),
         )
         copy_web_bundle(package / "Web")
         ensure_executable(package / "build_dmg.sh")
@@ -384,7 +433,12 @@ def copy_repo_for_github_ready(target: Path) -> None:
             ]
             if item.name == "releases":
                 ignore_names.append("packages")
-            shutil.copytree(item, target_item, symlinks=True, ignore=shutil.ignore_patterns(*ignore_names))
+            shutil.copytree(
+                item,
+                target_item,
+                symlinks=True,
+                ignore=ignore_for_copy(*ignore_names, exclude_untracked=True),
+            )
         else:
             shutil.copy2(item, target_item)
 
