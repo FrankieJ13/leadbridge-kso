@@ -2297,7 +2297,7 @@ async function installPwa(){
   syncFixedTop();
 }
 function registerServiceWorker(){
-  if(!('serviceWorker' in navigator) || location.protocol === 'file:') return;
+  if(!('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
   let reloadingForSw = false;
   navigator.serviceWorker.addEventListener('controllerchange', ()=>{
     if(reloadingForSw) return;

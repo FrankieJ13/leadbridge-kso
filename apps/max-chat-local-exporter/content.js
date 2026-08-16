@@ -901,9 +901,20 @@
       });
       const output = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json;charset=utf-8' });
       downloadBlob(output, result.filename || 'messages_ocr.json');
-      const message = `OCR завершён в Chrome.\nСкачан файл messages_ocr.json. Выбери его в LeadBridge как источник MAX.`;
+      let openResult = null;
+      if (result.handoffId) {
+        openResult = await sendMessagePromise({
+          type: 'MAX_EXPORTER_OPEN_LEADBRIDGE',
+          handoffId: result.handoffId
+        });
+      }
+      const message = openResult?.ok
+        ? `OCR завершён в Chrome.\nLeadBridge открыт: messages_ocr.json и исходный ZIP подставляются автоматически. Осталось выбрать amoCRM.`
+        : result.handoffError
+        ? `OCR завершён, messages_ocr.json скачан.\nАвтопередача в LeadBridge недоступна: ${result.handoffError}`
+        : `OCR завершён, messages_ocr.json скачан.\nНе удалось открыть LeadBridge автоматически: ${openResult?.error || 'временные файлы не сохранены'}`;
       setStatus(message);
-      setOcrFeedback(message, 'success');
+      setOcrFeedback(message, openResult?.ok ? 'success' : 'error');
       return true;
     } catch (error) {
       const stopped = error?.name === 'AbortError' || controller.signal.aborted;
@@ -1471,27 +1482,8 @@ URL: ${meta.sourceUrl}
       const zip = makeZip(files);
       const filename = `${rootName}.zip`;
       if (runOcr) {
-        const bridge = await nativeOcrHealth();
-        if (!bridge.ok) {
-          downloadBlob(zip, filename);
-          await runBrowserOcr(zip, filename);
-        } else {
-          const blobUrl = URL.createObjectURL(zip);
-          const launch = await sendMessagePromise({
-            type: 'MAX_EXPORTER_DOWNLOAD_AND_OCR',
-            url: blobUrl,
-            filename
-          });
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
-          if (!launch?.ok) {
-            downloadBlob(zip, filename);
-            await runBrowserOcr(zip, filename);
-          } else {
-            const message = launch.message || 'Архив сохраняется. После загрузки OCR запустится автоматически.';
-            setStatus(message);
-            setOcrFeedback(message);
-          }
-        }
+        downloadBlob(zip, filename);
+        await runBrowserOcr(zip, filename);
       } else {
         downloadBlob(zip, filename);
         setStatus(`Архив создан.\nСообщений: ${records.length}\nКартинок сохранено: ${saved}\nОшибок по картинкам: ${failed}`);
@@ -1537,33 +1529,13 @@ URL: ${meta.sourceUrl}
     setButtonsRunning(true);
     setStatus(`ZIP выбран: ${filename}\nЗапускаю локальный OCR…`);
     setOcrFeedback(`ZIP выбран: ${filename}\nВыбираю самый быстрый локальный режим OCR…`);
-    let blobUrl = '';
     try {
-      const bridge = await nativeOcrHealth();
-      if (!bridge.ok) {
-        await runBrowserOcr(file, filename);
-      } else {
-        blobUrl = URL.createObjectURL(file);
-        const result = await sendMessagePromise({
-          type: 'MAX_EXPORTER_DOWNLOAD_AND_OCR',
-          url: blobUrl,
-          filename,
-          requireBridgeBeforeDownload: true
-        });
-        if (!result?.ok) {
-          await runBrowserOcr(file, filename);
-        } else {
-          const message = `ZIP принят: ${filename}\nChrome сохранит рабочую копию и автоматически запустит OCR.`;
-          setStatus(message);
-          setOcrFeedback(message);
-        }
-      }
+      await runBrowserOcr(file, filename);
     } catch (error) {
       const message = `OCR не запущен.\n${error?.message || String(error)}`;
       setStatus(message);
       setOcrFeedback(message, 'error');
     } finally {
-      if (blobUrl) setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
       setButtonsRunning(false);
     }
   }

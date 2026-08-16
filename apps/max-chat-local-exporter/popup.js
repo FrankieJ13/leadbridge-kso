@@ -1,5 +1,25 @@
 const button = document.getElementById('showPanel');
 const status = document.getElementById('status');
+const modeInputs = [...document.querySelectorAll('input[name="leadbridgeMode"]')];
+const modeKey = 'maxExporterLeadBridgeMode';
+
+async function loadMode() {
+  const stored = await chrome.storage.local.get(modeKey);
+  const mode = stored[modeKey] === 'local' ? 'local' : 'online';
+  const input = modeInputs.find((item) => item.value === mode);
+  if (input) input.checked = true;
+}
+
+modeInputs.forEach((input) => input.addEventListener('change', async () => {
+  if (!input.checked) return;
+  await chrome.storage.local.set({[modeKey]: input.value});
+  status.textContent = input.value === 'local'
+    ? 'После OCR откроется локальный LeadBridge.'
+    : 'После OCR откроется LeadBridge на GitHub Pages.';
+}));
+
+document.getElementById('version').textContent = `Версия ${chrome.runtime.getManifest().version}`;
+loadMode().catch(() => {});
 
 button.addEventListener('click', async () => {
   status.textContent = '';

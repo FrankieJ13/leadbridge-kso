@@ -18,6 +18,18 @@ SPEC.loader.exec_module(release)
 
 
 class ReleaseIntegrityTests(unittest.TestCase):
+    def test_exporter_bundle_embeds_current_local_leadbridge(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "exporter"
+            with mock.patch.object(release, "git_untracked_files", return_value=set()):
+                release.copy_exporter_bundle(target)
+
+            local_index = (target / "leadbridge" / "index.html").read_text(encoding="utf-8")
+            self.assertIn('../leadbridge_handoff_client.js', local_index)
+            self.assertTrue((target / "leadbridge" / "app.js").is_file())
+            self.assertTrue((target / "leadbridge" / "src" / "security.js").is_file())
+            self.assertTrue((target / "handoff_host.html").is_file())
+
     def test_component_zip_excludes_local_chat_exports(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -110,6 +122,28 @@ class ReleaseIntegrityTests(unittest.TestCase):
             downloads["full_project"]["download_url"],
             "releases/packages/full.zip?build=1234567890ab",
         )
+
+    def test_component_manifest_uses_exporter_version(self) -> None:
+        filenames = [
+            f"leadbridge-kso-tools-macos-{release.PACKAGE_VERSION}.zip",
+            f"leadbridge-kso-tools-windows-{release.PACKAGE_VERSION}.zip",
+            f"leadbridge-offline-html-{release.APP_VERSION}.zip",
+            f"max-chat-local-exporter-{release.EXPORTER_VERSION}.zip",
+            f"max-chat-ocr-postprocessor-{release.OCR_VERSION}.zip",
+            f"leadbridge-kso-native-windows-wpf-build-{release.PACKAGE_VERSION}.zip",
+            f"leadbridge-kso-native-macos-dmg-build-{release.PACKAGE_VERSION}.zip",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            outputs = []
+            for filename in filenames:
+                path = Path(tmp) / filename
+                path.write_bytes(filename.encode("utf-8"))
+                outputs.append(path)
+
+            manifest = release.build_manifest(outputs, "1234567890abcdef")
+
+        exporter = manifest["downloads"]["components"]["max_chat_local_exporter"]
+        self.assertEqual(exporter["version"], release.EXPORTER_VERSION)
 
 
 if __name__ == "__main__":

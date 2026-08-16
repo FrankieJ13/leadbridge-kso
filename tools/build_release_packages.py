@@ -17,7 +17,7 @@ from pathlib import Path
 
 APP_VERSION = "v8.2.10.0848"
 PACKAGE_VERSION = APP_VERSION
-EXPORTER_VERSION = APP_VERSION
+EXPORTER_VERSION = "v8.2.10.0849"
 OCR_VERSION = APP_VERSION
 SCHEMA_VERSION = 2
 ZIP_TIMESTAMP = (2020, 1, 1, 0, 0, 0)
@@ -161,10 +161,28 @@ def copy_web_bundle(target: Path, *, include_pwa: bool = True) -> None:
             copy_file(WEB / name, target / name)
 
 
+def copy_exporter_bundle(target: Path) -> None:
+    copytree(
+        ROOT / "apps" / "max-chat-local-exporter",
+        target,
+        exclude_untracked=True,
+    )
+    local_web = target / "leadbridge"
+    copy_web_bundle(local_web, include_pwa=True)
+    local_index = local_web / "index.html"
+    html = local_index.read_text(encoding="utf-8")
+    handoff_script = '<script src="../leadbridge_handoff_client.js"></script>\n'
+    if handoff_script not in html:
+        html = html.replace("</body>", f"{handoff_script}</body>")
+        local_index.write_text(html, encoding="utf-8")
+
+
 def build_component_zips() -> list[Path]:
     outputs = []
     exporter_zip = PACKAGES / f"max-chat-local-exporter-{EXPORTER_VERSION}.zip"
-    zip_path(ROOT / "apps" / "max-chat-local-exporter", exporter_zip, exclude_untracked=True)
+    exporter_build = BUILD / f"max-chat-local-exporter-{EXPORTER_VERSION}"
+    copy_exporter_bundle(exporter_build)
+    zip_path(exporter_build, exporter_zip)
     outputs.append(exporter_zip)
 
     ocr_zip = PACKAGES / f"max-chat-ocr-postprocessor-{OCR_VERSION}.zip"
@@ -207,11 +225,7 @@ def build_tools_pack(platform_name: str, component_zips: list[Path], commit: str
     pack = BUILD / folder_name
     reset_dir(pack)
     copy_web_bundle(pack / "tools" / "leadbridge")
-    copytree(
-        ROOT / "apps" / "max-chat-local-exporter",
-        pack / "tools" / "max-chat-local-exporter",
-        exclude_untracked=True,
-    )
+    copy_exporter_bundle(pack / "tools" / "max-chat-local-exporter")
     copytree(
         ROOT / "apps" / "max-chat-ocr-postprocessor",
         pack / "tools" / "max-chat-ocr-postprocessor",
@@ -296,10 +310,16 @@ def artifact_metadata(outputs: list[Path]) -> dict[str, dict[str, object]]:
     }
 
 
-def download_entry(label: str, filename: str, installer: str | None = None) -> dict[str, object]:
+def download_entry(
+    label: str,
+    filename: str,
+    installer: str | None = None,
+    *,
+    version: str = APP_VERSION,
+) -> dict[str, object]:
     entry: dict[str, object] = {
         "label": label,
-        "version": APP_VERSION,
+        "version": version,
         "file": filename,
         "github_release_asset": filename,
         "download_url": f"releases/packages/{filename}",
@@ -343,7 +363,9 @@ def build_manifest(outputs: list[Path], commit: str) -> dict[str, object]:
         },
         "components": {
             "leadbridge_offline_html": with_integrity(download_entry("LeadBridge offline Web", offline)),
-            "max_chat_local_exporter": with_integrity(download_entry("MAX Chat Local Exporter", exporter)),
+            "max_chat_local_exporter": with_integrity(
+                download_entry("MAX Chat Local Exporter", exporter, version=EXPORTER_VERSION)
+            ),
             "max_chat_ocr_postprocessor": with_integrity(download_entry("MAX Chat OCR Postprocessor", ocr)),
         },
         "native_builds": {

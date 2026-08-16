@@ -5,7 +5,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function createMaxExporterBrowserOcr() {
   'use strict';
 
-  const VERSION = '8.2.10.0848';
+  const VERSION = '8.2.10.0849';
   const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'bmp', 'tif', 'tiff']);
   const MAX_ZIP_FILES = 25_000;
   const MAX_ENTRY_BYTES = 512 * 1024 * 1024;
@@ -321,7 +321,7 @@
     if (!tesseractApi?.createWorker) throw new Error('Встроенный OCR-движок не загружен. Обнови расширение.');
     const getURL = options.getURL || ((path) => globalThis.chrome?.runtime?.getURL(path) || path);
     const worker = await tesseractApi.createWorker(['rus', 'eng'], tesseractApi.OEM?.LSTM_ONLY ?? 1, {
-      workerPath: getURL('vendor/tesseract/worker.min.js'),
+      workerPath: getURL('tesseract_worker.js'),
       corePath: getURL('vendor/tesseract/core/tesseract-core-simd-lstm.wasm.js'),
       langPath: getURL('vendor/tesseract/lang'),
       workerBlobURL: false,

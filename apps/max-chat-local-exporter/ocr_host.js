@@ -23,6 +23,20 @@
         getURL: (path) => chrome.runtime.getURL(path),
         onProgress: (event) => send(port, {type: 'progress', id, event})
       });
+      let handoffId = '';
+      let handoffError = '';
+      try {
+        handoffId = await MaxExporterHandoffStore.save({
+          archive: message.archive,
+          archiveName: String(message.archiveName || ''),
+          result: result.data,
+          resultName: result.filename
+        });
+      } catch (error) {
+        handoffError = error?.message || String(error);
+      }
+      result.handoffId = handoffId;
+      result.handoffError = handoffError;
       send(port, {type: 'result', id, result});
     } catch (error) {
       send(port, {

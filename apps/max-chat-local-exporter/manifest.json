@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "MAX Chat Local Exporter",
-  "version": "8.2.10.848",
+  "version": "8.2.10.849",
   "description": "Локальный экспорт подгруженной переписки MAX: сообщения, reply, ссылки на сообщения, картинки и автоназвание ZIP с количеством сообщений/вложений.",
   "action": {
     "default_title": "MAX Chat Exporter",
@@ -10,7 +10,8 @@
   "permissions": [
     "activeTab",
     "downloads",
-    "storage"
+    "storage",
+    "unlimitedStorage"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; worker-src 'self'"
@@ -20,6 +21,8 @@
     "https://*.max.ru/*",
     "https://*.oneme.ru/*",
     "https://*.okcdn.ru/*",
+    "https://script.google.com/*",
+    "https://script.googleusercontent.com/*",
     "http://127.0.0.1/*"
   ],
   "background": {
@@ -43,6 +46,15 @@
         "content.css"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://frankiej13.github.io/leadbridge-kso/*"
+      ],
+      "js": [
+        "leadbridge_handoff_client.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
@@ -52,6 +64,14 @@
       ],
       "matches": [
         "https://web.max.ru/*"
+      ]
+    },
+    {
+      "resources": [
+        "handoff_host.html"
+      ],
+      "matches": [
+        "https://frankiej13.github.io/*"
       ]
     }
   ]

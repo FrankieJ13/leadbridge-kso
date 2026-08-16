@@ -220,7 +220,7 @@ test('exporter panel keeps every functional control in the redesigned markup', (
   assert.match(markup, /Выбрать ZIP для OCR/);
   assert.match(markup, /id="maxle-ocr-file"[^>]+type="file"[^>]+accept="\.zip,application\/zip"[^>]+hidden/);
   assert.match(markup, /Только скачать ZIP/);
-  assert.match(markup, /Бочаров Юлиан · 2026/);
+  assert.match(markup, /Бочаров Юлиан · 2026 · v8\.2\.10\.0849/);
 });
 
 test('existing ZIP button opens the browser file dialog synchronously', () => {
@@ -273,15 +273,18 @@ test('extension runs browser OCR only inside its isolated extension page', () =>
   const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../../apps/max-chat-local-exporter/manifest.json'), 'utf8'));
   assert.equal(manifest.permissions.includes('downloads'), true);
   assert.equal(manifest.permissions.includes('storage'), true);
+  assert.equal(manifest.permissions.includes('unlimitedStorage'), true);
   assert.equal(manifest.host_permissions.includes('http://127.0.0.1/*'), true);
   assert.equal(manifest.host_permissions.includes('<all_urls>'), false);
   assert.equal(manifest.content_scripts[0].js[0], 'ocr_host_client.js');
   assert.equal(manifest.content_scripts[0].js.includes('vendor/tesseract/tesseract.min.js'), false);
   assert.equal(manifest.content_scripts[0].js.includes('browser_ocr.js'), false);
-  assert.deepEqual(manifest.web_accessible_resources, [{
-    resources: ['ocr_host.html'],
-    matches: ['https://web.max.ru/*']
-  }]);
+  assert.deepEqual(manifest.web_accessible_resources, [
+    {resources: ['ocr_host.html'], matches: ['https://web.max.ru/*']},
+    {resources: ['handoff_host.html'], matches: ['https://frankiej13.github.io/*']}
+  ]);
+  assert.equal(manifest.content_scripts[1].matches[0], 'https://frankiej13.github.io/leadbridge-kso/*');
+  assert.deepEqual(manifest.content_scripts[1].js, ['leadbridge_handoff_client.js']);
   assert.match(manifest.content_security_policy.extension_pages, /wasm-unsafe-eval/);
   assert.doesNotMatch(manifest.content_security_policy.extension_pages, /blob:/);
   assert.equal(JSON.stringify(manifest).includes('cdn.jsdelivr.net'), false);
@@ -297,6 +300,40 @@ test('extension runs browser OCR only inside its isolated extension page', () =>
   assert.match(hostJs, /message\.token !== expectedToken/);
   assert.match(clientJs, /attachShadow\(\{mode: 'closed'\}\)/);
   assert.match(clientJs, /new MessageChannel\(\)/);
+
+  const handoffHost = fs.readFileSync(path.join(__dirname, '../../apps/max-chat-local-exporter/handoff_host.js'), 'utf8');
+  const handoffClient = fs.readFileSync(path.join(__dirname, '../../apps/max-chat-local-exporter/leadbridge_handoff_client.js'), 'utf8');
+  const background = fs.readFileSync(path.join(__dirname, '../../apps/max-chat-local-exporter/background.js'), 'utf8');
+  assert.match(handoffHost, /ONLINE_ORIGIN = 'https:\/\/frankiej13\.github\.io'/);
+  assert.match(handoffHost, /MaxExporterHandoffStore\.remove/);
+  assert.match(handoffClient, /new DataTransfer\(\)/);
+  assert.match(handoffClient, /#fileMax/);
+  assert.match(handoffClient, /#fileZip/);
+  assert.match(background, /chrome\.runtime\.getURL\('leadbridge\/index\.html'\)/);
+  assert.match(background, /MAX_EXPORTER_OPEN_LEADBRIDGE/);
+});
+
+test('Tesseract worker hides only known OCR diagnostics from Chrome extension errors', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../../apps/max-chat-local-exporter/tesseract_worker.js'), 'utf8');
+  const calls = {log: [], warn: [], error: [], imports: []};
+  const context = {
+    console: {
+      log: (...args) => calls.log.push(args),
+      warn: (...args) => calls.warn.push(args),
+      error: (...args) => calls.error.push(args)
+    },
+    importScripts: (...args) => calls.imports.push(args)
+  };
+  vm.runInNewContext(source, context);
+
+  context.console.log('Detected 21 diacritics');
+  context.console.warn('Estimating resolution as 158');
+  context.console.error('Настоящая ошибка OCR');
+
+  assert.deepEqual(calls.log, []);
+  assert.deepEqual(calls.warn, []);
+  assert.deepEqual(calls.error, [['Настоящая ошибка OCR']]);
+  assert.deepEqual(calls.imports, [['vendor/tesseract/worker.min.js']]);
 });
 
 test('browser OCR rejects unsafe ZIP paths and extracts phones only beside phone labels', () => {
@@ -358,7 +395,7 @@ test('browser OCR processes an exporter ZIP locally and returns LeadBridge-compa
   assert.deepEqual(attachment.names, ['Гилева Наталья Валерьевна']);
   assert.equal(attachment.structured.fields.borrower_full_name, 'Гилева Наталья Валерьевна');
   assert.equal(attachment.status, 'ok');
-  assert.equal(workerOptions.workerPath, 'chrome-extension://test/vendor/tesseract/worker.min.js');
+  assert.equal(workerOptions.workerPath, 'chrome-extension://test/tesseract_worker.js');
   assert.equal(workerOptions.corePath, 'chrome-extension://test/vendor/tesseract/core/tesseract-core-simd-lstm.wasm.js');
   assert.equal(workerOptions.langPath, 'chrome-extension://test/vendor/tesseract/lang');
   assert.equal(workerOptions.workerBlobURL, false);

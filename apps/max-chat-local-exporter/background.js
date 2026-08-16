@@ -7,6 +7,8 @@ importScripts('ocr_bridge_policy.js');
   const policy = MaxExporterUrlPolicy;
   const ocrPolicy = MaxExporterOcrPolicy;
   const OCR_PENDING_KEY = 'maxExporterPendingOcrDownloads';
+  const LEADBRIDGE_MODE_KEY = 'maxExporterLeadBridgeMode';
+  const ONLINE_LEADBRIDGE_URL = 'https://frankiej13.github.io/leadbridge-kso/';
   const processingDownloads = new Set();
 
   async function readPendingDownloads() {
@@ -156,6 +158,20 @@ importScripts('ocr_bridge_policy.js');
     return callLocalOcrBridge(ocrPolicy.ocrStatusRequest(), 3500);
   }
 
+  async function openLeadBridge(message, sender) {
+    if (!policy.isTrustedSender(sender, chrome.runtime.id)) throw new Error('Недоверенный источник запроса');
+    const handoffId = String(message.handoffId || '');
+    if (!/^[a-f0-9]{48}$/.test(handoffId)) throw new Error('Некорректный идентификатор результата OCR');
+    const stored = await chrome.storage.local.get(LEADBRIDGE_MODE_KEY);
+    const mode = stored[LEADBRIDGE_MODE_KEY] === 'local' ? 'local' : 'online';
+    const baseUrl = mode === 'local'
+      ? chrome.runtime.getURL('leadbridge/index.html')
+      : ONLINE_LEADBRIDGE_URL;
+    const url = `${baseUrl}#leadbridge_handoff=${encodeURIComponent(handoffId)}`;
+    const tab = await chrome.tabs.create({url, active: true});
+    return {ok: true, mode, tabId: tab.id};
+  }
+
   function uint8ToBase64(bytes) {
     let binary = '';
     const chunkSize = 0x8000;
@@ -264,6 +280,13 @@ importScripts('ocr_bridge_policy.js');
       startOcrDownload(message, sender)
         .then(sendResponse)
         .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
+      return true;
+    }
+
+    if (message?.type === 'MAX_EXPORTER_OPEN_LEADBRIDGE') {
+      openLeadBridge(message, sender)
+        .then(sendResponse)
+        .catch((error) => sendResponse({ok: false, error: error?.message || String(error)}));
       return true;
     }
 

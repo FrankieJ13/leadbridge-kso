@@ -37,8 +37,13 @@ jobs:
           python -m json.tool apps/leadbridge-web/manifest.webmanifest >/dev/null
           node --check apps/max-chat-local-exporter/background.js
           node --check apps/max-chat-local-exporter/content.js
+          node --check apps/max-chat-local-exporter/handoff_host.js
+          node --check apps/max-chat-local-exporter/handoff_store.js
+          node --check apps/max-chat-local-exporter/leadbridge_handoff_client.js
           node --check apps/max-chat-local-exporter/ocr_host.js
           node --check apps/max-chat-local-exporter/ocr_host_client.js
+          node --check apps/max-chat-local-exporter/popup.js
+          node --check apps/max-chat-local-exporter/tesseract_worker.js
           node --check apps/max-chat-local-exporter/message_identity.js
           node --check apps/leadbridge-web/app.js
           node --check apps/leadbridge-web/src/amo-schema.js
