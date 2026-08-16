@@ -26,6 +26,8 @@
       ],
       "js": [
         "message_identity.js",
+        "media_identity.js",
+        "panel_ui.js",
         "content.js"
       ],
       "css": [

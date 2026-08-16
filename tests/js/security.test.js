@@ -14,6 +14,8 @@ const onlineCsv = require('../../apps/leadbridge-web/src/online-csv.js');
 const amoSnapshotCache = require('../../apps/leadbridge-web/src/amo-snapshot-cache.js');
 const exporterPolicy = require('../../apps/max-chat-local-exporter/url_policy.js');
 const messageIdentity = require('../../apps/max-chat-local-exporter/message_identity.js');
+const mediaIdentity = require('../../apps/max-chat-local-exporter/media_identity.js');
+const panelUi = require('../../apps/max-chat-local-exporter/panel_ui.js');
 
 test('normalizePhone accepts Russian phone formats and rejects long identifiers', () => {
   assert.equal(security.normalizePhone('8 (912) 345-67-89'), '9123456789');
@@ -167,6 +169,48 @@ test('exporter carries identities through consecutive upward virtualized viewpor
   assert.deepEqual(second.slice(2).map((entry) => entry.recordKey), first.slice(0,2).map((entry) => entry.recordKey));
   assert.deepEqual(third.slice(1).map((entry) => entry.recordKey), second.slice(0,2).map((entry) => entry.recordKey));
   assert.equal(new Set([...first, ...second, ...third].map((entry) => entry.recordKey)).size, 6);
+});
+
+test('exporter keeps MAX CDN image identity while dropping only expiry metadata', () => {
+  const first = mediaIdentity.normalizeMediaUrl('https://i.oneme.ru/i?r=image-one&expires=100');
+  const refreshed = mediaIdentity.normalizeMediaUrl('https://i.oneme.ru/i?expires=200&r=image-one');
+  const second = mediaIdentity.normalizeMediaUrl('https://i.oneme.ru/i?r=image-two&expires=100');
+
+  assert.equal(first, refreshed);
+  assert.notEqual(first, second);
+  assert.match(first, /r=image-one/);
+  assert.doesNotMatch(first, /expires=/);
+});
+
+test('exporter assigns a rendered image only to its closest DOM candidate', () => {
+  const image = {primaryUrl: 'https://i.oneme.ru/i?r=form-1&expires=100'};
+  const result = mediaIdentity.selectViewportMedia([
+    {area: 120000, media: [{...image, ownerDistance: 5}]},
+    {area: 30000, media: [{...image, ownerDistance: 2}]},
+    {area: 8000, media: [{...image, ownerDistance: 1}]}
+  ]);
+
+  assert.deepEqual(result.mediaByCandidate.map((items) => items.length), [0, 0, 1]);
+  assert.equal(result.claimedKeys.size, 1);
+  assert.equal(result.skipped, 2);
+});
+
+test('exporter skips media already owned by an earlier viewport', () => {
+  const image = {primaryUrl: 'https://i.oneme.ru/i?r=form-2&expires=100', ownerDistance: 1};
+  const existingKey = mediaIdentity.mediaKey(image);
+  const result = mediaIdentity.selectViewportMedia([{area: 1000, media: [image]}], new Set([existingKey]));
+
+  assert.deepEqual(result.mediaByCandidate, [[]]);
+  assert.equal(result.claimedKeys.size, 0);
+  assert.equal(result.skipped, 1);
+});
+
+test('exporter panel keeps every functional control in the redesigned markup', () => {
+  const markup = panelUi.markup();
+  ['maxle-close', 'maxle-scan', 'maxle-auto', 'maxle-stop', 'maxle-clear', 'maxle-status', 'maxle-oldest-first', 'maxle-scan-before-export']
+    .forEach((id) => assert.match(markup, new RegExp(`id="${id}"`)));
+  ['json', 'txt', 'html', 'csv', 'zip']
+    .forEach((format) => assert.match(markup, new RegExp(`data-maxle-export="${format}"`)));
 });
 
 test('online amoCRM request keeps token out of URL and restricts Apps Script redirects', () => {

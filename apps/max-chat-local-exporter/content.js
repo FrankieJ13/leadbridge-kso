@@ -11,6 +11,8 @@
     elementSeq: 0,
     lastViewport: [],
     duplicateHits: 0,
+    mediaOwners: new Map(),
+    duplicateMediaHits: 0,
     running: false,
     batch: 0,
     seq: 0,
@@ -135,6 +137,10 @@
   }
 
   function findChatRoot(scroller) {
+    if (scroller && ![document.scrollingElement, document.documentElement, document.body].includes(scroller)) {
+      return scroller;
+    }
+
     const rootSelectors = [
       'main',
       '[role="main"]',
@@ -317,6 +323,7 @@
       seen.add(key);
       found.push({
         kind: 'image',
+        node: img,
         urls,
         primaryUrl: urls[0],
         alt: cleanText(img.getAttribute('alt') || ''),
@@ -338,6 +345,7 @@
       seen.add(key);
       found.push({
         kind: 'video_poster',
+        node: video,
         urls: [poster],
         primaryUrl: poster,
         alt: 'video poster',
@@ -360,6 +368,7 @@
         seen.add(key);
         found.push({
           kind: 'canvas_image',
+          node: canvas,
           urls: [],
           primaryUrl: '',
           inlineDataUrl: dataUrl,
@@ -387,6 +396,7 @@
       seen.add(key);
       found.push({
         kind: 'background_image',
+        node,
         urls: [url],
         primaryUrl: url,
         alt: '',
@@ -632,8 +642,18 @@
   }
 
   function mediaKey(media) {
-    if (media.inlineDataUrl) return `inline:${fnv1a(media.inlineDataUrl.slice(0, 4096))}`;
-    return String(media.primaryUrl || media.urls?.[0] || '').split(/[?#]/)[0];
+    return MaxExporterMediaIdentity.mediaKey(media);
+  }
+
+  function ancestorDistance(node, ancestor) {
+    let cursor = node;
+    let distance = 0;
+    while (cursor && distance < 64) {
+      if (cursor === ancestor) return distance;
+      cursor = cursor.parentElement;
+      distance += 1;
+    }
+    return Number.MAX_SAFE_INTEGER;
   }
 
   function inferMeta(el, rect, rootRect, text) {
@@ -675,13 +695,32 @@
     let added = 0;
     let mediaFound = 0;
 
-    const prepared = candidates.map((candidate, domIndex) => {
+    const rawPrepared = candidates.map((candidate, domIndex) => {
       const { el, text, rect, media } = candidate;
       mediaFound += media.length;
       const meta = inferMeta(el, rect, rootRect, text);
       const reply = extractReplyInfo(el, text);
       const linkInfo = extractMessageLink(el);
       const bodyText = reply.bodyText || stripReplyTextFromBody(text, reply.text || '');
+
+      return { candidate, domIndex, el, text, media, meta, reply, linkInfo, bodyText };
+    });
+
+    const ownership = MaxExporterMediaIdentity.selectViewportMedia(
+      rawPrepared.map((item) => ({
+        area: item.candidate.area,
+        media: item.media.map((media) => ({
+          ...media,
+          ownerDistance: ancestorDistance(media.node, item.el)
+        }))
+      })),
+      new Set(state.mediaOwners.keys())
+    );
+    state.duplicateMediaHits += ownership.skipped;
+
+    const prepared = rawPrepared.map((item, candidateIndex) => {
+      const { candidate, domIndex, el, text, meta, reply, linkInfo, bodyText } = item;
+      const media = ownership.mediaByCandidate[candidateIndex];
       const fingerprint = [
         normalizeForKey(bodyText || text),
         normalizeForKey(reply.text || ''),
@@ -696,7 +735,7 @@
       const elementKey = state.elementKeys.get(el) || '';
 
       return {candidate,domIndex,el,text,media,meta,reply,linkInfo,bodyText,fingerprint,signature,stableKey,elementKey};
-    });
+    }).filter((item) => item.text || item.media.length);
 
     const identities = MaxExporterMessageIdentity.reconcileViewport(
       state.lastViewport,
@@ -729,6 +768,7 @@
         naturalHeight: m.naturalHeight || 0,
         status: 'pending'
       }));
+      media.forEach((attachment) => state.mediaOwners.set(mediaKey(attachment), recordKey));
 
       if (!state.records.has(recordKey)) {
         state.records.set(recordKey, {
@@ -779,7 +819,7 @@
 
     state.batch += 1;
     const totalAttachments = Array.from(state.records.values()).reduce((sum, r) => sum + (r.attachments?.length || 0), 0);
-    setStatus(`Сканирование: +${added}\nПовторов пропущено: ${repeated}\nСообщений/блоков: ${state.records.size}\nВложений найдено: ${totalAttachments}\nКонтейнер: ${state.lastScrollerLabel}`);
+    setStatus(`Сканирование: +${added}\nПовторов сообщений пропущено: ${repeated}\nСообщений/блоков: ${state.records.size}\nУникальных изображений: ${totalAttachments}\nЭто все фото и скриншоты, не число анкет.\nПовторов изображений отсечено: ${state.duplicateMediaHits}\nКонтейнер: ${state.lastScrollerLabel}`);
     return { added, repeated, total: state.records.size, mediaFound, scroller };
   }
 
@@ -858,7 +898,7 @@
       sourceUrl: diagnosticSourceUrl(),
       messageCount: records.length,
       attachmentCount: records.reduce((sum, r) => sum + (r.attachments?.length || 0), 0),
-      note: 'Экспорт основан на сообщениях и вложениях, которые web.max.ru подгрузил в DOM. Привязка картинки к сообщению строится по DOM-контейнеру сообщения.'
+      note: 'Счётчик изображений включает все уникальные фото и скриншоты, а не только анкеты. Повторная DOM-привязка одного изображения отсекается.'
     };
   }
 
@@ -877,6 +917,7 @@
       detected_scroller: state.lastScrollerLabel || 'unknown',
       messages_detected: records.length,
       attachments_detected: records.reduce((sum, record) => sum + (record.attachments?.length || 0), 0),
+      attachment_duplicates_skipped: state.duplicateMediaHits,
       attachments_downloaded: saved,
       attachments_failed: failed,
       reply_links_resolved: resolvedReplies,
@@ -886,6 +927,7 @@
   }
 
   function cloneRecordsForExport() {
+    const seenMedia = new Set();
     const records = orderedRecords().map((record, index) => ({
       ...record,
       number: index + 1,
@@ -894,13 +936,20 @@
       text: cleanText(record.text || ''),
       bodyText: cleanText(record.bodyText || record.text || ''),
       reply: record.reply || { detected: false, text: '', bodyText: cleanText(record.text || ''), source: '', confidence: 0, targetMessageId: '', targetMessageNumber: null },
-      attachments: (record.attachments || []).map((att, attachmentIndex) => ({
-        ...att,
-        number: attachmentIndex + 1,
-        messageId: record.id,
-        messageNumber: index + 1,
-        messageTextSnippet: cleanText(record.bodyText || record.text).slice(0, 240)
-      }))
+      attachments: (record.attachments || [])
+        .filter((att) => {
+          const key = mediaKey(att);
+          if (!key || seenMedia.has(key)) return false;
+          seenMedia.add(key);
+          return true;
+        })
+        .map((att, attachmentIndex) => ({
+          ...att,
+          number: attachmentIndex + 1,
+          messageId: record.id,
+          messageNumber: index + 1,
+          messageTextSnippet: cleanText(record.bodyText || record.text).slice(0, 240)
+        }))
     }));
     return resolveReplyTargets(records);
   }
@@ -1373,7 +1422,7 @@ URL: ${meta.sourceUrl}
       lastTotal = state.records.size;
       lastAttachmentTotal = attachmentTotal;
       previousTop = after;
-      setStatus(`Автопрокрутка: шаг ${step + 1}\nСообщений/блоков: ${state.records.size}\nВложений: ${attachmentTotal}\nНовых блоков на шаге: ${result.added}\nПовторов пропущено: ${result.repeated}`);
+      setStatus(`Автопрокрутка: шаг ${step + 1}\nСообщений/блоков: ${state.records.size}\nУникальных изображений: ${attachmentTotal}\nНовых блоков на шаге: ${result.added}\nПовторов сообщений: ${result.repeated}\nПовторов изображений: ${state.duplicateMediaHits}`);
 
       if (stableSteps >= 8) break;
     }
@@ -1382,7 +1431,7 @@ URL: ${meta.sourceUrl}
     state.running = false;
     setButtonsRunning(false);
     const attachmentTotal = Array.from(state.records.values()).reduce((sum, r) => sum + (r.attachments?.length || 0), 0);
-    setStatus(`Готово.\nСообщений/блоков: ${state.records.size}\nВложений найдено: ${attachmentTotal}\nПерекрытий/повторов пропущено: ${state.duplicateHits}\nТеперь нажми «ZIP: сообщения + картинки».`);
+    setStatus(`Готово.\nСообщений/блоков: ${state.records.size}\nУникальных изображений: ${attachmentTotal}\nЭто все фото и скриншоты, не число анкет.\nПовторов сообщений пропущено: ${state.duplicateHits}\nПовторов изображений отсечено: ${state.duplicateMediaHits}\nТеперь нажми «ZIP: сообщения + картинки».`);
   }
 
   function stopAutoScroll() {
@@ -1397,6 +1446,8 @@ URL: ${meta.sourceUrl}
     state.elementSeq = 0;
     state.lastViewport = [];
     state.duplicateHits = 0;
+    state.mediaOwners.clear();
+    state.duplicateMediaHits = 0;
     state.batch = 0;
     state.seq = 0;
     setStatus('Очищено. Можно начать новое сканирование.');
@@ -1419,37 +1470,8 @@ URL: ${meta.sourceUrl}
 
     panel = document.createElement('aside');
     panel.id = APP_ID;
-    panel.innerHTML = `
-      <div class="maxle-header">
-        <div class="maxle-title">MAX Chat Exporter</div>
-        <button class="maxle-close" id="maxle-close" title="Скрыть">×</button>
-      </div>
-      <div class="maxle-body">
-        <div class="maxle-row">
-          <button class="maxle-primary" id="maxle-scan">Сканировать экран</button>
-          <button id="maxle-auto">Автопрокрутка вверх</button>
-        </div>
-        <div class="maxle-row">
-          <button class="maxle-danger" id="maxle-stop" disabled>Стоп</button>
-          <button id="maxle-clear">Очистить</button>
-        </div>
-        <div class="maxle-status" id="maxle-status">Открой нужный чат и нажми «Автопрокрутка вверх». Затем экспортируй ZIP.</div>
-        <div class="maxle-options">
-          <label><input type="checkbox" id="maxle-oldest-first" checked> Старые сообщения сверху при экспорте</label>
-          <label><input type="checkbox" id="maxle-scan-before-export" checked> Сканировать текущий экран перед экспортом</label>
-        </div>
-        <div class="maxle-row">
-          <button data-maxle-export="json">JSON</button>
-          <button data-maxle-export="txt">TXT</button>
-          <button data-maxle-export="html">HTML</button>
-          <button data-maxle-export="csv">CSV</button>
-        </div>
-        <div class="maxle-row">
-          <button class="maxle-primary" data-maxle-export="zip">ZIP: сообщения + картинки</button>
-        </div>
-        <div class="maxle-note">ZIP создаёт папку с index.html, messages.json/csv/txt и attachments/msg_0001/att_01.jpg. Картинки привязаны к сообщениям; reply-цитаты и найденные permalink-ссылки MAX сохраняются отдельными полями.</div>
-      </div>
-    `;
+    panel.setAttribute('aria-label', 'MAX Chat Exporter');
+    panel.innerHTML = MaxExporterPanelUI.markup();
 
     document.documentElement.appendChild(panel);
 
