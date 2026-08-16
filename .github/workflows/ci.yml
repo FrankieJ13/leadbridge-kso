@@ -37,6 +37,8 @@ jobs:
           python -m json.tool apps/leadbridge-web/manifest.webmanifest >/dev/null
           node --check apps/max-chat-local-exporter/background.js
           node --check apps/max-chat-local-exporter/content.js
+          node --check apps/max-chat-local-exporter/ocr_host.js
+          node --check apps/max-chat-local-exporter/ocr_host_client.js
           node --check apps/max-chat-local-exporter/message_identity.js
           node --check apps/leadbridge-web/app.js
           node --check apps/leadbridge-web/src/amo-schema.js
@@ -60,7 +62,8 @@ jobs:
 
       - name: Reject common committed secret formats
         run: |
-          if git grep -nE '(AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{30,}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----)' -- ':!*.zip'; then
+          sha256sum --check apps/max-chat-local-exporter/vendor/SHA256SUMS
+          if git grep -nE '(AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{30,}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----)' -- ':!*.zip' ':!apps/max-chat-local-exporter/vendor/tesseract/core/tesseract-core-simd-lstm.wasm.js'; then
             echo 'Potential secret found in tracked text files.' >&2
             exit 1
           fi

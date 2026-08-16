@@ -31,9 +31,7 @@
         "https://web.max.ru/*"
       ],
       "js": [
-        "vendor/fflate/fflate.min.js",
-        "vendor/tesseract/tesseract.min.js",
-        "browser_ocr.js",
+        "ocr_host_client.js",
         "ocr_bridge_policy.js",
         "message_identity.js",
         "media_identity.js",
@@ -50,9 +48,7 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "vendor/tesseract/worker.min.js",
-        "vendor/tesseract/core/*",
-        "vendor/tesseract/lang/*"
+        "ocr_host.html"
       ],
       "matches": [
         "https://web.max.ru/*"

@@ -269,21 +269,34 @@ test('one-click OCR accepts only exporter blob URLs and archive names', () => {
   assert.equal(statusRequest.options.method, 'GET');
 });
 
-test('extension grants only the permissions needed for local OCR handoff', () => {
+test('extension runs browser OCR only inside its isolated extension page', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../../apps/max-chat-local-exporter/manifest.json'), 'utf8'));
   assert.equal(manifest.permissions.includes('downloads'), true);
   assert.equal(manifest.permissions.includes('storage'), true);
   assert.equal(manifest.host_permissions.includes('http://127.0.0.1/*'), true);
   assert.equal(manifest.host_permissions.includes('<all_urls>'), false);
-  assert.deepEqual(manifest.content_scripts[0].js.slice(0, 3), [
-    'vendor/fflate/fflate.min.js',
-    'vendor/tesseract/tesseract.min.js',
-    'browser_ocr.js'
-  ]);
+  assert.equal(manifest.content_scripts[0].js[0], 'ocr_host_client.js');
+  assert.equal(manifest.content_scripts[0].js.includes('vendor/tesseract/tesseract.min.js'), false);
+  assert.equal(manifest.content_scripts[0].js.includes('browser_ocr.js'), false);
+  assert.deepEqual(manifest.web_accessible_resources, [{
+    resources: ['ocr_host.html'],
+    matches: ['https://web.max.ru/*']
+  }]);
   assert.match(manifest.content_security_policy.extension_pages, /wasm-unsafe-eval/);
   assert.doesNotMatch(manifest.content_security_policy.extension_pages, /blob:/);
   assert.equal(JSON.stringify(manifest).includes('cdn.jsdelivr.net'), false);
   assert.equal(JSON.stringify(manifest).includes('tessdata.projectnaptha.com'), false);
+
+  const hostHtml = fs.readFileSync(path.join(__dirname, '../../apps/max-chat-local-exporter/ocr_host.html'), 'utf8');
+  const hostJs = fs.readFileSync(path.join(__dirname, '../../apps/max-chat-local-exporter/ocr_host.js'), 'utf8');
+  const clientJs = fs.readFileSync(path.join(__dirname, '../../apps/max-chat-local-exporter/ocr_host_client.js'), 'utf8');
+  assert.match(hostHtml, /src="vendor\/tesseract\/tesseract\.min\.js"/);
+  assert.match(hostHtml, /src="browser_ocr\.js"/);
+  assert.doesNotMatch(hostHtml, /<script(?![^>]+src=)[^>]*>/);
+  assert.match(hostJs, /ALLOWED_PARENT_ORIGIN = 'https:\/\/web\.max\.ru'/);
+  assert.match(hostJs, /message\.token !== expectedToken/);
+  assert.match(clientJs, /attachShadow\(\{mode: 'closed'\}\)/);
+  assert.match(clientJs, /new MessageChannel\(\)/);
 });
 
 test('browser OCR rejects unsafe ZIP paths and extracts phones only beside phone labels', () => {

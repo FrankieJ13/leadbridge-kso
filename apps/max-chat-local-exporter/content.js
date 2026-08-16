@@ -890,9 +890,9 @@
     setStatus(`Нативная служба не требуется.\nЗапускаю OCR прямо в Chrome: ${archiveName}`);
     setOcrFeedback('Запускаю встроенный OCR в Chrome. Изображения остаются на этом компьютере.');
     try {
-      const result = await MaxExporterBrowserOcr.processZip(archive, {
+      const result = await MaxExporterOcrHost.processZip(archive, {
         signal: controller.signal,
-        getURL: (path) => chrome.runtime.getURL(path),
+        archiveName,
         onProgress: (event) => {
           const message = event?.text || 'OCR выполняется…';
           setStatus(message);
