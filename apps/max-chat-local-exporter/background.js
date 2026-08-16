@@ -46,8 +46,7 @@ importScripts('ocr_bridge_policy.js');
     }).catch(() => {});
   }
 
-  async function launchLocalOcr(filename) {
-    const request = ocrPolicy.ocrRequest(filename);
+  async function callLocalOcrBridge(request) {
     const response = await fetch(request.url, {
       ...request.options,
       targetAddressSpace: 'local'
@@ -57,6 +56,15 @@ importScripts('ocr_bridge_policy.js');
       throw new Error(payload.error || `OCR-мост вернул HTTP ${response.status}`);
     }
     return payload;
+  }
+
+  async function launchLocalOcr(filename) {
+    return callLocalOcrBridge(ocrPolicy.ocrRequest(filename));
+  }
+
+  async function pickAndLaunchLocalOcr(sender) {
+    if (!policy.isTrustedSender(sender, chrome.runtime.id)) throw new Error('Недоверенный источник запроса');
+    return callLocalOcrBridge(ocrPolicy.ocrPickRequest());
   }
 
   async function processCompletedOcrDownload(downloadId) {
@@ -191,6 +199,13 @@ importScripts('ocr_bridge_policy.js');
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type === 'MAX_EXPORTER_PICK_AND_OCR') {
+      pickAndLaunchLocalOcr(sender)
+        .then(sendResponse)
+        .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
+      return true;
+    }
+
     if (message?.type === 'MAX_EXPORTER_DOWNLOAD_AND_OCR') {
       startOcrDownload(message, sender)
         .then(sendResponse)

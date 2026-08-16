@@ -209,14 +209,14 @@ test('exporter skips media already owned by an earlier viewport', () => {
 
 test('exporter panel keeps every functional control in the redesigned markup', () => {
   const markup = panelUi.markup();
-  ['maxle-collapse', 'maxle-close', 'maxle-scan', 'maxle-auto', 'maxle-stop', 'maxle-clear', 'maxle-ocr', 'maxle-status', 'maxle-oldest-first', 'maxle-scan-before-export']
+  ['maxle-collapse', 'maxle-close', 'maxle-scan', 'maxle-auto', 'maxle-stop', 'maxle-clear', 'maxle-ocr', 'maxle-pick-ocr', 'maxle-status', 'maxle-oldest-first', 'maxle-scan-before-export']
     .forEach((id) => assert.match(markup, new RegExp(`id="${id}"`)));
   ['json', 'txt', 'html', 'csv', 'zip']
     .forEach((format) => assert.match(markup, new RegExp(`data-maxle-export="${format}"`)));
   assert.match(markup, />1<\/span>[\s\S]*Собрать чат/);
   assert.match(markup, />2<\/span>[\s\S]*Запустить обработку/);
-  assert.match(markup, /скачать архив/i);
-  assert.match(markup, /Только скачать архив · ZIP/);
+  assert.match(markup, /Выбрать ZIP для OCR/);
+  assert.match(markup, /Только скачать ZIP/);
 });
 
 test('one-click OCR accepts only exporter blob URLs and archive names', () => {
@@ -237,6 +237,12 @@ test('one-click OCR accepts only exporter blob URLs and archive names', () => {
   assert.equal(request.url, 'http://127.0.0.1:17848/run');
   assert.equal(request.options.method, 'POST');
   assert.equal(request.options.headers['X-LeadBridge-Bridge'], 'leadbridge-kso-ocr-v1');
+
+  const pickRequest = ocrBridgePolicy.ocrPickRequest();
+  assert.equal(pickRequest.url, 'http://127.0.0.1:17848/pick-and-run');
+  assert.equal(pickRequest.options.method, 'POST');
+  assert.equal(pickRequest.options.body, '{}');
+  assert.equal(pickRequest.options.headers['X-LeadBridge-Bridge'], 'leadbridge-kso-ocr-v1');
 });
 
 test('extension grants only the permissions needed for local OCR handoff', () => {

@@ -18,6 +18,8 @@
 - Added automatic Python 3.12 installation and resilient Python/Pillow/Tesseract discovery for the Windows OCR installer and launcher.
 - Added a single offline Windows setup EXE with private Python/Pillow/Tesseract runtimes and `rus+eng` models that avoids system Python conflicts, creates shortcuts and launches the product automatically.
 - Kept the generated Windows EXE as a local ignored artifact, excluded from GitHub manifests and nested release ZIPs.
+- Added a loopback-only OCR bridge so the MAX exporter can save a new ZIP and start local OCR in one action.
+- Added «Выбрать ZIP для OCR» to restart OCR from an already downloaded MAX archive without scanning or exporting the chat again.
 
 ## v8.2.09.1733
 

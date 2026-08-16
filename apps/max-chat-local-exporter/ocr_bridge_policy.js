@@ -6,6 +6,7 @@
   'use strict';
 
   const BRIDGE_RUN_URL = 'http://127.0.0.1:17848/run';
+  const BRIDGE_PICK_URL = 'http://127.0.0.1:17848/pick-and-run';
   const BRIDGE_HEADER = 'leadbridge-kso-ocr-v1';
   const EXPORT_ARCHIVE_RE = /^MAX_CHAT_EXPORT_\d+msg_\d+att_\d{2}-\d{2}-\d{2}_\d{2}-\d{2}(?: \(\d+\))?\.zip$/;
 
@@ -36,12 +37,30 @@
     };
   }
 
+  function ocrPickRequest() {
+    return {
+      url: BRIDGE_PICK_URL,
+      options: {
+        method: 'POST',
+        cache: 'no-store',
+        credentials: 'omit',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-LeadBridge-Bridge': BRIDGE_HEADER
+        },
+        body: '{}'
+      }
+    };
+  }
+
   return {
     BRIDGE_RUN_URL,
+    BRIDGE_PICK_URL,
     BRIDGE_HEADER,
     EXPORT_ARCHIVE_RE,
     sanitizeArchiveName,
     isTrustedExportBlob,
-    ocrRequest
+    ocrRequest,
+    ocrPickRequest
   };
 });

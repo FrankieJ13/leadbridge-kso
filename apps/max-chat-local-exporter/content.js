@@ -1404,6 +1404,26 @@ URL: ${meta.sourceUrl}
     }
   }
 
+  async function pickExistingArchiveForOcr() {
+    const button = document.querySelector('#maxle-pick-ocr');
+    if (button?.disabled) return;
+    if (button) button.disabled = true;
+    setStatus('Выбери ранее скачанный архив MAX_CHAT_EXPORT_...zip. Повторно собирать чат не нужно.');
+    try {
+      const result = await sendMessagePromise({ type: 'MAX_EXPORTER_PICK_AND_OCR' });
+      if (result?.cancelled) {
+        setStatus('Выбор ZIP отменён. Собранный чат и скачанные файлы не изменены.');
+        return;
+      }
+      if (!result?.ok) throw new Error(result?.error || 'Локальный OCR-мост недоступен');
+      setStatus(`OCR запущен из готового архива.\nАрхив: ${result.archive || 'MAX_CHAT_EXPORT_...zip'}\nРезультат появится в ${result.outputDir || 'LeadBridgeKSO/ocr_results'}.`);
+    } catch (error) {
+      setStatus(`Не удалось запустить OCR из готового ZIP.\n${error?.message || String(error)}\nПереустанови актуальный пакет LeadBridge KSO.`);
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
   async function autoScrollUp() {
     if (state.running) return;
     state.running = true;
@@ -1471,7 +1491,7 @@ URL: ${meta.sourceUrl}
   }
 
   function setButtonsRunning(isRunning) {
-    document.querySelectorAll('[data-maxle-export], #maxle-ocr, #maxle-scan, #maxle-auto, #maxle-clear').forEach((button) => {
+    document.querySelectorAll('[data-maxle-export], #maxle-ocr, #maxle-pick-ocr, #maxle-scan, #maxle-auto, #maxle-clear').forEach((button) => {
       button.disabled = isRunning;
     });
     const stop = document.querySelector('#maxle-stop');
@@ -1502,6 +1522,7 @@ URL: ${meta.sourceUrl}
       if (document.querySelector('#maxle-scan-before-export')?.checked) captureMessages();
       downloadStructuredZip(true);
     });
+    panel.querySelector('#maxle-pick-ocr').addEventListener('click', () => pickExistingArchiveForOcr());
     panel.querySelectorAll('[data-maxle-export]').forEach((button) => {
       button.addEventListener('click', () => {
         if (document.querySelector('#maxle-scan-before-export')?.checked) captureMessages();

@@ -64,6 +64,37 @@ class OcrBridgeTests(unittest.TestCase):
         self.assertIsNotNone(bridge.EXTENSION_ORIGIN_RE.fullmatch("chrome-extension://abcdefghijklmnopabcdefghijklmnop"))
         self.assertIsNone(bridge.EXTENSION_ORIGIN_RE.fullmatch("https://web.max.ru"))
 
+    def test_native_picker_dispatches_by_operating_system(self):
+        expected = Path("/tmp/MAX_CHAT_EXPORT_1msg_0att_16-08-26_14-30.zip")
+        with mock.patch.object(bridge.platform, "system", return_value="Windows"):
+            with mock.patch.object(bridge, "choose_archive_windows", return_value=expected) as picker:
+                self.assertEqual(bridge.choose_archive(), expected)
+                picker.assert_called_once_with()
+        with mock.patch.object(bridge.platform, "system", return_value="Darwin"):
+            with mock.patch.object(bridge, "choose_archive_macos", return_value=expected) as picker:
+                self.assertEqual(bridge.choose_archive(), expected)
+                picker.assert_called_once_with()
+
+    def test_cancelled_picker_has_a_distinct_result(self):
+        with mock.patch.object(bridge.platform, "system", return_value="Darwin"):
+            with mock.patch.object(bridge, "choose_archive_macos", side_effect=bridge.ArchiveSelectionCancelled):
+                with self.assertRaises(bridge.ArchiveSelectionCancelled):
+                    bridge.choose_archive()
+
+    def test_pick_endpoint_reports_cancel_without_starting_ocr(self):
+        manager = mock.Mock()
+        handler = object.__new__(bridge.OcrBridgeHandler)
+        handler.manager = manager
+        handler.path = "/pick-and-run"
+        handler.headers = {"X-LeadBridge-Bridge": bridge.BRIDGE_HEADER}
+        handler.send_json = mock.Mock()
+
+        with mock.patch.object(bridge, "choose_archive", side_effect=bridge.ArchiveSelectionCancelled):
+            handler.do_POST()
+
+        handler.send_json.assert_called_once_with(200, {"ok": True, "cancelled": True})
+        manager.launch.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

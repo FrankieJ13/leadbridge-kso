@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -26,6 +27,10 @@ ARCHIVE_RE = re.compile(
     r"^MAX_CHAT_EXPORT_\d+msg_\d+att_\d{2}-\d{2}-\d{2}_\d{2}-\d{2}(?: \(\d+\))?\.zip$"
 )
 EXTENSION_ORIGIN_RE = re.compile(r"^chrome-extension://[a-p]{32}$")
+
+
+class ArchiveSelectionCancelled(Exception):
+    """Raised when the user closes the native archive picker."""
 
 
 def installation_root(script_path: Path | None = None) -> Path:
@@ -49,6 +54,97 @@ def validate_archive_path(value: object) -> Path:
     if resolved.stat().st_size > MAX_ARCHIVE_BYTES:
         raise ValueError("OCR-архив превышает лимит 16 ГБ")
     return resolved
+
+
+def choose_archive_windows() -> Path:
+    powershell = shutil.which("powershell.exe") or shutil.which("powershell")
+    if not powershell:
+        raise RuntimeError("Системное окно выбора файла недоступно: PowerShell не найден")
+    script = r"""
+Add-Type -AssemblyName System.Windows.Forms
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$dialog = New-Object System.Windows.Forms.OpenFileDialog
+$dialog.Title = 'Выберите архив MAX для OCR'
+$dialog.Filter = 'Архивы MAX (MAX_CHAT_EXPORT_*.zip)|MAX_CHAT_EXPORT_*.zip|ZIP-архивы (*.zip)|*.zip'
+$dialog.CheckFileExists = $true
+$dialog.Multiselect = $false
+$dialog.RestoreDirectory = $true
+if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+  [Console]::WriteLine($dialog.FileName)
+  exit 0
+}
+exit 3
+"""
+    result = subprocess.run(
+        [powershell, "-NoProfile", "-STA", "-Command", script],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        check=False,
+    )
+    if result.returncode == 3:
+        raise ArchiveSelectionCancelled
+    selected = result.stdout.strip()
+    if result.returncode != 0 or not selected:
+        details = result.stderr.strip() or "неизвестная ошибка"
+        raise RuntimeError(f"Не удалось открыть окно выбора ZIP: {details}")
+    return Path(selected)
+
+
+def choose_archive_macos() -> Path:
+    script = (
+        'set selectedFile to choose file with prompt "Выберите архив MAX для OCR" '
+        'of type {"public.zip-archive"}\nPOSIX path of selectedFile'
+    )
+    result = subprocess.run(
+        ["osascript", "-e", script],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        if "-128" in result.stderr or "canceled" in result.stderr.lower():
+            raise ArchiveSelectionCancelled
+        raise RuntimeError(f"Не удалось открыть окно выбора ZIP: {result.stderr.strip() or 'неизвестная ошибка'}")
+    selected = result.stdout.strip()
+    if not selected:
+        raise ArchiveSelectionCancelled
+    return Path(selected)
+
+
+def choose_archive_fallback() -> Path:
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+    except ImportError as error:
+        raise RuntimeError("Системное окно выбора файла недоступно") from error
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        root.attributes("-topmost", True)
+        selected = filedialog.askopenfilename(
+            title="Выберите архив MAX для OCR",
+            filetypes=(("Архивы MAX", "MAX_CHAT_EXPORT_*.zip"), ("ZIP-архивы", "*.zip")),
+        )
+    finally:
+        root.destroy()
+    if not selected:
+        raise ArchiveSelectionCancelled
+    return Path(selected)
+
+
+def choose_archive() -> Path:
+    system = platform.system().lower()
+    if system == "windows":
+        return choose_archive_windows()
+    if system == "darwin":
+        return choose_archive_macos()
+    return choose_archive_fallback()
 
 
 def discover_tesseract() -> Path:
@@ -172,7 +268,7 @@ class OcrBridgeHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self) -> None:  # noqa: N802
-        if self.path not in {"/run", "/shutdown"}:
+        if self.path not in {"/run", "/pick-and-run", "/shutdown"}:
             self.send_json(404, {"ok": False, "error": "not found"})
             return
         if self.headers.get("X-LeadBridge-Bridge") != BRIDGE_HEADER:
@@ -185,6 +281,15 @@ class OcrBridgeHandler(BaseHTTPRequestHandler):
         if self.path == "/shutdown":
             self.send_json(200, {"ok": True})
             threading.Thread(target=self.server.shutdown, daemon=True).start()
+            return
+        if self.path == "/pick-and-run":
+            try:
+                archive = validate_archive_path(choose_archive())
+                self.send_json(202, self.manager.launch(archive))
+            except ArchiveSelectionCancelled:
+                self.send_json(200, {"ok": True, "cancelled": True})
+            except (OSError, ValueError, RuntimeError) as error:
+                self.send_json(400, {"ok": False, "error": str(error)})
             return
         if not self.headers.get("Content-Type", "").lower().startswith("application/json"):
             self.send_json(415, {"ok": False, "error": "application/json required"})

@@ -43,6 +43,8 @@ The installer creates:
 
 Основной способ: соберите чат в расширении и нажмите «Запустить OCR». Расширение сохранит ZIP и передаст его локальному мосту; `messages_ocr.json` появится в `~/LeadBridgeKSO/ocr_results`.
 
+Если архив уже скачан, нажмите в расширении «Выбрать ZIP для OCR» и укажите `MAX_CHAT_EXPORT_...zip` в системном окне. Повторно сканировать чат не требуется, архив не копируется.
+
 Ручной launcher остаётся запасным вариантом.
 
 The installer checks for Homebrew, Tesseract and Python requirements. If Homebrew is missing, install it first and then run:

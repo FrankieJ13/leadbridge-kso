@@ -410,25 +410,37 @@
 .maxle-ocr strong { font-size: 9px; font-weight: 770; line-height: 1.15; }
 .maxle-ocr small { margin-top: 1px; color: rgba(255, 255, 255, 0.77); font-size: 7px; line-height: 1.15; }
 
-.maxle-download-only {
+.maxle-secondary-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.maxle-download-only,
+.maxle-pick-ocr {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
   min-height: 24px;
   gap: 4px;
-  margin-top: 4px;
-  padding: 4px 7px !important;
+  padding: 4px 5px !important;
   color: #c5cde0 !important;
-  font-size: 7.5px !important;
+  font-size: 7px !important;
+  line-height: 1.1;
+  white-space: nowrap;
   background: rgba(22, 32, 57, 0.9);
   border: 1px solid var(--maxle-border) !important;
   border-radius: 7px;
 }
 
-.maxle-download-only:hover:not(:disabled) { background: rgba(31, 44, 77, 0.98); }
-.maxle-download-only:disabled { opacity: 0.5; }
-.maxle-download-only .maxle-icon { width: 11px; height: 11px; }
+.maxle-download-only:hover:not(:disabled),
+.maxle-pick-ocr:hover:not(:disabled) { background: rgba(31, 44, 77, 0.98); }
+.maxle-download-only:disabled,
+.maxle-pick-ocr:disabled { opacity: 0.5; }
+.maxle-download-only .maxle-icon,
+.maxle-pick-ocr .maxle-icon { width: 10px; height: 10px; flex: 0 0 10px; }
 
 .maxle-note {
   display: grid;
