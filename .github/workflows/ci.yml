@@ -62,7 +62,7 @@ jobs:
 
       - name: Reject common committed secret formats
         run: |
-          sha256sum --check apps/max-chat-local-exporter/vendor/SHA256SUMS
+          (cd apps/max-chat-local-exporter/vendor && sha256sum --check SHA256SUMS)
           if git grep -nE '(AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{30,}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----)' -- ':!*.zip' ':!apps/max-chat-local-exporter/vendor/tesseract/core/tesseract-core-simd-lstm.wasm.js'; then
             echo 'Potential secret found in tracked text files.' >&2
             exit 1
