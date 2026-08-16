@@ -217,6 +217,7 @@ test('exporter panel keeps every functional control in the redesigned markup', (
   assert.match(markup, />2<\/span>[\s\S]*Запустить обработку/);
   assert.match(markup, /Выбрать ZIP для OCR/);
   assert.match(markup, /Только скачать ZIP/);
+  assert.match(markup, /Бочаров Юлиан · 2026/);
 });
 
 test('one-click OCR accepts only exporter blob URLs and archive names', () => {
