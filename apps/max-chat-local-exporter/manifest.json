@@ -25,6 +25,7 @@
         "https://web.max.ru/*"
       ],
       "js": [
+        "message_identity.js",
         "content.js"
       ],
       "css": [

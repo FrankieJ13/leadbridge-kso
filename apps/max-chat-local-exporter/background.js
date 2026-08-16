@@ -47,15 +47,24 @@ importScripts('url_policy.js');
   }
 
   async function fetchOne(url) {
-    const response = await fetch(url.href, {
-      method: 'GET',
-      credentials: policy.credentialsFor(url),
-      cache: 'force-cache',
-      redirect: 'follow'
-    });
+    let currentUrl = url;
+    let response;
+    for (let redirectCount = 0; redirectCount <= policy.MAX_REDIRECTS; redirectCount += 1) {
+      response = await fetch(currentUrl.href, {
+        method: 'GET',
+        credentials: policy.credentialsFor(currentUrl),
+        cache: 'force-cache',
+        redirect: 'manual'
+      });
+      if (response.status < 300 || response.status >= 400) break;
+      if (redirectCount === policy.MAX_REDIRECTS) throw new Error('too many redirects');
+      const nextUrl = policy.parseAllowedRedirect(response.headers.get('location'), currentUrl);
+      if (!nextUrl) throw new Error('redirect target is not allowed');
+      currentUrl = nextUrl;
+    }
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const finalUrl = policy.parseAllowedUrl(response.url || url.href);
+    const finalUrl = policy.parseAllowedUrl(response.url || currentUrl.href);
     if (!finalUrl) throw new Error('redirect target is not allowed');
 
     const contentType = response.headers.get('content-type') || '';

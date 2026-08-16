@@ -6,6 +6,8 @@
   'use strict';
 
   const ALLOWED_DOMAINS = Object.freeze(['max.ru', 'oneme.ru', 'okcdn.ru']);
+  const CREDENTIAL_HOSTS = new Set(['web.max.ru']);
+  const MAX_REDIRECTS = 4;
   const MAX_URL_LENGTH = 4096;
   const MAX_URL_CANDIDATES = 8;
   const MAX_ATTACHMENT_BYTES = 60 * 1024 * 1024;
@@ -33,7 +35,15 @@
   }
 
   function credentialsFor(url) {
-    return hostnameMatches(url.hostname, 'max.ru') ? 'include' : 'omit';
+    return CREDENTIAL_HOSTS.has(String(url?.hostname || '').toLowerCase()) ? 'include' : 'omit';
+  }
+
+  function parseAllowedRedirect(locationValue, currentUrl) {
+    try {
+      return parseAllowedUrl(new URL(String(locationValue || ''), currentUrl).href);
+    } catch (_) {
+      return null;
+    }
   }
 
   function isAllowedContentType(value) {
@@ -55,12 +65,14 @@
   return {
     ALLOWED_DOMAINS,
     MAX_ATTACHMENT_BYTES,
+    MAX_REDIRECTS,
     MAX_URL_CANDIDATES,
     MAX_URL_LENGTH,
     credentialsFor,
     hostnameMatches,
     isAllowedContentType,
     isTrustedSender,
+    parseAllowedRedirect,
     parseAllowedUrl
   };
 }));

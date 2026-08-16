@@ -37,6 +37,7 @@ jobs:
           python -m json.tool apps/leadbridge-web/manifest.webmanifest >/dev/null
           node --check apps/max-chat-local-exporter/background.js
           node --check apps/max-chat-local-exporter/content.js
+          node --check apps/max-chat-local-exporter/message_identity.js
           node --check apps/leadbridge-web/app.js
           node --check apps/leadbridge-web/src/amo-schema.js
           node --check apps/leadbridge-web/src/online-csv.js

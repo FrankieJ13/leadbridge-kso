@@ -95,8 +95,16 @@ function doPost(event) {
 
 function csvRow_(row) {
   return row.map(function (value) {
-    return '"' + String(value == null ? '' : value).replace(/"/g, '""') + '"';
+    const text = csvSafeValue_(value);
+    return '"' + text.replace(/"/g, '""') + '"';
   }).join(',');
+}
+
+function csvSafeValue_(value) {
+  const text = String(value == null ? '' : value);
+  if (!/^[=+\-@\t\r]/.test(text)) return text;
+  if (/^-?\d+(?:[.,]\d+)?$/.test(text)) return text;
+  return "'" + text;
 }
 
 function jsonOutput_(payload) {

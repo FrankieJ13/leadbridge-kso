@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
@@ -33,7 +34,9 @@ public partial class MainWindow : Window
             var environment = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder);
             await Browser.EnsureCoreWebView2Async(environment);
 
+            Browser.CoreWebView2.NavigationStarting += Browser_NavigationStarting;
             Browser.CoreWebView2.NavigationCompleted += Browser_NavigationCompleted;
+            Browser.CoreWebView2.NewWindowRequested += Browser_NewWindowRequested;
             Browser.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
             Browser.CoreWebView2.Settings.AreDevToolsEnabled = false;
 
@@ -49,6 +52,51 @@ public partial class MainWindow : Window
                 MessageBoxImage.Warning);
             OpenOffline();
         }
+    }
+
+    private bool IsAllowedInAppUri(Uri uri)
+    {
+        if (uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return uri.Host.Equals(_pagesUri.Host, StringComparison.OrdinalIgnoreCase)
+                && (uri.AbsolutePath.Equals("/leadbridge-kso", StringComparison.OrdinalIgnoreCase)
+                    || uri.AbsolutePath.StartsWith("/leadbridge-kso/", StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (uri.IsFile)
+        {
+            var webRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "Web"))
+                .TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            var candidate = Path.GetFullPath(uri.LocalPath);
+            return candidate.StartsWith(webRoot, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return uri.AbsoluteUri.Equals("about:blank", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void OpenExternalUri(Uri uri)
+    {
+        if (!uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)) return;
+        Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+    }
+
+    private void Browser_NavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
+    {
+        if (Uri.TryCreate(e.Uri, UriKind.Absolute, out var uri) && IsAllowedInAppUri(uri)) return;
+        e.Cancel = true;
+        if (uri is not null) OpenExternalUri(uri);
+    }
+
+    private void Browser_NewWindowRequested(object? sender, CoreWebView2NewWindowRequestedEventArgs e)
+    {
+        e.Handled = true;
+        if (!Uri.TryCreate(e.Uri, UriKind.Absolute, out var uri)) return;
+        if (IsAllowedInAppUri(uri))
+        {
+            Browser.Source = uri;
+            return;
+        }
+        OpenExternalUri(uri);
     }
 
     private void Browser_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)

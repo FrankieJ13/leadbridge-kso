@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import glob
 import html
 import json
 import os
@@ -442,7 +443,7 @@ def resolve_attachment(export_root: Path, rel_path: str) -> Optional[Path]:
         if resolved_search_root in seen_roots or not resolved_search_root.exists() or not _is_within(resolved_search_root, root):
             continue
         seen_roots.add(resolved_search_root)
-        for match in resolved_search_root.rglob(name):
+        for match in resolved_search_root.rglob(glob.escape(name)):
             resolved = match.resolve()
             if _is_within(resolved, root) and resolved.is_file():
                 return resolved

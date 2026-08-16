@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 
 const security = require('../../apps/leadbridge-web/src/security.js');
 const csv = require('../../apps/leadbridge-web/src/csv.js');
@@ -12,6 +13,7 @@ const amoSchema = require('../../apps/leadbridge-web/src/amo-schema.js');
 const onlineCsv = require('../../apps/leadbridge-web/src/online-csv.js');
 const amoSnapshotCache = require('../../apps/leadbridge-web/src/amo-snapshot-cache.js');
 const exporterPolicy = require('../../apps/max-chat-local-exporter/url_policy.js');
+const messageIdentity = require('../../apps/max-chat-local-exporter/message_identity.js');
 
 test('normalizePhone accepts Russian phone formats and rejects long identifiers', () => {
   assert.equal(security.normalizePhone('8 (912) 345-67-89'), '9123456789');
@@ -87,6 +89,35 @@ test('current 143-column amoCRM schema is resolved by headers, not old positions
   assert.deepEqual(resolved.phones, [107]);
 });
 
+test('amoCRM schema never guesses phone or metadata columns by position', () => {
+  const headers = Array.from({ length: 143 }, (_, index) => `Произвольное поле ${index + 1}`);
+  const resolved = amoSchema.resolve(headers);
+  assert.equal(resolved.id, -1);
+  assert.equal(resolved.comment, -1);
+  assert.equal(resolved.fullName, -1);
+  assert.deepEqual(resolved.phones, []);
+  assert.deepEqual(amoSchema.validate(resolved), ['ID сделки', 'Телефон']);
+});
+
+test('exporter keeps identical messages separate without a stable message id', () => {
+  const elementKeys = new WeakMap();
+  let sequence = 0;
+  const nextId = () => { sequence += 1; return sequence; };
+  const firstElement = {};
+  const secondElement = {};
+  const emptyLink = {url: '', domIds: {}};
+  const firstKey = messageIdentity.recordKeyForElement(firstElement, emptyLink, elementKeys, nextId);
+  assert.equal(messageIdentity.recordKeyForElement(firstElement, emptyLink, elementKeys, nextId), firstKey);
+  assert.notEqual(messageIdentity.recordKeyForElement(secondElement, emptyLink, elementKeys, nextId), firstKey);
+
+  const stableLink = {url: '', domIds: {'data-message-id': 'msg-42'}};
+  assert.equal(
+    messageIdentity.recordKeyForElement({}, stableLink, elementKeys, nextId),
+    messageIdentity.recordKeyForElement({}, stableLink, elementKeys, nextId)
+  );
+  assert.equal(messageIdentity.stableMessageIdentity({domIds: {'data-testid': 'message-row'}}), '');
+});
+
 test('online amoCRM request keeps token out of URL and restricts Apps Script redirects', () => {
   const token = 'test-token-1234567890-abcdef';
   const endpoint = 'https://script.google.com/macros/s/AKfycbx12345678901234567890/exec';
@@ -128,6 +159,12 @@ test('Apps Script deployment can open the configured spreadsheet by ID', () => {
   assert.equal(code.includes('SpreadsheetApp.openById(spreadsheetId)'), true);
   assert.equal(code.includes("error: 'spreadsheet_access_denied'"), true);
   assert.equal(code.includes('function testLeadBridgeSnapshot()'), true);
+  const context = {};
+  vm.runInNewContext(`${code}\nthis.csvRowForTest = csvRow_; this.constantTimeEqualsForTest = constantTimeEquals_;`, context);
+  assert.equal(context.csvRowForTest(['=IMPORTXML("https://evil.test")']), '"\'=IMPORTXML(""https://evil.test"")"');
+  assert.equal(context.csvRowForTest(['-12']), '"-12"');
+  assert.equal(context.constantTimeEqualsForTest('same-token-hash', 'same-token-hash'), true);
+  assert.equal(context.constantTimeEqualsForTest('same-token-hash', 'different-token-hash'), false);
 });
 
 test('CSV cells neutralize spreadsheet formulas but preserve numbers, phones and URLs', () => {
@@ -165,6 +202,42 @@ test('extension fetch policy only accepts HTTPS MAX and documented CDN domains',
   assert.equal(exporterPolicy.isTrustedSender({ id: 'ext', tab: { url: 'https://web.max.ru/chat' } }, 'ext'), true);
   assert.equal(exporterPolicy.isTrustedSender({ id: 'ext', tab: { url: 'https://example.com/' } }, 'ext'), false);
   assert.equal(exporterPolicy.credentialsFor(new URL('https://iu.oneme.ru/image')), 'omit');
+  assert.equal(exporterPolicy.credentialsFor(new URL('https://web.max.ru/image')), 'include');
+  assert.equal(exporterPolicy.credentialsFor(new URL('https://untrusted.max.ru/image')), 'omit');
+  assert.equal(exporterPolicy.parseAllowedRedirect('https://iu.oneme.ru/image', new URL('https://web.max.ru/file')).hostname, 'iu.oneme.ru');
+  assert.equal(exporterPolicy.parseAllowedRedirect('https://evil.test/image', new URL('https://web.max.ru/file')), null);
+});
+
+test('web ZIP policy rejects traversal, symlinks, bombs and oversized totals', () => {
+  const policy = {...security.DEFAULT_ZIP_POLICY, maxEntries: 2, maxEntryUncompressedBytes: 100, maxTotalUncompressedBytes: 120, maxCompressionRatio: 10};
+  assert.throws(() => security.normalizeZipEntryName('../secret.jpg', policy), /пределы/);
+  assert.throws(() => security.normalizeZipEntryName('C:/secret.jpg', policy), /абсолютный/);
+  assert.throws(() => security.validateZipEntry({name:'link.jpg',compressedBytes:4,uncompressedBytes:4,versionMadeBy:3 << 8,externalAttributes:0xa000 << 16}, {entries:0,uncompressedBytes:0}, policy), /символическую/);
+  assert.throws(() => security.validateZipEntry({name:'bomb.jpg',compressedBytes:5,uncompressedBytes:100,versionMadeBy:0,externalAttributes:0}, {entries:0,uncompressedBytes:0}, policy), /степень сжатия/);
+  const totals={entries:0,uncompressedBytes:0};
+  security.validateZipEntry({name:'one.jpg',compressedBytes:10,uncompressedBytes:60,versionMadeBy:0,externalAttributes:0},totals,policy);
+  assert.throws(() => security.validateZipEntry({name:'two.jpg',compressedBytes:10,uncompressedBytes:70,versionMadeBy:0,externalAttributes:0},totals,policy), /Распакованный ZIP/);
+});
+
+test('web ZIP runtime stream guard cancels output beyond the actual byte limit', async () => {
+  let cancelled = false;
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new Uint8Array(6));
+      controller.enqueue(new Uint8Array(6));
+    },
+    cancel() { cancelled = true; }
+  });
+  await assert.rejects(() => security.readLimitedStream(stream, 10, 'runtime ZIP limit'), /runtime ZIP limit/);
+  assert.equal(cancelled, true);
+});
+
+test('bounded log keeps only recent lines and complete records', () => {
+  const input = Array.from({length: 12}, (_, index) => `line-${index}`).join('\n') + '\n';
+  const bounded = security.boundedLogText(input, 1000, 5);
+  assert.equal(bounded.includes('line-0'), false);
+  assert.equal(bounded.includes('line-11'), true);
+  assert.ok(bounded.split('\n').length <= 6);
 });
 
 test('synthetic matching fixtures preserve exact-phone matches and unmatched rows', () => {

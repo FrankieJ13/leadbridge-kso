@@ -5,7 +5,7 @@ private let appName = "LeadBridge KSO"
 private let appVersion = "v8.2.10.0848"
 private let gitHubPagesURL = URL(string: "https://frankiej13.github.io/leadbridge-kso/")!
 
-final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate {
     private var window: NSWindow!
     private var webView: WKWebView!
     private var triedOfflineFallback = false
@@ -26,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
 
         webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = self
+        webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
 
         window = NSWindow(
@@ -82,6 +83,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
             return
         }
         webView.loadFileURL(indexURL, allowingReadAccessTo: indexURL.deletingLastPathComponent())
+    }
+
+    private func isAllowedInAppURL(_ url: URL) -> Bool {
+        if url.scheme == "https" {
+            return url.host?.lowercased() == gitHubPagesURL.host?.lowercased()
+                && (url.path == "/leadbridge-kso" || url.path.hasPrefix("/leadbridge-kso/"))
+        }
+        if url.scheme == "file",
+           let webRoot = Bundle.main.url(forResource: "Web", withExtension: nil)?.standardizedFileURL {
+            let candidate = url.standardizedFileURL.path
+            let rootPath = webRoot.path.hasSuffix("/") ? webRoot.path : webRoot.path + "/"
+            return candidate == webRoot.path || candidate.hasPrefix(rootPath)
+        }
+        return url.absoluteString == "about:blank"
+    }
+
+    private func openExternalURL(_ url: URL) {
+        guard url.scheme == "https" else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        guard let url = navigationAction.request.url else {
+            decisionHandler(.cancel)
+            return
+        }
+        if isAllowedInAppURL(url) {
+            decisionHandler(.allow)
+            return
+        }
+        openExternalURL(url)
+        decisionHandler(.cancel)
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        createWebViewWith configuration: WKWebViewConfiguration,
+        for navigationAction: WKNavigationAction,
+        windowFeatures: WKWindowFeatures
+    ) -> WKWebView? {
+        guard let url = navigationAction.request.url else { return nil }
+        if isAllowedInAppURL(url) {
+            webView.load(navigationAction.request)
+        } else {
+            openExternalURL(url)
+        }
+        return nil
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {

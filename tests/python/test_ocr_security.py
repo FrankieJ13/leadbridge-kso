@@ -65,6 +65,96 @@ class OcrSecurityTests(unittest.TestCase):
                 with self.assertRaisesRegex(ocr.UnsafeArchiveError, "single file too large"):
                     ocr.safe_extract_zip(archive, root / "extract")
 
+    def test_zip_file_count_limit_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = root / "export.zip"
+            with zipfile.ZipFile(archive, "w") as zf:
+                zf.writestr("one.txt", b"1")
+                zf.writestr("two.txt", b"2")
+            with mock.patch.object(ocr, "MAX_ZIP_FILES", 1):
+                with self.assertRaisesRegex(ocr.UnsafeArchiveError, "too many files"):
+                    ocr.safe_extract_zip(archive, root / "extract")
+
+    def test_zip_total_size_limit_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = root / "export.zip"
+            with zipfile.ZipFile(archive, "w") as zf:
+                zf.writestr("one.txt", b"123456")
+                zf.writestr("two.txt", b"123456")
+            with mock.patch.object(ocr, "MAX_ZIP_TOTAL_UNCOMPRESSED", 10):
+                with self.assertRaisesRegex(ocr.UnsafeArchiveError, "archive too large"):
+                    ocr.safe_extract_zip(archive, root / "extract")
+
+    def test_zip_compression_ratio_limit_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = self.make_zip(root, "compressed.txt", b"A" * 4096)
+            with mock.patch.object(ocr, "MAX_ZIP_COMPRESSION_RATIO", 2):
+                with self.assertRaisesRegex(ocr.UnsafeArchiveError, "compression ratio"):
+                    ocr.safe_extract_zip(archive, root / "extract")
+
+    def test_zip_case_insensitive_duplicate_path_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = root / "export.zip"
+            with zipfile.ZipFile(archive, "w") as zf:
+                zf.writestr("attachments/Form.jpg", b"one")
+                zf.writestr("attachments/form.jpg", b"two")
+            with self.assertRaisesRegex(ocr.UnsafeArchiveError, "duplicate path"):
+                ocr.safe_extract_zip(archive, root / "extract")
+
+    def test_zip_runtime_copy_limit_rejects_more_bytes_than_declared(self) -> None:
+        class FakeInfo:
+            filename = "payload.bin"
+            external_attr = stat.S_IFREG << 16
+            file_size = 5
+            compress_size = 5
+
+            @staticmethod
+            def is_dir() -> bool:
+                return False
+
+        class FakeSource:
+            def __init__(self) -> None:
+                self.sent = False
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self, _size: int) -> bytes:
+                if self.sent:
+                    return b""
+                self.sent = True
+                return b"12345678901"
+
+        class FakeZip:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            @staticmethod
+            def infolist():
+                return [FakeInfo()]
+
+            @staticmethod
+            def open(_info, _mode):
+                return FakeSource()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with mock.patch.object(ocr.zipfile, "ZipFile", return_value=FakeZip()), \
+                 mock.patch.object(ocr, "MAX_ZIP_SINGLE_FILE", 10):
+                with self.assertRaisesRegex(ocr.UnsafeArchiveError, "expanded beyond declared"):
+                    ocr.safe_extract_zip(root / "fake.zip", root / "extract")
+            self.assertFalse((root / "extract").exists())
+
     def test_attachment_absolute_path_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -90,6 +180,14 @@ class OcrSecurityTests(unittest.TestCase):
             attachment.write_bytes(b"image")
             resolved = ocr.resolve_attachment(root, "attachments/msg_0001/att_01.jpg")
             self.assertEqual(resolved, attachment.resolve())
+
+    def test_attachment_filename_is_not_interpreted_as_glob(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            attachment = root / "attachments" / "safe.jpg"
+            attachment.parent.mkdir(parents=True)
+            attachment.write_bytes(b"image")
+            self.assertIsNone(ocr.resolve_attachment(root, "*.jpg"))
 
     def test_valid_zip_extracts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

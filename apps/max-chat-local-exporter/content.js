@@ -7,6 +7,8 @@
 
   const state = {
     records: new Map(),
+    elementKeys: new WeakMap(),
+    elementSeq: 0,
     running: false,
     batch: 0,
     seq: 0,
@@ -677,6 +679,12 @@
       const meta = inferMeta(el, rect, rootRect, text);
       const reply = extractReplyInfo(el, text);
       const linkInfo = extractMessageLink(el);
+      const recordKey = MaxExporterMessageIdentity.recordKeyForElement(
+        el,
+        linkInfo,
+        state.elementKeys,
+        () => { state.elementSeq += 1; return state.elementSeq; }
+      );
       const bodyText = reply.bodyText || stripReplyTextFromBody(text, reply.text || '');
       const signature = fnv1a([
         normalizeForKey(bodyText || text),
@@ -688,8 +696,9 @@
         meta.direction
       ].join('|'));
 
+      const recordId = `${signature}-${fnv1a(recordKey)}`;
       const normalizedAttachments = media.map((m, attachmentIndex) => ({
-        id: `${signature}-att-${attachmentIndex + 1}`,
+        id: `${recordId}-att-${attachmentIndex + 1}`,
         kind: m.kind,
         urls: m.urls || [],
         primaryUrl: m.primaryUrl || '',
@@ -703,9 +712,9 @@
         status: 'pending'
       }));
 
-      if (!state.records.has(signature)) {
-        state.records.set(signature, {
-          id: signature,
+      if (!state.records.has(recordKey)) {
+        state.records.set(recordKey, {
+          id: recordId,
           order: state.seq += 1,
           captureBatch: state.batch,
           domIndex,
@@ -728,7 +737,7 @@
         });
         added += 1;
       } else {
-        const existing = state.records.get(signature);
+        const existing = state.records.get(recordKey);
         if (text.length > existing.text.length) existing.text = text;
         if ((bodyText || '').length > (existing.bodyText || '').length) existing.bodyText = bodyText;
         if (reply?.detected && (!existing.reply?.detected || (reply.text || '').length > (existing.reply.text || '').length)) existing.reply = reply;
@@ -1359,6 +1368,8 @@ URL: ${meta.sourceUrl}
 
   function clearRecords() {
     state.records.clear();
+    state.elementKeys = new WeakMap();
+    state.elementSeq = 0;
     state.batch = 0;
     state.seq = 0;
     setStatus('Очищено. Можно начать новое сканирование.');

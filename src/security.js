@@ -7,6 +7,14 @@
 
   const CACHE_NAMESPACE = 'leadbridge-kso-pwa-';
   const FORMULA_PREFIX = /^[=+\-@\t\r]/;
+  const DEFAULT_ZIP_POLICY = Object.freeze({
+    maxEntries: 5000,
+    maxEntryUncompressedBytes: 80 * 1024 * 1024,
+    maxTotalUncompressedBytes: 512 * 1024 * 1024,
+    maxCompressionRatio: 200,
+    maxPathLength: 512,
+    maxPathDepth: 24
+  });
 
   function normalizePhone(raw) {
     const digits = String(raw ?? '').replace(/\D/g, '');
@@ -107,8 +115,88 @@
     ));
   }
 
+  function normalizeZipEntryName(value, policy = DEFAULT_ZIP_POLICY) {
+    const raw = String(value || '').replace(/\\/g, '/');
+    if (!raw || raw.includes('\0')) throw new Error('ZIP содержит пустой или повреждённый путь');
+    if (raw.length > policy.maxPathLength) throw new Error('ZIP содержит слишком длинный путь');
+    if (raw.startsWith('/') || /^[a-z]:\//i.test(raw)) throw new Error('ZIP содержит абсолютный путь');
+    const parts = raw.split('/').filter((part) => part && part !== '.');
+    if (parts.includes('..')) throw new Error('ZIP содержит переход за пределы архива');
+    if (parts.length > policy.maxPathDepth) throw new Error('ZIP содержит слишком глубокий путь');
+    return parts.join('/') + (raw.endsWith('/') ? '/' : '');
+  }
+
+  function isZipSymlink(versionMadeBy, externalAttributes) {
+    const platform = (Number(versionMadeBy) >>> 8) & 0xff;
+    if (platform !== 3) return false;
+    const unixMode = (Number(externalAttributes) >>> 16) & 0xffff;
+    return (unixMode & 0xf000) === 0xa000;
+  }
+
+  function validateZipEntry(entry, totals = {entries: 0, uncompressedBytes: 0}, policy = DEFAULT_ZIP_POLICY) {
+    const name = normalizeZipEntryName(entry.name, policy);
+    const compressedBytes = Number(entry.compressedBytes);
+    const uncompressedBytes = Number(entry.uncompressedBytes);
+    if (!Number.isSafeInteger(compressedBytes) || compressedBytes < 0
+        || !Number.isSafeInteger(uncompressedBytes) || uncompressedBytes < 0) {
+      throw new Error('ZIP содержит некорректный размер файла');
+    }
+    if ((Number(entry.flags) & 1) !== 0) throw new Error('Зашифрованные ZIP не поддерживаются');
+    if (isZipSymlink(entry.versionMadeBy, entry.externalAttributes)) throw new Error('ZIP содержит символическую ссылку');
+    if (uncompressedBytes > policy.maxEntryUncompressedBytes) throw new Error('Файл внутри ZIP слишком большой');
+    if (uncompressedBytes > 0 && (compressedBytes === 0 || uncompressedBytes / compressedBytes > policy.maxCompressionRatio)) {
+      throw new Error('ZIP имеет опасно высокую степень сжатия');
+    }
+    totals.entries += 1;
+    totals.uncompressedBytes += uncompressedBytes;
+    if (totals.entries > policy.maxEntries) throw new Error('В ZIP слишком много файлов');
+    if (totals.uncompressedBytes > policy.maxTotalUncompressedBytes) throw new Error('Распакованный ZIP слишком большой');
+    return name;
+  }
+
+  async function readLimitedStream(stream, maxBytes, errorMessage = 'Поток превысил допустимый размер') {
+    const reader = stream.getReader();
+    const chunks = [];
+    let total = 0;
+    try {
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > maxBytes) {
+          await reader.cancel('size limit exceeded');
+          throw new Error(errorMessage);
+        }
+        chunks.push(value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return bytes;
+  }
+
+  function boundedLogText(value, maxChars = 40000, maxLines = 250) {
+    let lines = String(value || '').split('\n');
+    if (lines.length > maxLines + 1) lines = lines.slice(-(maxLines + 1));
+    let text = lines.join('\n');
+    if (text.length > maxChars) {
+      text = text.slice(-maxChars);
+      const firstNewline = text.indexOf('\n');
+      if (firstNewline >= 0) text = text.slice(firstNewline + 1);
+    }
+    return text;
+  }
+
   return {
     CACHE_NAMESPACE,
+    DEFAULT_ZIP_POLICY,
+    boundedLogText,
     cacheKeysToDelete,
     csvCell,
     excludeIdentifierPhones,
@@ -118,6 +206,10 @@
     hostnameMatches,
     normalizePhone,
     safeHttpsUrl,
-    spreadsheetSafe
+    spreadsheetSafe,
+    isZipSymlink,
+    normalizeZipEntryName,
+    readLimitedStream,
+    validateZipEntry
   };
 }));

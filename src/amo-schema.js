@@ -6,13 +6,15 @@
   'use strict';
 
   function key(value) {
-    return String(value || '').toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9]+/g, ' ').trim();
+    const raw = String(value || '').trim();
+    if (raw === '-') return '-';
+    return raw.toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9]+/g, ' ').trim();
   }
 
-  function first(headers, names, fallback) {
+  function first(headers, names) {
     const wanted = names.map(key);
     const index = headers.findIndex((header) => wanted.includes(key(header)));
-    return index === -1 ? fallback : index;
+    return index;
   }
 
   function phoneColumns(headers) {
@@ -23,29 +25,36 @@
         indexes.push(index);
       }
     });
-    return indexes.length ? indexes : [21, 22, 23, 24, 25, 26, 30, 100];
+    return indexes;
   }
 
   function resolve(headersValue) {
     const headers = Array.isArray(headersValue) ? headersValue : [];
     return {
-      id: first(headers, ['ID', '-'], 0),
-      responsible: first(headers, ['Ответственный', 'CRM Ответственный'], 3),
-      createdAt: first(headers, ['Дата создания сделки', 'Дата создания'], 4),
-      closedAt: first(headers, ['Дата закрытия'], 8),
-      tags: first(headers, ['Теги'], 9),
-      stage: first(headers, ['Этап', 'Статус сделки'], 15),
-      pipeline: first(headers, ['Воронка'], 16),
-      fullName: first(headers, ['Полное имя контакта', 'ФИО', 'ФИО контакта'], 17),
-      visitDate: first(headers, ['Дата визита'], 78),
-      city: first(headers, ['Город'], 73),
-      region: first(headers, ['REGION TIME - Область или город', 'Регион'], 38),
-      closeReason: first(headers, ['Причина закрытия карточки'], 65),
-      closeReasonOld: first(headers, ['Причина отказа old'], 99),
-      comment: first(headers, ['Комментарий'], 81),
+      id: first(headers, ['ID', '-']),
+      responsible: first(headers, ['Ответственный', 'CRM Ответственный']),
+      createdAt: first(headers, ['Дата создания сделки', 'Дата создания']),
+      closedAt: first(headers, ['Дата закрытия']),
+      tags: first(headers, ['Теги']),
+      stage: first(headers, ['Этап', 'Статус сделки']),
+      pipeline: first(headers, ['Воронка']),
+      fullName: first(headers, ['Полное имя контакта', 'ФИО', 'ФИО контакта']),
+      visitDate: first(headers, ['Дата визита']),
+      city: first(headers, ['Город']),
+      region: first(headers, ['REGION TIME - Область или город', 'Регион']),
+      closeReason: first(headers, ['Причина закрытия карточки']),
+      closeReasonOld: first(headers, ['Причина отказа old']),
+      comment: first(headers, ['Комментарий']),
       phones: phoneColumns(headers)
     };
   }
 
-  return { key, phoneColumns, resolve };
+  function validate(columns) {
+    const missing = [];
+    if (!columns || columns.id < 0) missing.push('ID сделки');
+    if (!columns || !Array.isArray(columns.phones) || !columns.phones.length) missing.push('Телефон');
+    return missing;
+  }
+
+  return { key, phoneColumns, resolve, validate };
 }));

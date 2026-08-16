@@ -29,6 +29,7 @@ PACKAGES = ROOT / "releases" / "packages"
 MANIFEST = ROOT / "releases" / "manifest.json"
 SHA256SUMS = ROOT / "releases" / "SHA256SUMS"
 WEB = ROOT / "apps" / "leadbridge-web"
+MANAGED_PACKAGE_SUFFIXES = {".zip", ".dmg"}
 
 
 def git_commit() -> str:
@@ -47,6 +48,18 @@ def reset_dir(path: Path) -> None:
     if path.exists():
         shutil.rmtree(path)
     path.mkdir(parents=True)
+
+
+def clean_package_artifacts() -> None:
+    """Remove generated packages while preserving the current prebuilt DMG and local EXE."""
+    PACKAGES.mkdir(parents=True, exist_ok=True)
+    current_dmg = f"LeadBridgeKSO-macOS-DMG-{PACKAGE_VERSION}.dmg"
+    for path in PACKAGES.iterdir():
+        if not path.is_file() or path.suffix.lower() not in MANAGED_PACKAGE_SUFFIXES:
+            continue
+        if path.name == current_dmg:
+            continue
+        path.unlink()
 
 
 def copytree(src: Path, dst: Path, *extra_ignores: str) -> None:
@@ -302,6 +315,20 @@ def verify_integrity() -> None:
     artifacts = data.get("artifacts", {})
     if not artifacts:
         raise RuntimeError("release manifest has no artifacts")
+    expected_files = set(artifacts)
+    actual_files = {
+        path.name for path in PACKAGES.iterdir()
+        if path.is_file() and path.suffix.lower() in MANAGED_PACKAGE_SUFFIXES
+    }
+    if actual_files != expected_files:
+        orphaned = sorted(actual_files - expected_files)
+        missing = sorted(expected_files - actual_files)
+        details = []
+        if orphaned:
+            details.append(f"unlisted package artifacts: {', '.join(orphaned)}")
+        if missing:
+            details.append(f"missing package artifacts: {', '.join(missing)}")
+        raise RuntimeError("; ".join(details))
     expected_lines = []
     for filename, metadata in sorted(artifacts.items()):
         path = PACKAGES / filename
@@ -351,7 +378,7 @@ def build() -> list[Path]:
     sync()
     DIST.mkdir(exist_ok=True)
     BUILD.mkdir(parents=True, exist_ok=True)
-    PACKAGES.mkdir(parents=True, exist_ok=True)
+    clean_package_artifacts()
     commit = git_commit()
     component_zips = build_component_zips()
     outputs = component_zips[:]

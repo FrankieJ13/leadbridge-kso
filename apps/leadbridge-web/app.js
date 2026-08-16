@@ -19,11 +19,14 @@ const clean = (s)=>String(s ?? '').replace(/^[\s'"`]+|[\s'"`]+$/g,'').trim();
 const lowerKey = (s)=>String(s ?? '').toLowerCase().replace(/ё/g,'е').replace(/[^a-zа-я0-9]+/g,' ').trim();
 const compactKey = (s)=>lowerKey(s).replace(/\s+/g,'');
 const safeAmoUrl = (value)=>LeadBridgeSecurity.safeHttpsUrl(value, ['amocrm.ru']);
+const MAX_LOG_LINES = 250;
+const MAX_LOG_CHARS = 40000;
 
 function logLine(text){
   const el = $('loader'); el.classList.remove('hidden');
   const time = new Date().toLocaleTimeString('ru-RU');
   el.textContent += `[${time}] ${text}\n`;
+  el.textContent=LeadBridgeSecurity.boundedLogText(el.textContent,MAX_LOG_CHARS,MAX_LOG_LINES);
   el.scrollTop = el.scrollHeight;
 }
 function setNotice(text, bad=false){
@@ -423,6 +426,7 @@ async function normalizeAmoCsvChunks(chunks, sourceLabel, totalBytes=0){
     onHeaders(headers, delimiter){
       parsed.headers = headers;
       parsed.delimiter = delimiter;
+      assertAmoSchema(parsed);
       logLine(`amocrm_csv_stream: delimiter=${JSON.stringify(delimiter)}, cols=${headers.length}`);
     },
     onRow(row, i){
@@ -444,9 +448,9 @@ async function normalizeAmoCsvChunks(chunks, sourceLabel, totalBytes=0){
     }
   }, clean);
   logLine(`amocrm_csv: delimiter=${JSON.stringify(parsed.delimiter)}, rows=${seen}, kept=${rows.length}, cols=${parsed.headers.length}`);
-  debugColumnSample(parsed, debugRows, 'amo_col Дата визита', findHeaderIndexExact(parsed, 'Дата визита', 78));
-  debugColumnSample(parsed, debugRows, 'amo_col Дата создания сделки', findHeaderIndexExact(parsed, 'Дата создания сделки', 4));
-  debugColumnSample(parsed, debugRows, 'amo_col Причина закрытия карточки', findHeaderIndexExact(parsed, 'Причина закрытия карточки', 65));
+  debugColumnSample(parsed, debugRows, 'amo_col Дата визита', findHeaderIndexExact(parsed, 'Дата визита'));
+  debugColumnSample(parsed, debugRows, 'amo_col Дата создания сделки', findHeaderIndexExact(parsed, 'Дата создания сделки'));
+  debugColumnSample(parsed, debugRows, 'amo_col Причина закрытия карточки', findHeaderIndexExact(parsed, 'Причина закрытия карточки'));
   return rows;
 }
 function escLog(value){ return String(value || '').replace(/[\r\n\0]+/g, ' ').slice(0, 160); }
@@ -981,7 +985,7 @@ function decodeZipName(nameBytes, flags){
   try { return new TextDecoder(flags & 0x0800 ? 'utf-8' : 'utf-8').decode(nameBytes); }
   catch(e){ return Array.from(nameBytes).map(b=>String.fromCharCode(b)).join(''); }
 }
-async function inflateZipData(data){
+async function inflateZipData(data, maxBytes){
   if(typeof DecompressionStream === 'undefined') throw new Error('DecompressionStream недоступен');
   const formats = ['deflate-raw','deflate'];
   let lastErr = null;
@@ -989,7 +993,7 @@ async function inflateZipData(data){
     try{
       const ds = new DecompressionStream(fmt);
       const stream = new Blob([data]).stream().pipeThrough(ds);
-      return new Uint8Array(await new Response(stream).arrayBuffer());
+      return await LeadBridgeSecurity.readLimitedStream(stream, maxBytes, 'файл внутри ZIP превышает допустимый размер');
     }catch(e){ lastErr=e; }
   }
   throw lastErr || new Error('не удалось распаковать deflate');
@@ -1006,20 +1010,43 @@ async function loadZipImages(file){
     const bytes = new Uint8Array(await file.arrayBuffer());
     const eocd = findEocd(bytes);
     if(eocd < 0) throw new Error('не найдена центральная директория ZIP');
+    if(u16le(bytes,eocd+4)!==0 || u16le(bytes,eocd+6)!==0) throw new Error('многотомные ZIP не поддерживаются');
     const total = u16le(bytes, eocd+10);
-    let cdOff = u32le(bytes, eocd+16);
-    for(let n=0; n<total && cdOff+46<=bytes.length; n++){
-      if(u32le(bytes,cdOff)!==0x02014b50) break;
+    const diskTotal = u16le(bytes,eocd+8);
+    const cdSize = u32le(bytes,eocd+12);
+    const initialCdOff = u32le(bytes, eocd+16);
+    if(total===0xffff || cdSize===0xffffffff || initialCdOff===0xffffffff) throw new Error('ZIP64 не поддерживается');
+    if(total!==diskTotal || initialCdOff+cdSize>eocd || initialCdOff+cdSize>bytes.length) throw new Error('повреждена центральная директория ZIP');
+    if(total>LeadBridgeSecurity.DEFAULT_ZIP_POLICY.maxEntries) throw new Error('В ZIP слишком много файлов');
+    let cdOff = initialCdOff;
+    const entries=[];
+    const totals={entries:0,uncompressedBytes:0};
+    const names=new Set();
+    for(let n=0; n<total; n++){
+      if(cdOff+46>bytes.length || u32le(bytes,cdOff)!==0x02014b50) throw new Error('повреждена запись центральной директории ZIP');
+      const versionMadeBy=u16le(bytes,cdOff+4);
       const flags=u16le(bytes,cdOff+8);
       const method=u16le(bytes,cdOff+10);
       const compSize=u32le(bytes,cdOff+20);
+      const uncompSize=u32le(bytes,cdOff+24);
       const nameLen=u16le(bytes,cdOff+28);
       const extraLen=u16le(bytes,cdOff+30);
       const commentLen=u16le(bytes,cdOff+32);
+      const externalAttributes=u32le(bytes,cdOff+38);
       const localOff=u32le(bytes,cdOff+42);
+      if(cdOff+46+nameLen+extraLen+commentLen>bytes.length) throw new Error('повреждена длина записи ZIP');
       const name = decodeZipName(bytes.slice(cdOff+46, cdOff+46+nameLen), flags);
       cdOff += 46 + nameLen + extraLen + commentLen;
-      if(!/\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(name)) continue;
+      const safeName=LeadBridgeSecurity.validateZipEntry({name,compressedBytes:compSize,uncompressedBytes:uncompSize,flags,versionMadeBy,externalAttributes},totals);
+      const duplicateKey=safeName.toLowerCase();
+      if(names.has(duplicateKey)) throw new Error('ZIP содержит повторяющийся путь');
+      names.add(duplicateKey);
+      entries.push({name:safeName,flags,method,compSize,uncompSize,localOff});
+    }
+    if(cdOff!==initialCdOff+cdSize) throw new Error('размер центральной директории ZIP не совпадает');
+    for(const entry of entries){
+      const {name,method,compSize,uncompSize,localOff}=entry;
+      if(name.endsWith('/') || !/\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(name)) continue;
       if(localOff+30>bytes.length || u32le(bytes,localOff)!==0x04034b50){ failed++; continue; }
       const ln=u16le(bytes,localOff+26), le=u16le(bytes,localOff+28);
       const dataStart=localOff+30+ln+le;
@@ -1030,9 +1057,10 @@ async function loadZipImages(file){
       if(method===0){
         data=compData;
       } else if(method===8){
-        try{ data=await inflateZipData(compData); }
+        try{ data=await inflateZipData(compData, Math.min(uncompSize,LeadBridgeSecurity.DEFAULT_ZIP_POLICY.maxEntryUncompressedBytes)); }
         catch(e){ skipped++; continue; }
       } else { skipped++; continue; }
+      if(data.byteLength!==uncompSize){ failed++; continue; }
       const mime = mimeFromName(name);
       const f = new File([data], basename(name), {type:mime});
       addImageFileWithPath(f, name);
@@ -1446,16 +1474,24 @@ function uniquePhones(vals){
 
 function normalizeAmoSource(fileName, text){
   const parsed = parseCsv(text);
+  assertAmoSchema(parsed);
   logLine(`amocrm_csv: delimiter=${JSON.stringify(parsed.delimiter)}, rows=${parsed.rows.length}, cols=${parsed.headers.length}`);
-  debugColumnSample(parsed, parsed.rows, 'amo_col Дата визита', findHeaderIndexExact(parsed, 'Дата визита', 78));
-  debugColumnSample(parsed, parsed.rows, 'amo_col Дата создания сделки', findHeaderIndexExact(parsed, 'Дата создания сделки', 4));
-  debugColumnSample(parsed, parsed.rows, 'amo_col Причина закрытия карточки', findHeaderIndexExact(parsed, 'Причина закрытия карточки', 65));
+  debugColumnSample(parsed, parsed.rows, 'amo_col Дата визита', findHeaderIndexExact(parsed, 'Дата визита'));
+  debugColumnSample(parsed, parsed.rows, 'amo_col Дата создания сделки', findHeaderIndexExact(parsed, 'Дата создания сделки'));
+  debugColumnSample(parsed, parsed.rows, 'amo_col Причина закрытия карточки', findHeaderIndexExact(parsed, 'Причина закрытия карточки'));
   return parsed.rows.map((row,i)=>normalizeAmoRow(parsed,row,i)).filter(r=>r.id || r.phones.length || r.fullName);
 }
-function normalizeAmoRow(parsed,row,i, opts={}){
-  // Заголовки имеют приоритет; fallback-индексы сохраняют поддержку старого amoCRM CSV.
+function assertAmoSchema(parsed){
   const columns = parsed.__amoColumns || (parsed.__amoColumns = LeadBridgeAmoSchema.resolve(parsed.headers));
-  const id = safeCell(row, columns.id) || String(i+1);
+  const missing = LeadBridgeAmoSchema.validate(columns);
+  if(missing.length){
+    throw new Error(`Не распознана структура amoCRM CSV. Не найдены колонки: ${missing.join(', ')}. Выгрузи таблицу с заголовками ID и Телефон.`);
+  }
+  return columns;
+}
+function normalizeAmoRow(parsed,row,i, opts={}){
+  const columns = assertAmoSchema(parsed);
+  const id = safeCell(row, columns.id);
   const responsible = safeCell(row, columns.responsible);
   const createdAt = safeCell(row, columns.createdAt);
   const closedAt = safeCell(row, columns.closedAt);
@@ -1469,7 +1505,7 @@ function normalizeAmoRow(parsed,row,i, opts={}){
   const closeReasonCard = safeCell(row, columns.closeReason);
   const closeReasonOld = safeCell(row, columns.closeReasonOld);
   const closeReason = closeReasonCard;
-  const comment = [...new Set([safeCell(row,columns.comment),safeCell(row,10),safeCell(row,11),safeCell(row,12),safeCell(row,13),safeCell(row,14)].filter(Boolean))].join('\n');
+  const comment = safeCell(row, columns.comment);
   const closeReasonKey = lowerKey(closeReasonCard).replace(/[\s-]+/g,'_');
   const isExcludedCloseReason = /(^|_)1_?(хоз|дубль|дубл)(_|$)/.test(closeReasonKey);
   const duplicateHaystack = lowerKey([stage,pipeline,tags,closeReasonCard,closeReasonOld,comment].join(' '));
@@ -2213,7 +2249,7 @@ function applyTheme(theme){
   const value = theme === 'light' ? 'light' : 'dark';
   document.documentElement.dataset.theme = value;
   document.body.dataset.theme = value;
-  localStorage.setItem('leadbridge.theme', value);
+  try{ localStorage.setItem('leadbridge.theme', value); }catch(_){ /* storage can be unavailable in private/native contexts */ }
   const btn = $('themeToggleBtn');
   if(btn){
     btn.title = value === 'light' ? 'Светлая тема. Нажми для тёмной' : 'Тёмная тема. Нажми для светлой';
@@ -2227,7 +2263,9 @@ function toggleTheme(){
   syncFixedTop();
 }
 function initTheme(){
-  applyTheme(localStorage.getItem('leadbridge.theme') || 'dark');
+  let saved='dark';
+  try{ saved=localStorage.getItem('leadbridge.theme') || 'dark'; }catch(_){ /* use default */ }
+  applyTheme(saved);
 }
 
 let deferredInstallPrompt = null;
@@ -2327,8 +2365,23 @@ function resetAll(){
   $('amoExecToken').value=''; $('amoExecToken').type='password'; $('amoTokenVisibility').setAttribute('aria-pressed','false'); $('amoTokenVisibility').setAttribute('aria-label','Показать токен'); $('amoTokenVisibility').title='Показать токен'; setAmoSourceMode('offline');
   $('infoMax').textContent='файл не загружен'; $('infoAmo').textContent='файл не загружен'; updateAmoOnlineButton(); updateImageSourceStatus(false, expectedZipMessage()); renderStartState(); const actions=$('reportActions'); if(actions) actions.classList.add('hidden'); updateMobileRunButton(); setAppView('sources', {scrollTop:true}); $('loader').textContent=''; $('loader').classList.add('hidden'); setNotice('Сброшено. Локальный слепок amoCRM сохранён и будет доступен в режиме «Онлайн /exec».');
 }
-['filterResponsible','filterCity','filterDateFrom','filterDateTo','filterSearch','sortBy','sortDir','onlyNoCrmVisit','showCrmVisitCol','onlyCurrentMax'].forEach(id=>{
-  $(id).addEventListener('input', ()=>{ if(state.groups.length){ buildGroups(); applyFilters(); render(); } else { toggleCrmVisitColumn(); } });
-  $(id).addEventListener('change', ()=>{ if(state.groups.length){ buildGroups(); applyFilters(); render(); } else { toggleCrmVisitColumn(); } });
+function refreshResultsFromControls(rebuild=false){
+  if(!state.groups.length){ toggleCrmVisitColumn(); return; }
+  if(rebuild) buildGroups();
+  applyFilters();
+  render();
+}
+let filterSearchTimer=0;
+$('filterSearch').addEventListener('input', ()=>{
+  window.clearTimeout(filterSearchTimer);
+  filterSearchTimer=window.setTimeout(()=>refreshResultsFromControls(false),180);
 });
+$('filterSearch').addEventListener('change', ()=>{
+  window.clearTimeout(filterSearchTimer);
+  refreshResultsFromControls(false);
+});
+['filterResponsible','filterCity','filterDateFrom','filterDateTo','sortBy','sortDir','onlyNoCrmVisit','showCrmVisitCol'].forEach(id=>{
+  $(id).addEventListener('change', ()=>refreshResultsFromControls(false));
+});
+$('onlyCurrentMax').addEventListener('change', ()=>refreshResultsFromControls(true));
 bindFileInput('max'); bindFileInput('amo'); bindImageFolder(); initActions(); initAmoOnlineSource(); $('appTabs')?.addEventListener('keydown', handleAppTabKeydown); document.addEventListener('keydown', e=>{ if(e.key!=='Escape') return; if(!$('anketaPreviewModal').classList.contains('hidden')) closeAnketaPreview(); else closeMatchDetails(); }); setAppView('sources'); initTheme(); initMobileMode(); toggleCrmVisitColumn(); initFixedTop(); checkReleaseManifest(); initPwaInstall(); updateMobileRunButton(); registerServiceWorker();
