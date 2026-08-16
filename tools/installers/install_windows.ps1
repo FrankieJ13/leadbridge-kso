@@ -12,12 +12,14 @@ function Test-LeadBridgePayload($Path) {
     (Test-Path (Join-Path $Path 'apps\leadbridge-web') -PathType Container) -and
     (Test-Path (Join-Path $Path 'apps\max-chat-local-exporter') -PathType Container) -and
     (Test-Path (Join-Path $Path 'apps\max-chat-ocr-postprocessor') -PathType Container) -and
+    (Test-Path (Join-Path $Path 'tools\ocr-bridge') -PathType Container) -and
     (Test-Path (Join-Path $Path 'tools\launcher') -PathType Container)
   )
   $PackPayload = (
     (Test-Path (Join-Path $Path 'tools\leadbridge') -PathType Container) -and
     (Test-Path (Join-Path $Path 'tools\max-chat-local-exporter') -PathType Container) -and
     (Test-Path (Join-Path $Path 'tools\max-chat-ocr-postprocessor') -PathType Container) -and
+    (Test-Path (Join-Path $Path 'tools\ocr-bridge') -PathType Container) -and
     (Test-Path (Join-Path $Path 'launchers') -PathType Container)
   )
 
@@ -107,6 +109,8 @@ if (Test-Path (Join-Path $SourceRoot 'apps\max-chat-ocr-postprocessor')) {
 } else {
   Copy-CleanDir (Join-Path $SourceRoot 'tools\max-chat-ocr-postprocessor') "$Target\tools\max-chat-ocr-postprocessor"
 }
+
+Copy-CleanDir (Join-Path $SourceRoot 'tools\ocr-bridge') "$Target\tools\ocr-bridge"
 
 if (Test-Path (Join-Path $SourceRoot 'integrations\google-apps-script-amocrm')) {
   Copy-CleanDir (Join-Path $SourceRoot 'integrations\google-apps-script-amocrm') "$Target\integrations\google-apps-script-amocrm"
@@ -210,6 +214,15 @@ if (-not $Tesseract) {
 } else {
   $TesseractPath = if ($Tesseract.Source) { $Tesseract.Source } else { $Tesseract.FullName }
   Write-Host "Tesseract found: $TesseractPath" -ForegroundColor Green
+}
+
+if ($Python) {
+  Write-Host 'Registering one-click OCR bridge...' -ForegroundColor Cyan
+  & $Python "$Target\tools\ocr-bridge\install_bridge.py" --target $Target
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host 'OCR bridge registration failed.' -ForegroundColor Red
+    $InstallExitCode = 2
+  }
 }
 
 Write-Host ''

@@ -46,6 +46,8 @@ else
   copy_dir "$SOURCE_ROOT/tools/max-chat-ocr-postprocessor" "$TARGET/tools/max-chat-ocr-postprocessor"
 fi
 
+copy_dir "$SOURCE_ROOT/tools/ocr-bridge" "$TARGET/tools/ocr-bridge"
+
 if [ -d "$SOURCE_ROOT/integrations/google-apps-script-amocrm" ]; then
   copy_dir "$SOURCE_ROOT/integrations/google-apps-script-amocrm" "$TARGET/integrations/google-apps-script-amocrm"
 fi
@@ -83,6 +85,8 @@ fi
 if command -v python3 >/dev/null 2>&1; then
   echo "Installing Python requirements..."
   python3 -m pip install -r "$TARGET/tools/max-chat-ocr-postprocessor/requirements.txt" || python3 -m pip install --break-system-packages -r "$TARGET/tools/max-chat-ocr-postprocessor/requirements.txt"
+  echo "Registering one-click OCR bridge..."
+  python3 "$TARGET/tools/ocr-bridge/install_bridge.py" --target "$TARGET"
 else
   echo "python3 not found. Install Python 3."
 fi

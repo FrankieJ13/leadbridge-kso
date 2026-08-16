@@ -8,13 +8,16 @@
     "default_popup": "popup.html"
   },
   "permissions": [
-    "activeTab"
+    "activeTab",
+    "downloads",
+    "storage"
   ],
   "host_permissions": [
     "https://web.max.ru/*",
     "https://*.max.ru/*",
     "https://*.oneme.ru/*",
-    "https://*.okcdn.ru/*"
+    "https://*.okcdn.ru/*",
+    "http://127.0.0.1/*"
   ],
   "background": {
     "service_worker": "background.js"

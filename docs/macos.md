@@ -23,6 +23,7 @@ The installer creates:
     leadbridge/
     max-chat-local-exporter/
     max-chat-ocr-postprocessor/
+    ocr-bridge/
   integrations/
     google-apps-script-amocrm/
   archives/
@@ -39,6 +40,10 @@ The installer creates:
 4. Select `~/LeadBridgeKSO/tools/max-chat-local-exporter`.
 
 ## OCR
+
+Основной способ: соберите чат в расширении и нажмите «Запустить OCR». Расширение сохранит ZIP и передаст его локальному мосту; `messages_ocr.json` появится в `~/LeadBridgeKSO/ocr_results`.
+
+Ручной launcher остаётся запасным вариантом.
 
 The installer checks for Homebrew, Tesseract and Python requirements. If Homebrew is missing, install it first and then run:
 

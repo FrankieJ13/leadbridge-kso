@@ -17,6 +17,7 @@ const messageIdentity = require('../../apps/max-chat-local-exporter/message_iden
 const mediaIdentity = require('../../apps/max-chat-local-exporter/media_identity.js');
 const panelUi = require('../../apps/max-chat-local-exporter/panel_ui.js');
 const panelMotion = require('../../apps/max-chat-local-exporter/panel_motion.js');
+const ocrBridgePolicy = require('../../apps/max-chat-local-exporter/ocr_bridge_policy.js');
 
 test('normalizePhone accepts Russian phone formats and rejects long identifiers', () => {
   assert.equal(security.normalizePhone('8 (912) 345-67-89'), '9123456789');
@@ -208,14 +209,42 @@ test('exporter skips media already owned by an earlier viewport', () => {
 
 test('exporter panel keeps every functional control in the redesigned markup', () => {
   const markup = panelUi.markup();
-  ['maxle-collapse', 'maxle-close', 'maxle-scan', 'maxle-auto', 'maxle-stop', 'maxle-clear', 'maxle-status', 'maxle-oldest-first', 'maxle-scan-before-export']
+  ['maxle-collapse', 'maxle-close', 'maxle-scan', 'maxle-auto', 'maxle-stop', 'maxle-clear', 'maxle-ocr', 'maxle-status', 'maxle-oldest-first', 'maxle-scan-before-export']
     .forEach((id) => assert.match(markup, new RegExp(`id="${id}"`)));
   ['json', 'txt', 'html', 'csv', 'zip']
     .forEach((format) => assert.match(markup, new RegExp(`data-maxle-export="${format}"`)));
   assert.match(markup, />1<\/span>[\s\S]*Собрать чат/);
-  assert.match(markup, />2<\/span>[\s\S]*Скачать результат/);
-  assert.match(markup, /Скачать архив/);
-  assert.match(markup, /Сообщения \+ изображения · ZIP/);
+  assert.match(markup, />2<\/span>[\s\S]*Запустить обработку/);
+  assert.match(markup, /скачать архив/i);
+  assert.match(markup, /Только скачать архив · ZIP/);
+});
+
+test('one-click OCR accepts only exporter blob URLs and archive names', () => {
+  assert.equal(
+    ocrBridgePolicy.sanitizeArchiveName('MAX_CHAT_EXPORT_120msg_44att_16-08-26_14-30.zip'),
+    'MAX_CHAT_EXPORT_120msg_44att_16-08-26_14-30.zip'
+  );
+  assert.equal(
+    ocrBridgePolicy.sanitizeArchiveName('MAX_CHAT_EXPORT_120msg_44att_16-08-26_14-30 (2).zip'),
+    'MAX_CHAT_EXPORT_120msg_44att_16-08-26_14-30 (2).zip'
+  );
+  assert.equal(ocrBridgePolicy.sanitizeArchiveName('../../private.zip'), '');
+  assert.equal(ocrBridgePolicy.sanitizeArchiveName('other.zip'), '');
+  assert.equal(ocrBridgePolicy.isTrustedExportBlob('blob:https://web.max.ru/1f81a296-8551-4b32-8d1d-8a5f4d2f4409'), true);
+  assert.equal(ocrBridgePolicy.isTrustedExportBlob('blob:https://example.com/1f81a296-8551-4b32-8d1d-8a5f4d2f4409'), false);
+
+  const request = ocrBridgePolicy.ocrRequest('C:\\Users\\User\\Downloads\\MAX_CHAT_EXPORT_120msg_44att_16-08-26_14-30.zip');
+  assert.equal(request.url, 'http://127.0.0.1:17848/run');
+  assert.equal(request.options.method, 'POST');
+  assert.equal(request.options.headers['X-LeadBridge-Bridge'], 'leadbridge-kso-ocr-v1');
+});
+
+test('extension grants only the permissions needed for local OCR handoff', () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../../apps/max-chat-local-exporter/manifest.json'), 'utf8'));
+  assert.equal(manifest.permissions.includes('downloads'), true);
+  assert.equal(manifest.permissions.includes('storage'), true);
+  assert.equal(manifest.host_permissions.includes('http://127.0.0.1/*'), true);
+  assert.equal(manifest.host_permissions.includes('<all_urls>'), false);
 });
 
 test('exporter panel movement stays inside the visible tab area', () => {

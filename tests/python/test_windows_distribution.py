@@ -14,6 +14,8 @@ class WindowsDistributionTests(unittest.TestCase):
         self.assertIn("Find-PythonCommand", script)
         self.assertIn("Python.Python.3.12", script)
         self.assertIn("-m pip install", script)
+        self.assertIn("tools\\ocr-bridge", script)
+        self.assertIn("install_bridge.py", script)
         self.assertLess(script.index("if (-not $SourceRoot)"), script.index("New-Item -ItemType Directory -Force -Path $Target"))
 
     def test_ocr_launcher_self_checks_python_and_tesseract(self):
@@ -35,10 +37,13 @@ class WindowsDistributionTests(unittest.TestCase):
         self.assertIn("rus.traineddata", installer)
         self.assertIn("CreateShortCut", installer)
         self.assertIn('ExecShell "open"', installer)
+        self.assertIn("tools\\ocr-bridge\\install_bridge.py", installer)
+        self.assertIn("--uninstall", installer)
         self.assertIn("Python.Python.3.12", (ROOT / "tools" / "installers" / "install_windows.ps1").read_text(encoding="utf-8"))
         self.assertIn("python-3.12.10-embed-amd64.zip", builder)
         self.assertIn("4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3", builder)
         self.assertIn("archive.extractall(site_packages)", builder)
+        self.assertIn('ROOT / "tools" / "ocr-bridge"', builder)
 
     def test_wpf_builder_checks_for_dotnet_8(self):
         script = (ROOT / "native" / "windows-wpf" / "build.ps1").read_text(encoding="utf-8")
@@ -49,6 +54,11 @@ class WindowsDistributionTests(unittest.TestCase):
 
 
 class MacOSDistributionTests(unittest.TestCase):
+    def test_installer_registers_one_click_ocr_bridge(self):
+        script = (ROOT / "tools" / "installers" / "install_macos.command").read_text(encoding="utf-8")
+        self.assertIn('tools/ocr-bridge', script)
+        self.assertIn('install_bridge.py', script)
+
     def test_dmg_builder_creates_universal_macos_12_app(self):
         script = (ROOT / "native" / "macos-dmg" / "build_dmg.sh").read_text(encoding="utf-8")
         self.assertIn('MIN_MACOS_VERSION="12.0"', script)

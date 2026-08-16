@@ -7,9 +7,10 @@
 - устанавливает LeadBridge в `C:\LeadBridgeKSO`;
 - размещает собственные Python 3.12, Pillow, Tesseract и модели `rus+eng` внутри `C:\LeadBridgeKSO\runtime`;
 - создаёт ярлыки LeadBridge и OCR на рабочем столе;
+- регистрирует локальный OCR-мост для кнопки «Запустить OCR» в расширении;
 - сразу открывает LeadBridge после завершения.
 
-Команды PowerShell, `winget` и ручная установка зависимостей не требуются. Системный Python не изменяется, а встроенные OCR-компоненты удаляются вместе с LeadBridge. Windows-службы не создаются, потому что вся обработка запускается локально только по команде пользователя.
+Команды PowerShell, `winget` и ручная установка зависимостей не требуются. Системный Python не изменяется, а встроенные OCR-компоненты удаляются вместе с LeadBridge. OCR-мост работает только на `127.0.0.1` и запускает обработку исключительно после нажатия пользователем кнопки в расширении.
 
 ## Установка tools pack
 
@@ -35,6 +36,7 @@ C:\LeadBridgeKSO\
     leadbridge\
     max-chat-local-exporter\
     max-chat-ocr-postprocessor\
+    ocr-bridge\
   integrations\
     google-apps-script-amocrm\
   archives\
@@ -53,6 +55,10 @@ C:\LeadBridgeKSO\
 4. Выберите `C:\LeadBridgeKSO\tools\max-chat-local-exporter`.
 
 ## OCR
+
+Основной способ: соберите чат в расширении и нажмите «Запустить OCR». Расширение сохранит ZIP, дождётся загрузки и запустит обработку; `messages_ocr.json` появится в `C:\LeadBridgeKSO\ocr_results`.
+
+Ручной launcher остаётся запасным вариантом.
 
 Если команда `py` не найдена при ручном запуске OCR, выполните:
 

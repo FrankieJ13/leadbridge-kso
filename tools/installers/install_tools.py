@@ -48,6 +48,7 @@ def install(root: Path, target: Path) -> None:
     copy_tree(first_existing(root / "apps" / "leadbridge-web", root / "tools" / "leadbridge"), target / "tools" / "leadbridge")
     copy_tree(first_existing(root / "apps" / "max-chat-local-exporter", root / "tools" / "max-chat-local-exporter"), target / "tools" / "max-chat-local-exporter")
     copy_tree(first_existing(root / "apps" / "max-chat-ocr-postprocessor", root / "tools" / "max-chat-ocr-postprocessor"), target / "tools" / "max-chat-ocr-postprocessor")
+    copy_tree(first_existing(root / "tools" / "ocr-bridge"), target / "tools" / "ocr-bridge")
 
     archives = first_existing(root / "releases" / "packages", root / "archives")
     for item in archives.iterdir():

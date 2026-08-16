@@ -1304,7 +1304,7 @@ URL: ${meta.sourceUrl}
 `;
   }
 
-  async function downloadStructuredZip() {
+  async function downloadStructuredZip(runOcr = false) {
     if (!state.records.size) captureMessages();
     if (!state.records.size) {
       setStatus('Не нашёл сообщений. Открой конкретный чат и попробуй ещё раз.');
@@ -1378,8 +1378,25 @@ URL: ${meta.sourceUrl}
       );
 
       const zip = makeZip(files);
-      downloadBlob(zip, `${rootName}.zip`);
-      setStatus(`ZIP создан.\nСообщений: ${records.length}\nКартинок сохранено: ${saved}\nОшибок по картинкам: ${failed}`);
+      const filename = `${rootName}.zip`;
+      if (runOcr) {
+        const blobUrl = URL.createObjectURL(zip);
+        const launch = await sendMessagePromise({
+          type: 'MAX_EXPORTER_DOWNLOAD_AND_OCR',
+          url: blobUrl,
+          filename
+        });
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+        if (!launch?.ok) {
+          downloadBlob(zip, filename);
+          setStatus(`Архив создан и скачан, но OCR не запущен.\n${launch?.error || 'Фоновый модуль недоступен'}\nПереустанови пакет LeadBridge KSO.`);
+        } else {
+          setStatus(launch.message || 'Архив сохраняется. После загрузки OCR запустится автоматически.');
+        }
+      } else {
+        downloadBlob(zip, filename);
+        setStatus(`Архив создан.\nСообщений: ${records.length}\nКартинок сохранено: ${saved}\nОшибок по картинкам: ${failed}`);
+      }
     } catch (error) {
       setStatus(`Ошибка ZIP: ${error?.message || String(error)}`);
     } finally {
@@ -1431,7 +1448,7 @@ URL: ${meta.sourceUrl}
     state.running = false;
     setButtonsRunning(false);
     const attachmentTotal = Array.from(state.records.values()).reduce((sum, r) => sum + (r.attachments?.length || 0), 0);
-    setStatus(`Готово.\nСообщений/блоков: ${state.records.size}\nУникальных изображений: ${attachmentTotal}\nЭто все фото и скриншоты, не число анкет.\nПовторов сообщений пропущено: ${state.duplicateHits}\nПовторов изображений отсечено: ${state.duplicateMediaHits}\nТеперь нажми «Скачать архив».`);
+    setStatus(`Готово.\nСообщений/блоков: ${state.records.size}\nУникальных изображений: ${attachmentTotal}\nЭто все фото и скриншоты, не число анкет.\nПовторов сообщений пропущено: ${state.duplicateHits}\nПовторов изображений отсечено: ${state.duplicateMediaHits}\nТеперь нажми «Запустить OCR».`);
   }
 
   function stopAutoScroll() {
@@ -1454,7 +1471,7 @@ URL: ${meta.sourceUrl}
   }
 
   function setButtonsRunning(isRunning) {
-    document.querySelectorAll('[data-maxle-export], #maxle-scan, #maxle-auto, #maxle-clear').forEach((button) => {
+    document.querySelectorAll('[data-maxle-export], #maxle-ocr, #maxle-scan, #maxle-auto, #maxle-clear').forEach((button) => {
       button.disabled = isRunning;
     });
     const stop = document.querySelector('#maxle-stop');
@@ -1481,6 +1498,10 @@ URL: ${meta.sourceUrl}
     panel.querySelector('#maxle-auto').addEventListener('click', () => autoScrollUp());
     panel.querySelector('#maxle-stop').addEventListener('click', () => stopAutoScroll());
     panel.querySelector('#maxle-clear').addEventListener('click', () => clearRecords());
+    panel.querySelector('#maxle-ocr').addEventListener('click', () => {
+      if (document.querySelector('#maxle-scan-before-export')?.checked) captureMessages();
+      downloadStructuredZip(true);
+    });
     panel.querySelectorAll('[data-maxle-export]').forEach((button) => {
       button.addEventListener('click', () => {
         if (document.querySelector('#maxle-scan-before-export')?.checked) captureMessages();
@@ -1494,6 +1515,11 @@ URL: ${meta.sourceUrl}
   }
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type === 'MAX_EXPORTER_OCR_STATUS') {
+      setStatus(String(message.text || 'Статус OCR обновлён.'));
+      sendResponse({ ok: true });
+      return false;
+    }
     if (message?.type === 'MAX_EXPORTER_SHOW') {
       ensurePanel();
       sendResponse({ ok: true });

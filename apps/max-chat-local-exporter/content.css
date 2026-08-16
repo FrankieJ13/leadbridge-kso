@@ -375,7 +375,7 @@
 .maxle-format strong { font-size: 8px; line-height: 1; }
 .maxle-format small { display: none; }
 
-.maxle-zip {
+.maxle-ocr {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
   align-items: center;
@@ -392,10 +392,10 @@
   transition: filter 160ms ease, transform 160ms ease;
 }
 
-.maxle-zip:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
-.maxle-zip:disabled { opacity: 0.5; }
+.maxle-ocr:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+.maxle-ocr:disabled { opacity: 0.5; }
 
-.maxle-zip-icon {
+.maxle-ocr-icon {
   display: grid;
   place-items: center;
   width: 28px;
@@ -405,10 +405,30 @@
   border-radius: 7px;
 }
 
-.maxle-zip-icon .maxle-icon { width: 15px; height: 15px; }
-.maxle-zip strong, .maxle-zip small { display: block; }
-.maxle-zip strong { font-size: 9px; font-weight: 770; line-height: 1.15; }
-.maxle-zip small { margin-top: 1px; color: rgba(255, 255, 255, 0.77); font-size: 7px; line-height: 1.15; }
+.maxle-ocr-icon .maxle-icon { width: 15px; height: 15px; }
+.maxle-ocr strong, .maxle-ocr small { display: block; }
+.maxle-ocr strong { font-size: 9px; font-weight: 770; line-height: 1.15; }
+.maxle-ocr small { margin-top: 1px; color: rgba(255, 255, 255, 0.77); font-size: 7px; line-height: 1.15; }
+
+.maxle-download-only {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 24px;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 4px 7px !important;
+  color: #c5cde0 !important;
+  font-size: 7.5px !important;
+  background: rgba(22, 32, 57, 0.9);
+  border: 1px solid var(--maxle-border) !important;
+  border-radius: 7px;
+}
+
+.maxle-download-only:hover:not(:disabled) { background: rgba(31, 44, 77, 0.98); }
+.maxle-download-only:disabled { opacity: 0.5; }
+.maxle-download-only .maxle-icon { width: 11px; height: 11px; }
 
 .maxle-note {
   display: grid;

@@ -73,7 +73,7 @@
         </div>
         <div class="maxle-status-shell" role="status" aria-live="polite">
           <span class="maxle-status-icon">${icon('info')}</span>
-          <div class="maxle-status" id="maxle-status">Открой нужный чат и нажми «Весь чат». После завершения скачай результат.</div>
+          <div class="maxle-status" id="maxle-status">Открой нужный чат и нажми «Весь чат». После завершения нажми «Запустить OCR».</div>
         </div>
         <div class="maxle-options">
           <label class="maxle-option">
@@ -91,12 +91,13 @@
         </div>
         <div class="maxle-step-heading maxle-step-heading-export">
           <span class="maxle-step-number">2</span>
-          <strong>Скачать результат</strong>
+          <strong>Запустить обработку</strong>
         </div>
-        <button class="maxle-zip" data-maxle-export="zip" type="button">
-          <span class="maxle-zip-icon">${icon('fileArchive')}</span>
-          <span><strong>Скачать архив</strong><small>Сообщения + изображения · ZIP</small></span>
+        <button class="maxle-ocr" id="maxle-ocr" type="button">
+          <span class="maxle-ocr-icon">${icon('scan')}</span>
+          <span><strong>Запустить OCR</strong><small>Архив скачается и обработается</small></span>
         </button>
+        <button class="maxle-download-only" data-maxle-export="zip" type="button">${icon('fileArchive')}<span>Только скачать архив · ZIP</span></button>
         <div class="maxle-section-title">Или один файл</div>
         <div class="maxle-format-grid">
           ${format('json', 'database', 'json')}

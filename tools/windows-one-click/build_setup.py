@@ -92,6 +92,7 @@ def prepare_stage() -> None:
     shutil.rmtree(STAGE / "tools" / "leadbridge" / "releases", ignore_errors=True)
     copytree(ROOT / "apps" / "max-chat-local-exporter", STAGE / "tools" / "max-chat-local-exporter")
     copytree(ROOT / "apps" / "max-chat-ocr-postprocessor", STAGE / "tools" / "max-chat-ocr-postprocessor")
+    copytree(ROOT / "tools" / "ocr-bridge", STAGE / "tools" / "ocr-bridge")
     copytree(ROOT / "integrations" / "google-apps-script-amocrm", STAGE / "integrations" / "google-apps-script-amocrm")
 
     python_runtime = STAGE / "runtime" / "python"

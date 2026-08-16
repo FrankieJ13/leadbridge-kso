@@ -173,6 +173,7 @@ def build_tools_pack(platform_name: str, component_zips: list[Path], commit: str
         pack / "tools" / "max-chat-ocr-postprocessor",
         "MAX_CHAT_EXPORT_*.zip",
     )
+    copytree(ROOT / "tools" / "ocr-bridge", pack / "tools" / "ocr-bridge")
     copytree(ROOT / "integrations" / "google-apps-script-amocrm", pack / "integrations" / "google-apps-script-amocrm")
     for archive in component_zips:
         copy_file(archive, pack / "archives" / archive.name)

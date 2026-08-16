@@ -116,6 +116,13 @@ Section "Установка" SEC_MAIN
     !insertmacro FailInstall 15 "Tesseract не прошёл проверку. Код: $ExitCode"
   ${EndIf}
 
+  DetailPrint "Запуск локального OCR-моста..."
+  nsExec::ExecToLog '"$PythonExe" "$INSTDIR\tools\ocr-bridge\install_bridge.py" --target "$INSTDIR"'
+  Pop $ExitCode
+  ${If} $ExitCode != 0
+    !insertmacro FailInstall 16 "Не удалось запустить OCR-мост. Код: $ExitCode"
+  ${EndIf}
+
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   WriteRegStr HKLM "${PRODUCT_REGKEY}" "DisplayName" "${PRODUCT_NAME}"
   WriteRegStr HKLM "${PRODUCT_REGKEY}" "DisplayVersion" "${PRODUCT_VERSION}"
@@ -140,6 +147,7 @@ SectionEnd
 
 Section "Uninstall"
   SetShellVarContext all
+  nsExec::ExecToLog '"$INSTDIR\runtime\python\python.exe" "$INSTDIR\tools\ocr-bridge\install_bridge.py" --target "$INSTDIR" --uninstall'
   Delete "$DESKTOP\LeadBridge KSO.lnk"
   Delete "$DESKTOP\LeadBridge OCR.lnk"
   RMDir /r "$SMPROGRAMS\LeadBridge KSO"
