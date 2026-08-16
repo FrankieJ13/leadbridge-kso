@@ -140,20 +140,20 @@ function renderReleaseHint(manifest){
   const title = document.createElement('div');
   title.className = 'release-title';
   title.textContent = nativeSetup && nativeSetup.download_url
-    ? `LeadBridge KSO ${manifest.package_version || PACKAGE_VERSION} для Windows`
+    ? `Дополнительное приложение LeadBridge KSO ${manifest.package_version || PACKAGE_VERSION} для Windows`
     : nativeDmg && nativeDmg.download_url
-    ? `LeadBridge KSO ${manifest.package_version || PACKAGE_VERSION} для macOS`
+    ? `Дополнительное приложение LeadBridge KSO ${manifest.package_version || PACKAGE_VERSION} для macOS`
     : tools && tools.download_url
     ? `Пакет тулзов LeadBridge KSO ${manifest.package_version || PACKAGE_VERSION} для ${labels[os] || 'вашей ОС'}`
     : `LeadBridge KSO ${manifest.package_version || PACKAGE_VERSION}`;
   const details = document.createElement('div');
   details.className = 'small muted';
   details.textContent = nativeSetup && nativeSetup.download_url
-    ? 'Один автономный EXE устанавливает LeadBridge, Python, Pillow, Tesseract и OCR-модели, создаёт ярлыки и сразу запускает продукт.'
+    ? 'OCR уже работает прямо в расширении Chrome без установки. EXE нужен только для отдельной локальной программы и нативного ускорения.'
     : nativeDmg && nativeDmg.download_url
-    ? 'Готовое нативное приложение доступно в DMG. Пакет тулзов содержит OCR, MAX exporter, установщик и локальную Web-копию.'
+    ? 'OCR уже работает прямо в расширении Chrome без установки. DMG нужен только для отдельного окна LeadBridge; tools pack оставлен для ручной и профессиональной установки.'
     : tools && tools.download_url
-    ? `Сайт не устанавливает программы сам: скачай ZIP, распакуй и запусти ${tools.installer || 'установщик'} вручную. Полный архив содержит весь проект и пакеты для обеих ОС.`
+    ? 'Для обычной работы достаточно расширения Chrome и LeadBridge. Tools pack нужен только для ручной установки дополнительных инструментов.'
     : 'Полный архив содержит Web/PWA, установщики, интеграцию, нативные исходники и актуальные пакеты.';
   copy.append(title, details);
 
@@ -165,7 +165,7 @@ function renderReleaseHint(manifest){
     setupDownload.href = repoAssetUrl(nativeSetup.download_url);
     setupDownload.target = '_blank';
     setupDownload.rel = 'noopener';
-    setupDownload.textContent = 'Установить EXE';
+    setupDownload.textContent = 'EXE (необязательно)';
     actions.append(setupDownload);
   }
   if(nativeDmg && nativeDmg.download_url){
@@ -174,7 +174,7 @@ function renderReleaseHint(manifest){
     dmgDownload.href = repoAssetUrl(nativeDmg.download_url);
     dmgDownload.target = '_blank';
     dmgDownload.rel = 'noopener';
-    dmgDownload.textContent = 'Приложение DMG';
+    dmgDownload.textContent = 'DMG (необязательно)';
     actions.append(dmgDownload);
   }
   if(tools && tools.download_url){
@@ -183,7 +183,7 @@ function renderReleaseHint(manifest){
     download.href = repoAssetUrl(tools.download_url);
     download.target = '_blank';
     download.rel = 'noopener';
-    download.textContent = `Пакет для ${labels[os] || 'ОС'}`;
+    download.textContent = `Tools pack для ${labels[os] || 'ОС'}`;
     actions.append(download);
   }
   if(fullProject && fullProject.download_url){

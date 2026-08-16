@@ -14,6 +14,13 @@
     };
   }
 
+  function renderedScale(panel) {
+    const rect = panel.getBoundingClientRect();
+    const logicalWidth = Number(panel.offsetWidth || 0);
+    if (!logicalWidth || !Number.isFinite(rect.width)) return 1;
+    return Math.max(0.1, rect.width / logicalWidth);
+  }
+
   function install(panel) {
     if (!panel || panel.dataset.motionReady === 'true') return;
     const header = panel.querySelector('.maxle-header');
@@ -23,14 +30,19 @@
     panel.dataset.motionReady = 'true';
     let drag = null;
 
+    function applyRenderedPosition(left, top) {
+      const scale = renderedScale(panel);
+      panel.style.left = `${left / scale}px`;
+      panel.style.top = `${top / scale}px`;
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+    }
+
     function keepInsideViewport() {
       if (panel.dataset.moved !== 'true') return;
       const rect = panel.getBoundingClientRect();
       const position = clampPosition(rect.left, rect.top, rect.width, rect.height, window.innerWidth, window.innerHeight);
-      panel.style.left = `${position.left}px`;
-      panel.style.top = `${position.top}px`;
-      panel.style.right = 'auto';
-      panel.style.bottom = 'auto';
+      applyRenderedPosition(position.left, position.top);
     }
 
     function movePanel(clientX, clientY) {
@@ -44,10 +56,7 @@
         window.innerWidth,
         window.innerHeight
       );
-      panel.style.left = `${position.left}px`;
-      panel.style.top = `${position.top}px`;
-      panel.style.right = 'auto';
-      panel.style.bottom = 'auto';
+      applyRenderedPosition(position.left, position.top);
       panel.dataset.moved = 'true';
     }
 
@@ -89,5 +98,5 @@
     window.addEventListener('resize', keepInsideViewport);
   }
 
-  return { clampPosition, install };
+  return { clampPosition, renderedScale, install };
 });

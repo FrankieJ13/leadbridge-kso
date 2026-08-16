@@ -59,7 +59,7 @@ importScripts('ocr_bridge_policy.js');
       });
     } catch (error) {
       if (error?.name === 'AbortError') throw new Error('Локальный OCR-мост не ответил вовремя');
-      throw new Error('Локальная OCR-служба недоступна. Установи или обнови пакет LeadBridge KSO и запусти установщик ещё раз');
+      throw new Error('Дополнительная нативная OCR-служба недоступна');
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
     }
@@ -75,7 +75,7 @@ importScripts('ocr_bridge_policy.js');
     const health = await callLocalOcrBridge(ocrPolicy.ocrHealthRequest(), 3500);
     const capabilities = Array.isArray(health.capabilities) ? health.capabilities : [];
     if (Number(health.apiVersion || 0) < 2 || !capabilities.includes(capability)) {
-      throw new Error('OCR-мост устарел. Переустанови актуальный пакет LeadBridge KSO, чтобы перезапустить его');
+      throw new Error('Дополнительная нативная OCR-служба устарела');
     }
     return health;
   }
@@ -118,7 +118,7 @@ importScripts('ocr_bridge_policy.js');
       } catch (error) {
         notifyOcrStatus(
           pending.tabId,
-          `Архив скачан, но OCR не запущен.\n${error?.message || String(error)}\nПереустанови пакет LeadBridge KSO, чтобы включить локальный OCR-мост.`,
+          `Архив скачан, но нативный OCR не запустился.\n${error?.message || String(error)}\nНажми «Выбрать ZIP для OCR»: расширение обработает архив прямо в Chrome без установки программ.`,
           'error'
         );
       }
@@ -235,6 +235,17 @@ importScripts('ocr_bridge_policy.js');
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type === 'MAX_EXPORTER_OCR_HEALTH') {
+      if (!policy.isTrustedSender(sender, chrome.runtime.id)) {
+        sendResponse({ ok: false, error: 'Недоверенный источник запроса' });
+        return false;
+      }
+      assertLocalOcrBridge('run')
+        .then((health) => sendResponse({ ok: true, health }))
+        .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
+      return true;
+    }
+
     if (message?.type === 'MAX_EXPORTER_OCR_STATUS_QUERY') {
       queryLocalOcrStatus(sender)
         .then(sendResponse)

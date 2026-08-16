@@ -7,13 +7,15 @@
 #max-local-exporter-panel {
   --maxle-border: rgba(126, 151, 205, 0.27);
   --maxle-muted: #9da9c3;
+  --maxle-scale: 1.2;
   position: fixed;
   z-index: 2147483647;
   right: 8px;
   bottom: 8px;
   width: 240px;
-  max-width: calc(100vw - 16px);
-  max-height: calc(100vh - 16px);
+  max-width: calc(83.3333vw - 13.3333px);
+  max-height: calc(83.3333vh - 13.3333px);
+  zoom: var(--maxle-scale);
   color: #f7f9ff;
   background: linear-gradient(145deg, rgba(10, 18, 35, 0.99), rgba(4, 10, 23, 0.99));
   border: 1px solid rgba(125, 148, 196, 0.38);

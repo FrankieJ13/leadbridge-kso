@@ -19,10 +19,11 @@ LeadBridge KSO v8.2.10.0848 — полный проект
 2. Выполните:
    powershell -ExecutionPolicy Bypass -File .\tools\installers\install_windows.ps1
 
-Установка набора инструментов macOS:
-1. Откройте Terminal в корне распакованного проекта.
-2. Выполните:
-   chmod +x ./tools/installers/install_macos.command
-   ./tools/installers/install_macos.command
+OCR на macOS и Windows без установки:
+1. Загрузите папку apps/max-chat-local-exporter как распакованное расширение Chrome.
+2. В панели расширения нажмите «Запустить OCR» или выберите готовый ZIP.
+3. Расширение обработает архив прямо в Chrome и скачает messages_ocr.json.
+
+Скрипты в tools/installers нужны только для необязательного старого Python-процессора и разработки.
 
 Все выбранные MAX, OCR, CSV, ZIP и изображения обрабатываются на устройстве пользователя. GitHub Pages не получает эти файлы. В онлайн-режиме amoCRM браузер отправляет токен только выбранному Google Apps Script /exec и получает CSV-снимок, который затем обрабатывается локально.

@@ -18,6 +18,8 @@ const mediaIdentity = require('../../apps/max-chat-local-exporter/media_identity
 const panelUi = require('../../apps/max-chat-local-exporter/panel_ui.js');
 const panelMotion = require('../../apps/max-chat-local-exporter/panel_motion.js');
 const ocrBridgePolicy = require('../../apps/max-chat-local-exporter/ocr_bridge_policy.js');
+const browserOcr = require('../../apps/max-chat-local-exporter/browser_ocr.js');
+const fflate = require('../../apps/max-chat-local-exporter/vendor/fflate/fflate.min.js');
 
 test('normalizePhone accepts Russian phone formats and rejects long identifiers', () => {
   assert.equal(security.normalizePhone('8 (912) 345-67-89'), '9123456789');
@@ -273,12 +275,94 @@ test('extension grants only the permissions needed for local OCR handoff', () =>
   assert.equal(manifest.permissions.includes('storage'), true);
   assert.equal(manifest.host_permissions.includes('http://127.0.0.1/*'), true);
   assert.equal(manifest.host_permissions.includes('<all_urls>'), false);
+  assert.deepEqual(manifest.content_scripts[0].js.slice(0, 3), [
+    'vendor/fflate/fflate.min.js',
+    'vendor/tesseract/tesseract.min.js',
+    'browser_ocr.js'
+  ]);
+  assert.match(manifest.content_security_policy.extension_pages, /wasm-unsafe-eval/);
+  assert.doesNotMatch(manifest.content_security_policy.extension_pages, /blob:/);
+  assert.equal(JSON.stringify(manifest).includes('cdn.jsdelivr.net'), false);
+  assert.equal(JSON.stringify(manifest).includes('tessdata.projectnaptha.com'), false);
+});
+
+test('browser OCR rejects unsafe ZIP paths and extracts phones only beside phone labels', () => {
+  assert.equal(browserOcr.safeArchivePath('MAX_EXPORT/messages.json'), 'MAX_EXPORT/messages.json');
+  assert.equal(browserOcr.safeArchivePath('../messages.json'), '');
+  assert.equal(browserOcr.safeArchivePath('/private/messages.json'), '');
+  assert.equal(browserOcr.safeArchivePath('C:\\private\\messages.json'), '');
+  assert.deepEqual(
+    browserOcr.extractPhones([
+      'Паспорт: 45 10 123456',
+      'Серия документа: 8 692 095-10-05',
+      'Телефон: 8 906 950-87-19',
+      'Контактное лицо, телефон: +7 922 183-70-57'
+    ].join('\n')),
+    ['79069508719', '79221837057']
+  );
+});
+
+test('browser OCR processes an exporter ZIP locally and returns LeadBridge-compatible JSON', async () => {
+  const encoder = new TextEncoder();
+  const archive = fflate.zipSync({
+    'MAX_CHAT_EXPORT_test/messages.json': encoder.encode(JSON.stringify({
+      messages: [{
+        message_index: 1,
+        text: 'Анкета клиента',
+        attachments: [{path: 'attachments/msg_0001/att_01.png'}]
+      }]
+    })),
+    'MAX_CHAT_EXPORT_test/attachments/msg_0001/att_01.png': new Uint8Array([1, 2, 3])
+  });
+  let workerOptions = null;
+  let terminated = false;
+  const tesseractApi = {
+    OEM: {LSTM_ONLY: 1},
+    PSM: {SINGLE_BLOCK: '6'},
+    async createWorker(_languages, _oem, options) {
+      workerOptions = options;
+      return {
+        async setParameters() {},
+        async recognize() {
+          return {data: {text: 'Телефон: 8 906 950-87-19\nФИО: Гилева Наталья Валерьевна'}};
+        },
+        async terminate() { terminated = true; }
+      };
+    }
+  };
+
+  const result = await browserOcr.processZip(new Blob([archive]), {
+    fflateApi: fflate,
+    tesseractApi,
+    getURL: (asset) => `chrome-extension://test/${asset}`
+  });
+  const attachment = result.data.messages[0].attachment_ocr[0];
+  assert.equal(result.filename, 'messages_ocr.json');
+  assert.equal(result.data.processor.local, true);
+  assert.equal(result.data.processor.network_uploads, false);
+  assert.deepEqual(result.data.stats, {total: 1, completed: 1, failed: 0});
+  assert.deepEqual(attachment.phones, ['79069508719']);
+  assert.deepEqual(attachment.names, ['Гилева Наталья Валерьевна']);
+  assert.equal(attachment.structured.fields.borrower_full_name, 'Гилева Наталья Валерьевна');
+  assert.equal(attachment.status, 'ok');
+  assert.equal(workerOptions.workerPath, 'chrome-extension://test/vendor/tesseract/worker.min.js');
+  assert.equal(workerOptions.corePath, 'chrome-extension://test/vendor/tesseract/core/tesseract-core-simd-lstm.wasm.js');
+  assert.equal(workerOptions.langPath, 'chrome-extension://test/vendor/tesseract/lang');
+  assert.equal(workerOptions.workerBlobURL, false);
+  assert.equal(terminated, true);
+});
+
+test('exporter panel and all of its contents are scaled up by exactly 20 percent', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../../apps/max-chat-local-exporter/content.css'), 'utf8');
+  assert.match(css, /--maxle-scale:\s*1\.2\s*;/);
+  assert.match(css, /zoom:\s*var\(--maxle-scale\)\s*;/);
 });
 
 test('exporter panel movement stays inside the visible tab area', () => {
   assert.deepEqual(panelMotion.clampPosition(-100, -50, 240, 450, 1280, 900), {left: 8, top: 8});
   assert.deepEqual(panelMotion.clampPosition(1200, 800, 240, 450, 1280, 900), {left: 1032, top: 442});
   assert.deepEqual(panelMotion.clampPosition(50, 40, 500, 700, 390, 640), {left: 8, top: 8});
+  assert.equal(panelMotion.renderedScale({offsetWidth: 240, getBoundingClientRect: () => ({width: 288})}), 1.2);
 });
 
 test('online amoCRM request keeps token out of URL and restricts Apps Script redirects', () => {

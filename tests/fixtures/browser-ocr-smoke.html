@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Browser OCR smoke test</title>
+</head>
+<body>
+  <pre id="result">running</pre>
+  <script src="../../apps/max-chat-local-exporter/vendor/fflate/fflate.min.js"></script>
+  <script src="../../apps/max-chat-local-exporter/vendor/tesseract/tesseract.min.js"></script>
+  <script src="../../apps/max-chat-local-exporter/browser_ocr.js"></script>
+  <script>
+    (async () => {
+      const result = document.querySelector('#result');
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1400;
+        canvas.height = 360;
+        const context = canvas.getContext('2d');
+        context.fillStyle = '#fff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = '#000';
+        context.font = '52px Arial, sans-serif';
+        context.fillText('Телефон: 8 906 950-87-19', 50, 120);
+        context.fillText('ФИО: Гилева Наталья Валерьевна', 50, 240);
+        const image = new Uint8Array(await (await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))).arrayBuffer());
+        const messages = new TextEncoder().encode(JSON.stringify({
+          messages: [{
+            message_index: 1,
+            text: 'Анкета клиента',
+            attachments: [{path: 'attachments/msg_0001/att_01.png'}]
+          }]
+        }));
+        const zip = fflate.zipSync({
+          'MAX_CHAT_EXPORT_smoke/messages.json': messages,
+          'MAX_CHAT_EXPORT_smoke/attachments/msg_0001/att_01.png': image
+        });
+        const base = new URL('../../apps/max-chat-local-exporter/', location.href);
+        const output = await MaxExporterBrowserOcr.processZip(new Blob([zip]), {
+          getURL: (asset) => new URL(asset, base).href
+        });
+        const attachment = output.data.messages[0].attachment_ocr[0];
+        result.textContent = JSON.stringify({
+          ok: attachment.status === 'ok' && attachment.phones.includes('79069508719'),
+          status: attachment.status,
+          phones: attachment.phones,
+          names: attachment.names,
+          text: attachment.ocr_text,
+          processor: output.data.processor
+        });
+        document.documentElement.dataset.complete = 'true';
+      } catch (error) {
+        result.textContent = JSON.stringify({ok: false, error: error?.stack || error?.message || String(error)});
+        document.documentElement.dataset.complete = 'error';
+      }
+    })();
+  </script>
+</body>
+</html>

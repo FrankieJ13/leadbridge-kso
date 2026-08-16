@@ -838,6 +838,7 @@
   }
 
   let ocrMonitorTimer = 0;
+  let browserOcrController = null;
 
   function stopOcrMonitor() {
     if (ocrMonitorTimer) clearTimeout(ocrMonitorTimer);
@@ -875,6 +876,46 @@
   function startOcrMonitor() {
     stopOcrMonitor();
     ocrMonitorTimer = setTimeout(() => pollOcrStatus(), 800);
+  }
+
+  async function nativeOcrHealth() {
+    const result = await sendMessagePromise({ type: 'MAX_EXPORTER_OCR_HEALTH' });
+    return result?.ok ? result : { ok: false, error: result?.error || 'Локальная OCR-служба недоступна' };
+  }
+
+  async function runBrowserOcr(archive, archiveName) {
+    if (browserOcrController) return false;
+    const controller = new AbortController();
+    browserOcrController = controller;
+    setStatus(`Нативная служба не требуется.\nЗапускаю OCR прямо в Chrome: ${archiveName}`);
+    setOcrFeedback('Запускаю встроенный OCR в Chrome. Изображения остаются на этом компьютере.');
+    try {
+      const result = await MaxExporterBrowserOcr.processZip(archive, {
+        signal: controller.signal,
+        getURL: (path) => chrome.runtime.getURL(path),
+        onProgress: (event) => {
+          const message = event?.text || 'OCR выполняется…';
+          setStatus(message);
+          setOcrFeedback(message);
+        }
+      });
+      const output = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json;charset=utf-8' });
+      downloadBlob(output, result.filename || 'messages_ocr.json');
+      const message = `OCR завершён в Chrome.\nСкачан файл messages_ocr.json. Выбери его в LeadBridge как источник MAX.`;
+      setStatus(message);
+      setOcrFeedback(message, 'success');
+      return true;
+    } catch (error) {
+      const stopped = error?.name === 'AbortError' || controller.signal.aborted;
+      const message = stopped
+        ? 'OCR остановлен. Исходный ZIP не изменён.'
+        : `Встроенный OCR завершился с ошибкой.\n${error?.message || String(error)}`;
+      setStatus(message);
+      setOcrFeedback(message, stopped ? 'info' : 'error');
+      return false;
+    } finally {
+      browserOcrController = null;
+    }
   }
 
   function orderedRecords() {
@@ -1360,7 +1401,7 @@ URL: ${meta.sourceUrl}
       return;
     }
 
-    if (runOcr) setOcrFeedback('Готовлю ZIP. После скачивания проверю локальный OCR-мост…');
+    if (runOcr) setOcrFeedback('Готовлю ZIP и запущу OCR локально. Установка программ не требуется.');
     setButtonsRunning(true);
     try {
       const records = cloneRecordsForExport();
@@ -1430,22 +1471,26 @@ URL: ${meta.sourceUrl}
       const zip = makeZip(files);
       const filename = `${rootName}.zip`;
       if (runOcr) {
-        const blobUrl = URL.createObjectURL(zip);
-        const launch = await sendMessagePromise({
-          type: 'MAX_EXPORTER_DOWNLOAD_AND_OCR',
-          url: blobUrl,
-          filename
-        });
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
-        if (!launch?.ok) {
+        const bridge = await nativeOcrHealth();
+        if (!bridge.ok) {
           downloadBlob(zip, filename);
-          const message = `Архив скачан, но OCR не запущен.\n${launch?.error || 'Фоновый модуль недоступен'}`;
-          setStatus(`${message}\nПереустанови пакет LeadBridge KSO.`);
-          setOcrFeedback(message, 'error');
+          await runBrowserOcr(zip, filename);
         } else {
-          const message = launch.message || 'Архив сохраняется. После загрузки OCR запустится автоматически.';
-          setStatus(message);
-          setOcrFeedback(message);
+          const blobUrl = URL.createObjectURL(zip);
+          const launch = await sendMessagePromise({
+            type: 'MAX_EXPORTER_DOWNLOAD_AND_OCR',
+            url: blobUrl,
+            filename
+          });
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+          if (!launch?.ok) {
+            downloadBlob(zip, filename);
+            await runBrowserOcr(zip, filename);
+          } else {
+            const message = launch.message || 'Архив сохраняется. После загрузки OCR запустится автоматически.';
+            setStatus(message);
+            setOcrFeedback(message);
+          }
         }
       } else {
         downloadBlob(zip, filename);
@@ -1489,29 +1534,37 @@ URL: ${meta.sourceUrl}
       return;
     }
 
-    if (button) button.disabled = true;
-    setStatus(`ZIP выбран: ${filename}\nПроверяю локальную OCR-службу…`);
-    setOcrFeedback(`ZIP выбран: ${filename}\nПроверяю локальную OCR-службу…`);
+    setButtonsRunning(true);
+    setStatus(`ZIP выбран: ${filename}\nЗапускаю локальный OCR…`);
+    setOcrFeedback(`ZIP выбран: ${filename}\nВыбираю самый быстрый локальный режим OCR…`);
     let blobUrl = '';
     try {
-      blobUrl = URL.createObjectURL(file);
-      const result = await sendMessagePromise({
-        type: 'MAX_EXPORTER_DOWNLOAD_AND_OCR',
-        url: blobUrl,
-        filename,
-        requireBridgeBeforeDownload: true
-      });
-      if (!result?.ok) throw new Error(result?.error || 'Локальная OCR-служба недоступна');
-      const message = `ZIP принят: ${filename}\nChrome сохранит рабочую копию и автоматически запустит OCR.`;
-      setStatus(message);
-      setOcrFeedback(message);
+      const bridge = await nativeOcrHealth();
+      if (!bridge.ok) {
+        await runBrowserOcr(file, filename);
+      } else {
+        blobUrl = URL.createObjectURL(file);
+        const result = await sendMessagePromise({
+          type: 'MAX_EXPORTER_DOWNLOAD_AND_OCR',
+          url: blobUrl,
+          filename,
+          requireBridgeBeforeDownload: true
+        });
+        if (!result?.ok) {
+          await runBrowserOcr(file, filename);
+        } else {
+          const message = `ZIP принят: ${filename}\nChrome сохранит рабочую копию и автоматически запустит OCR.`;
+          setStatus(message);
+          setOcrFeedback(message);
+        }
+      }
     } catch (error) {
       const message = `OCR не запущен.\n${error?.message || String(error)}`;
       setStatus(message);
       setOcrFeedback(message, 'error');
     } finally {
       if (blobUrl) setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
-      if (button) button.disabled = false;
+      setButtonsRunning(false);
     }
   }
 
@@ -1563,6 +1616,12 @@ URL: ${meta.sourceUrl}
   }
 
   function stopAutoScroll() {
+    if (browserOcrController) {
+      browserOcrController.abort();
+      setStatus('Останавливаю встроенный OCR…');
+      setOcrFeedback('Останавливаю встроенный OCR…');
+      return;
+    }
     state.running = false;
     setButtonsRunning(false);
     setStatus(`Остановлено. Собрано блоков: ${state.records.size}`);

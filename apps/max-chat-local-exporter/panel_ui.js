@@ -113,7 +113,7 @@
         <div class="maxle-note">
           <div class="maxle-note-copy">
             <span class="maxle-note-shield">${icon('shieldCheck')}</span>
-            <p>В архиве будут сообщения, все найденные изображения и готовый HTML-отчёт.</p>
+            <p>OCR работает локально прямо в Chrome. Изображения не отправляются в интернет.</p>
           </div>
         </div>
         <div class="maxle-author">Бочаров Юлиан · 2026</div>

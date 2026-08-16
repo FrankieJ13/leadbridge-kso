@@ -1,6 +1,9 @@
 LeadBridge KSO — Windows tools pack v8.2.10.0848
 
-Для обычного пользователя рекомендуется единый автономный файл:
+ВАЖНО: для обычной работы OCR этот пакет и EXE устанавливать не нужно.
+MAX Chat Exporter уже распознаёт ZIP прямо в Chrome и скачивает messages_ocr.json.
+
+Для отдельной локальной программы доступен автономный файл:
 LeadBridgeKSO-Setup-Windows-v8.2.10.0848.exe
 Он сам ставит LeadBridge со встроенными Python, Pillow, Tesseract и OCR-моделями, создаёт ярлыки и запускает продукт. Системный Python не затрагивается.
 
@@ -40,8 +43,8 @@ Chrome extension:
 
 OCR:
 1. В расширении соберите чат и нажмите «Запустить OCR».
-2. ZIP сохранится, OCR запустится автоматически, результат появится в C:\LeadBridgeKSO\ocr_results.
-3. Ручной запасной запуск: C:\LeadBridgeKSO\launchers\run_ocr_windows.bat.
-4. Для LeadBridge используйте messages_ocr.json из результата.
+2. Расширение обработает ZIP прямо в Chrome и скачает messages_ocr.json.
+3. Установка этого tools pack для двух предыдущих шагов не нужна.
+4. Ручной запасной запуск Python: C:\LeadBridgeKSO\launchers\run_ocr_windows.bat.
 
 MAX, OCR, матчинг и отчёты остаются локально. Онлайн amoCRM только скачивает read-only CSV-снимок с настроенного Apps Script.
