@@ -4,6 +4,7 @@ import importlib.util
 import json
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from unittest import mock
 
@@ -17,6 +18,20 @@ SPEC.loader.exec_module(release)
 
 
 class ReleaseIntegrityTests(unittest.TestCase):
+    def test_component_zip_excludes_local_chat_exports(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "component"
+            source.mkdir()
+            (source / "tool.py").write_text("print('ok')\n", encoding="utf-8")
+            (source / "MAX_CHAT_EXPORT_private.zip").write_bytes(b"private")
+            output = root / "component.zip"
+
+            release.zip_path(source, output, exclude_patterns=("MAX_CHAT_EXPORT_*.zip",))
+
+            with zipfile.ZipFile(output) as archive:
+                self.assertEqual(archive.namelist(), ["tool.py"])
+
     def test_verify_rejects_unlisted_package_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

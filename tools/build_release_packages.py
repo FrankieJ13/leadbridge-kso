@@ -86,7 +86,12 @@ def zip_info(name: str, executable: bool = False) -> zipfile.ZipInfo:
     return info
 
 
-def zip_path(src: Path, dst: Path, arc_root: str | None = None) -> None:
+def zip_path(
+    src: Path,
+    dst: Path,
+    arc_root: str | None = None,
+    exclude_patterns: tuple[str, ...] = (),
+) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     if dst.exists():
         dst.unlink()
@@ -98,6 +103,8 @@ def zip_path(src: Path, dst: Path, arc_root: str | None = None) -> None:
         base = src.parent if arc_root else src
         for path in sorted(item for item in src.rglob("*") if item.is_file()):
             if path.name == ".DS_Store" or "__pycache__" in path.parts:
+                continue
+            if any(path.match(pattern) or path.name == pattern for pattern in exclude_patterns):
                 continue
             arcname = str(path.relative_to(base))
             executable = bool(path.stat().st_mode & stat.S_IXUSR)
@@ -122,7 +129,11 @@ def build_component_zips() -> list[Path]:
     outputs.append(exporter_zip)
 
     ocr_zip = PACKAGES / f"max-chat-ocr-postprocessor-{OCR_VERSION}.zip"
-    zip_path(ROOT / "apps" / "max-chat-ocr-postprocessor", ocr_zip)
+    zip_path(
+        ROOT / "apps" / "max-chat-ocr-postprocessor",
+        ocr_zip,
+        exclude_patterns=("MAX_CHAT_EXPORT_*.zip",),
+    )
     outputs.append(ocr_zip)
 
     html_build = BUILD / f"leadbridge-offline-html-{APP_VERSION}"
@@ -157,7 +168,11 @@ def build_tools_pack(platform_name: str, component_zips: list[Path], commit: str
     reset_dir(pack)
     copy_web_bundle(pack / "tools" / "leadbridge")
     copytree(ROOT / "apps" / "max-chat-local-exporter", pack / "tools" / "max-chat-local-exporter")
-    copytree(ROOT / "apps" / "max-chat-ocr-postprocessor", pack / "tools" / "max-chat-ocr-postprocessor")
+    copytree(
+        ROOT / "apps" / "max-chat-ocr-postprocessor",
+        pack / "tools" / "max-chat-ocr-postprocessor",
+        "MAX_CHAT_EXPORT_*.zip",
+    )
     copytree(ROOT / "integrations" / "google-apps-script-amocrm", pack / "integrations" / "google-apps-script-amocrm")
     for archive in component_zips:
         copy_file(archive, pack / "archives" / archive.name)
@@ -350,7 +365,10 @@ def copy_repo_for_github_ready(target: Path) -> None:
             continue
         target_item = target / item.name
         if item.is_dir():
-            ignore_names = [".DS_Store", "__pycache__", "*.pyc", "build", "dist", "bin", "obj"]
+            ignore_names = [
+                ".DS_Store", "__pycache__", "*.pyc", "build", "dist", "bin", "obj",
+                "MAX_CHAT_EXPORT_*.zip",
+            ]
             if item.name == "releases":
                 ignore_names.append("packages")
             shutil.copytree(item, target_item, symlinks=True, ignore=shutil.ignore_patterns(*ignore_names))

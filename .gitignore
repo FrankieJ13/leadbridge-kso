@@ -11,3 +11,4 @@ native/macos-dmg/build/
 native/macos-dmg/dist/
 native/macos-dmg/Web/
 releases/packages/LeadBridgeKSO-Setup-Windows-*.exe
+apps/max-chat-ocr-postprocessor/MAX_CHAT_EXPORT_*.zip

@@ -9,6 +9,8 @@
     records: new Map(),
     elementKeys: new WeakMap(),
     elementSeq: 0,
+    lastViewport: [],
+    duplicateHits: 0,
     running: false,
     batch: 0,
     seq: 0,
@@ -673,20 +675,14 @@
     let added = 0;
     let mediaFound = 0;
 
-    candidates.forEach((candidate, domIndex) => {
+    const prepared = candidates.map((candidate, domIndex) => {
       const { el, text, rect, media } = candidate;
       mediaFound += media.length;
       const meta = inferMeta(el, rect, rootRect, text);
       const reply = extractReplyInfo(el, text);
       const linkInfo = extractMessageLink(el);
-      const recordKey = MaxExporterMessageIdentity.recordKeyForElement(
-        el,
-        linkInfo,
-        state.elementKeys,
-        () => { state.elementSeq += 1; return state.elementSeq; }
-      );
       const bodyText = reply.bodyText || stripReplyTextFromBody(text, reply.text || '');
-      const signature = fnv1a([
+      const fingerprint = [
         normalizeForKey(bodyText || text),
         normalizeForKey(reply.text || ''),
         media.map(mediaKey).join('|'),
@@ -694,7 +690,29 @@
         meta.maybeDate,
         meta.author,
         meta.direction
-      ].join('|'));
+      ].join('|');
+      const signature = fnv1a(fingerprint);
+      const stableKey = MaxExporterMessageIdentity.stableMessageIdentity(linkInfo);
+      const elementKey = state.elementKeys.get(el) || '';
+
+      return {candidate,domIndex,el,text,media,meta,reply,linkInfo,bodyText,fingerprint,signature,stableKey,elementKey};
+    });
+
+    const identities = MaxExporterMessageIdentity.reconcileViewport(
+      state.lastViewport,
+      prepared.map((item) => ({
+        fingerprint: item.fingerprint,
+        stableKey: item.stableKey,
+        recordKey: item.stableKey || item.elementKey
+      })),
+      () => { state.elementSeq += 1; return `element:${state.elementSeq}`; }
+    );
+
+    let repeated = 0;
+    prepared.forEach((item, index) => {
+      const {domIndex,el,text,media,meta,reply,linkInfo,bodyText,signature}=item;
+      const recordKey=identities[index].recordKey;
+      state.elementKeys.set(el,recordKey);
 
       const recordId = `${signature}-${fnv1a(recordKey)}`;
       const normalizedAttachments = media.map((m, attachmentIndex) => ({
@@ -737,6 +755,7 @@
         });
         added += 1;
       } else {
+        repeated += 1;
         const existing = state.records.get(recordKey);
         if (text.length > existing.text.length) existing.text = text;
         if ((bodyText || '').length > (existing.bodyText || '').length) existing.bodyText = bodyText;
@@ -752,10 +771,16 @@
       }
     });
 
+    state.lastViewport=prepared.map((item,index)=>({
+      fingerprint:item.fingerprint,
+      recordKey:identities[index].recordKey
+    }));
+    state.duplicateHits += repeated;
+
     state.batch += 1;
     const totalAttachments = Array.from(state.records.values()).reduce((sum, r) => sum + (r.attachments?.length || 0), 0);
-    setStatus(`Сканирование: +${added}\nСообщений/блоков: ${state.records.size}\nВложений найдено: ${totalAttachments}\nКонтейнер: ${state.lastScrollerLabel}`);
-    return { added, total: state.records.size, mediaFound, scroller };
+    setStatus(`Сканирование: +${added}\nПовторов пропущено: ${repeated}\nСообщений/блоков: ${state.records.size}\nВложений найдено: ${totalAttachments}\nКонтейнер: ${state.lastScrollerLabel}`);
+    return { added, repeated, total: state.records.size, mediaFound, scroller };
   }
 
   function setStatus(text) {
@@ -1331,7 +1356,7 @@ URL: ${meta.sourceUrl}
       const result = captureMessages();
       const currentScroller = result.scroller || scroller;
       const before = Math.round(currentScroller.scrollTop);
-      const distance = Math.max(240, Math.round(currentScroller.clientHeight * 0.82));
+      const distance = Math.max(180, Math.round(currentScroller.clientHeight * 0.58));
       currentScroller.scrollTop = Math.max(0, before - distance);
       currentScroller.dispatchEvent(new Event('scroll', { bubbles: true }));
       await sleep(850);
@@ -1348,7 +1373,7 @@ URL: ${meta.sourceUrl}
       lastTotal = state.records.size;
       lastAttachmentTotal = attachmentTotal;
       previousTop = after;
-      setStatus(`Автопрокрутка: шаг ${step + 1}\nСообщений/блоков: ${state.records.size}\nВложений: ${attachmentTotal}\nНовых блоков на шаге: ${result.added}`);
+      setStatus(`Автопрокрутка: шаг ${step + 1}\nСообщений/блоков: ${state.records.size}\nВложений: ${attachmentTotal}\nНовых блоков на шаге: ${result.added}\nПовторов пропущено: ${result.repeated}`);
 
       if (stableSteps >= 8) break;
     }
@@ -1357,7 +1382,7 @@ URL: ${meta.sourceUrl}
     state.running = false;
     setButtonsRunning(false);
     const attachmentTotal = Array.from(state.records.values()).reduce((sum, r) => sum + (r.attachments?.length || 0), 0);
-    setStatus(`Готово.\nСообщений/блоков: ${state.records.size}\nВложений найдено: ${attachmentTotal}\nТеперь нажми «ZIP: сообщения + картинки».`);
+    setStatus(`Готово.\nСообщений/блоков: ${state.records.size}\nВложений найдено: ${attachmentTotal}\nПерекрытий/повторов пропущено: ${state.duplicateHits}\nТеперь нажми «ZIP: сообщения + картинки».`);
   }
 
   function stopAutoScroll() {
@@ -1370,6 +1395,8 @@ URL: ${meta.sourceUrl}
     state.records.clear();
     state.elementKeys = new WeakMap();
     state.elementSeq = 0;
+    state.lastViewport = [];
+    state.duplicateHits = 0;
     state.batch = 0;
     state.seq = 0;
     setStatus('Очищено. Можно начать новое сканирование.');

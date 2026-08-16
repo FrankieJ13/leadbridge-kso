@@ -118,6 +118,57 @@ test('exporter keeps identical messages separate without a stable message id', (
   assert.equal(messageIdentity.stableMessageIdentity({domIds: {'data-testid': 'message-row'}}), '');
 });
 
+test('exporter reconciles virtualized viewport messages without collapsing identical neighbors', () => {
+  let sequence = 2;
+  const previous = [
+    {fingerprint: 'same-message', recordKey: 'element:1'},
+    {fingerprint: 'same-message', recordKey: 'element:2'},
+    {fingerprint: 'tail-message', recordKey: 'element:3'}
+  ];
+  const current = messageIdentity.reconcileViewport(previous, [
+    {fingerprint: 'new-older-message'},
+    {fingerprint: 'same-message'},
+    {fingerprint: 'same-message'},
+    {fingerprint: 'tail-message'}
+  ], () => `element:new-${sequence += 1}`);
+  assert.equal(current[0].recordKey, 'element:new-3');
+  assert.deepEqual(current.slice(1).map((entry) => entry.recordKey), ['element:1', 'element:2', 'element:3']);
+  assert.notEqual(current[1].recordKey, current[2].recordKey);
+});
+
+test('exporter keeps stable ids authoritative during viewport reconciliation', () => {
+  const current = messageIdentity.reconcileViewport(
+    [{fingerprint:'same',recordKey:'dom:data-message-id:old'}],
+    [{fingerprint:'same',stableKey:'dom:data-message-id:new'}],
+    () => 'unused'
+  );
+  assert.equal(current[0].recordKey, 'dom:data-message-id:new');
+});
+
+test('exporter carries identities through consecutive upward virtualized viewports', () => {
+  let sequence = 0;
+  const nextKey = () => `element:${sequence += 1}`;
+  const first = messageIdentity.reconcileViewport([], [
+    {fingerprint:'message-c'},
+    {fingerprint:'message-d'},
+    {fingerprint:'message-e'}
+  ], nextKey);
+  const second = messageIdentity.reconcileViewport(first, [
+    {fingerprint:'message-a'},
+    {fingerprint:'message-b'},
+    {fingerprint:'message-c'},
+    {fingerprint:'message-d'}
+  ], nextKey);
+  const third = messageIdentity.reconcileViewport(second, [
+    {fingerprint:'message-new'},
+    {fingerprint:'message-a'},
+    {fingerprint:'message-b'}
+  ], nextKey);
+  assert.deepEqual(second.slice(2).map((entry) => entry.recordKey), first.slice(0,2).map((entry) => entry.recordKey));
+  assert.deepEqual(third.slice(1).map((entry) => entry.recordKey), second.slice(0,2).map((entry) => entry.recordKey));
+  assert.equal(new Set([...first, ...second, ...third].map((entry) => entry.recordKey)).size, 6);
+});
+
 test('online amoCRM request keeps token out of URL and restricts Apps Script redirects', () => {
   const token = 'test-token-1234567890-abcdef';
   const endpoint = 'https://script.google.com/macros/s/AKfycbx12345678901234567890/exec';
