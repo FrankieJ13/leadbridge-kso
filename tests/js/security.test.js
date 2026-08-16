@@ -187,3 +187,25 @@ test('compact client presentation only exposes the amoCRM name line when names d
   assert.equal(different.hasMismatch, true);
   assert.match(different.amoLine, /Гилев Роман/);
 });
+
+test('phone groups with the same selected amoCRM deal merge into one card', () => {
+  const form = {messageIndex: '15', attachmentPath: 'attachments/msg_0015/att_01.webp', sourceKind: 'анкета', comment: ''};
+  const deal = {id: '32290199', fullName: 'Гилев Роман', phones: ['9069508719']};
+  const secondContact = {id: '32290199', fullName: 'Гилева Наталья', phones: ['9221837057']};
+  const merged = matching.mergeGroupsBySelectedDeal([
+    {phone: '9069508719', max: [form], amo: [deal], amoAll: [deal]},
+    {phone: '9221837057', max: [form], amo: [secondContact], amoAll: [secondContact]}
+  ]);
+  assert.equal(merged.length, 1);
+  assert.deepEqual(merged[0].phones, ['9069508719', '9221837057']);
+  assert.equal(merged[0].max.length, 1);
+  assert.equal(merged[0].amo.length, 1);
+  assert.deepEqual(merged[0].amo[0].phones, ['9069508719', '9221837057']);
+  assert.equal(merged[0].amo[0].fullName, 'Гилев Роман / Гилева Наталья');
+
+  const separate = matching.mergeGroupsBySelectedDeal([
+    {phone: '9000000001', max: [{messageIndex: '1'}], amo: [{id: '1'}], amoAll: [{id: '1'}]},
+    {phone: '9000000002', max: [{messageIndex: '2'}], amo: [{id: '2'}], amoAll: [{id: '2'}]}
+  ]);
+  assert.equal(separate.length, 2);
+});

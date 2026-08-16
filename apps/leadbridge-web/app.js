@@ -1478,7 +1478,7 @@ function buildGroups(){
   const groups = [...map.values()].filter(g=>g.max.length && g.amoAll.length);
   groups.forEach(g=>{
     g.max=selectMaxForGroup(dedupBy(g.max,r=>r.messageIndex+'|'+r.attachmentPath+'|'+r.sourceKind), g.phone);
-    g.amoAll=dedupBy(g.amoAll,r=>r.id);
+    g.amoAll=LeadBridgeMatching.mergeDealRows(g.amoAll);
     enrichGroupBase(g);
   });
   state.groups = groups;
@@ -1643,9 +1643,10 @@ function applyFilters(){
     if(dateTo) max = max.filter(r=>(r.messageDateMs||0) <= dateTo);
     return enrichFilteredGroup({...g, amoAll:g.amoAll, amo:amoSelected, max, amoFilteredPool:amo});
   }).filter(g=>g && g.max.length && g.amo.length);
+  groups = LeadBridgeMatching.mergeGroupsBySelectedDeal(groups).map(enrichFilteredGroup);
   if(q){
     groups = groups.filter(g=>lowerKey([
-      g.phone,
+      ...(g.phones || [g.phone]),
       ...g.max.map(r=>[r.fullName,r.messageIndex,r.comment,r.messageUrl].join(' ')),
       ...g.amo.map(r=>[r.id,r.fullName,r.responsible,r.city,r.region,r.comment].join(' '))
     ].join(' ')).includes(q));
@@ -1727,7 +1728,7 @@ function renderStats(){
   const board = $('stickyBoard');
   if(!board) return;
   if(!state.maxRows.length && !state.amoRows.length){ board.classList.add('hidden'); board.innerHTML=''; syncFixedTop(); return; }
-  const matchedPhones = state.groups.length || 0;
+  const matchedPhones = new Set(state.groups.flatMap(g=>g.phones || [g.phone]).filter(Boolean)).size;
   const filteredPhones = state.filtered.length || 0;
   const maxInFiltered = state.filtered.reduce((sum,g)=>sum+(g.max?.length||0),0);
   const amoSelectedFiltered = state.filtered.reduce((sum,g)=>sum+(g.amo?.length||0),0);
@@ -1753,6 +1754,20 @@ function formatPhoneForCard(phone){
   const digits = String(phone || '').replace(/\D/g,'');
   if(digits.length !== 10) return String(phone || '');
   return `8 ${digits.slice(0,3)} ${digits.slice(3,6)}-${digits.slice(6,8)}-${digits.slice(8)}`;
+}
+function groupPhones(g){
+  return [...new Set((g && g.phones || [g && g.phone]).filter(Boolean))];
+}
+function groupPhonesRaw(g, separator='; '){
+  return groupPhones(g).join(separator);
+}
+function groupPhonesFormatted(g, separator=' / '){
+  return groupPhones(g).map(formatPhoneForCard).join(separator);
+}
+function rowPhonesInGroup(g, row){
+  const groupSet = new Set(groupPhones(g));
+  const matched = (row && row.phones || []).filter(phone=>groupSet.has(phone));
+  return (matched.length ? matched : groupPhones(g)).join('; ');
 }
 function compactClientPresentation(g){
   const names = LeadBridgeMatching.clientNamePresentation(g.max || [], g.amoAll || g.amo || []);
@@ -1790,14 +1805,14 @@ function renderMatchingDetails(g){
   const originalStatus = clean(maxRow && (maxRow._leadbridgeOriginalVersionStatus || maxRow.versionStatus) || 'нет');
   const city = deal ? [deal.city,deal.region].filter(Boolean).join(' / ') : '';
   const summary = [
-    ['Ключ совпадения', formatPhoneForCard(g.phone)],
+    ['Ключи совпадения', groupPhonesFormatted(g, ' · ')],
     ['Метод', 'точные 10 цифр телефона'],
     ['Выбор сделки', dealSelectionReasonText(deal)],
     ['Статус MAX', originalStatus],
     ['Ответственный', deal && deal.responsible || '—'],
     ['Город / регион', city || '—']
   ];
-  const rows = [...(g.max || []).map(r=>renderRow('max',g.phone,r)), ...(g.amo || []).map(r=>renderRow('amo',g.phone,r))].join('');
+  const rows = [...(g.max || []).map(r=>renderRow('max',rowPhonesInGroup(g,r),r)), ...(g.amo || []).map(r=>renderRow('amo',rowPhonesInGroup(g,r),r))].join('');
   return `<div class="match-details-summary">${summary.map(([label,value])=>`<div class="match-detail-item"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join('')}</div>
     <div class="match-details-note">Ниже показаны выбранная строка MAX и одна сделка, которая попадает в отчёт. Остальные сделки по телефону доступны через «Все сделки».</div>
     <div class="match-details-table-wrap"><table class="match-details-table"><colgroup><col class="source-cell"><col class="id-cell"><col class="phone-cell"><col class="fio-cell"><col class="mop-cell"><col class="city-cell"><col class="date-cell"><col class="date-cell crm-visit-col"><col class="date-cell"><col class="link-cell"><col class="comment-cell"></colgroup><thead><tr><th>Источник</th><th>ID / сообщение</th><th>Телефон</th><th>ФИО клиента</th><th>МОП</th><th>Город</th><th>Визит анкеты</th><th class="crm-visit-col">Визит CRM</th><th>Создание CRM</th><th>Анкета</th><th>Комментарий</th></tr></thead><tbody>${rows}</tbody></table></div>`;
@@ -1807,7 +1822,7 @@ function openMatchDetails(phone){
   if(!g) return;
   const names = compactClientPresentation(g);
   state.matchDetailsReturnFocus = document.activeElement;
-  $('matchDetailsTitle').textContent = `${formatPhoneForCard(g.phone)} · ${names.primaryName || 'ФИО не найдено'}`;
+  $('matchDetailsTitle').textContent = `${groupPhonesFormatted(g, ' · ')} · ${names.primaryName || 'ФИО не найдено'}`;
   $('matchDetailsBody').innerHTML = renderMatchingDetails(g);
   $('matchDetailsModal').classList.remove('hidden');
   document.body.classList.add('match-details-open');
@@ -1831,7 +1846,7 @@ function renderGroup(g, idx){
   const dealsPanel = renderDealsPanel(g, groupId);
   return `<article class="match compact-match" data-phone="${esc(g.phone)}">
     <div class="compact-match-main">
-      <div class="compact-phone-block"><span class="compact-phone-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.69 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.33 1.85.56 2.81.69A2 2 0 0 1 22 16.9z"/></svg></span><strong class="compact-phone">${esc(formatPhoneForCard(g.phone))}</strong></div>
+      <div class="compact-phone-block"><span class="compact-phone-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.69 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.33 1.85.56 2.81.69A2 2 0 0 1 22 16.9z"/></svg></span><span class="compact-phone-list">${groupPhones(g).map(phone=>`<strong class="compact-phone">${esc(formatPhoneForCard(phone))}</strong>`).join('')}</span></div>
       <div class="compact-identity">
         <div class="compact-identity-line"><span class="compact-client-name">${esc(names.primaryName || 'ФИО не найдено')}</span>${names.needsReview?`<span class="compact-review-label">${esc(names.reviewLabel)}</span>`:''}</div>
         ${names.amoLine?`<div class="compact-amo-name"><span>amoCRM:</span> ${esc(names.amoLine)}</div>`:''}
@@ -1877,7 +1892,7 @@ function renderDealsPanel(g, groupId){
     const id = r.id && safeAmoUrl(r.dealUrl) ? `<a href="${escAttr(safeAmoUrl(r.dealUrl))}" target="_blank" rel="noopener">${esc(r.id)}</a>` : '<span class="muted">—</span>';
     return `<tr class="${isSelected?'selected':''}"><td>${id}<div>${selectedChip}${dup}</div></td><td>${esc(r.fullName)}</td><td>${esc(r.responsible)}</td><td>${esc(city)}</td><td>${visit}</td><td>${created}</td><td>${esc(r.closeReason || '')}</td><td class="comment">${esc(r.comment || '')}</td></tr>`;
   }).join('');
-  return `<div id="${escAttr(groupId)}" class="deals-panel hidden"><div class="deals-title">Все сделки amoCRM по номеру ${esc(g.phone)}</div><div class="deals-table-wrap"><table class="deals-table"><thead><tr><th>ID</th><th>ФИО</th><th>МОП</th><th>Город</th><th>Визит CRM</th><th>Создание CRM</th><th>Причина закрытия</th><th>Комментарий</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  return `<div id="${escAttr(groupId)}" class="deals-panel hidden"><div class="deals-title">Все сделки amoCRM по телефонам ${esc(groupPhonesFormatted(g, ' · '))}</div><div class="deals-table-wrap"><table class="deals-table"><thead><tr><th>ID</th><th>ФИО</th><th>МОП</th><th>Город</th><th>Визит CRM</th><th>Создание CRM</th><th>Причина закрытия</th><th>Комментарий</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 
 function renderAnketaCell(r){
@@ -1922,7 +1937,7 @@ function makeUnifiedRows(groups=state.filtered){
     g.max.forEach(mx=>{
       g.amo.forEach(am=>{
         rows.push({
-          phone:g.phone,
+          phone:groupPhonesRaw(g),
           max_message_index:mx.messageIndex,
           max_message_date:formatDate(mx.messageDate),
           max_full_name:mx.fullName,
@@ -1981,12 +1996,13 @@ function downloadMarkdown(){
   if(!confirmMobileExport('Markdown-отчёт', state.filtered.length)) return;
   const lines = [`# LeadBridge: поиск сделок по анкетам КСО`, ``, `Авторство и идея разработки: Бочаров Ю.С.`, ``, `MAX file: ${state.maxFileName}`, `amoCRM file: ${state.amoFileName}`, `Generated: ${new Date().toLocaleString('ru-RU')}`, ``];
   state.filtered.forEach(g=>{
-    lines.push(`## ☎ ${g.phone}`, ``);
-    lines.push(`Анкеты: ${g.max.length}; amoCRM: ${g.amo.length}; всего сделок по телефону: ${g.amoAll?.length || g.amo.length}`, ``);
+    const phones = groupPhonesRaw(g);
+    lines.push(`## ☎ ${phones}`, ``);
+    lines.push(`Анкеты: ${g.max.length}; amoCRM: ${g.amo.length}; всего сделок по телефонам: ${g.amoAll?.length || g.amo.length}`, ``);
     lines.push(`| Источник | ID / сообщение | Телефон | ФИО | МОП | Город | Визит анкеты | Визит CRM | Создание CRM | Ссылка | Комментарий |`);
     lines.push(`|---|---:|---|---|---|---|---|---|---|---|---|`);
-    g.max.forEach(r=>lines.push(`| анкета | #${md(r.messageIndex)} | ${g.phone} | ${md(r.fullName)} |  |  | ${md(formatDate(r.messageDate))} |  |  | ${md(r.messageUrl)} | ${md(r.comment)} |`));
-    g.amo.forEach(r=>lines.push(`| amoCRM | ${md(r.id)} | ${g.phone} | ${md(r.fullName)} | ${md(r.responsible)} | ${md([r.city,r.region].filter(Boolean).join(' / '))} |  | ${md(formatDate(r.visitDate))} | ${md(formatDate(r.createdAt))} | ${md(r.dealUrl)} | ${md(r.comment)} |`));
+    g.max.forEach(r=>lines.push(`| анкета | #${md(r.messageIndex)} | ${md(rowPhonesInGroup(g,r))} | ${md(r.fullName)} |  |  | ${md(formatDate(r.messageDate))} |  |  | ${md(r.messageUrl)} | ${md(r.comment)} |`));
+    g.amo.forEach(r=>lines.push(`| amoCRM | ${md(r.id)} | ${md(rowPhonesInGroup(g,r))} | ${md(r.fullName)} | ${md(r.responsible)} | ${md([r.city,r.region].filter(Boolean).join(' / '))} |  | ${md(formatDate(r.visitDate))} | ${md(formatDate(r.createdAt))} | ${md(r.dealUrl)} | ${md(r.comment)} |`));
     lines.push('');
   });
   download('leadbridge_kso_match_report.md', lines.join('\n'), 'text/markdown;charset=utf-8');
@@ -2031,8 +2047,8 @@ function renderGroupForReport(g, imageMap){
   const mainCity = g.cities[0] || '';
   const mainRegion = g.regions[0] || '';
   const chips = [`<span class="pill max">анкеты: ${g.max.length}</span>`,`<span class="pill amo">amoCRM: ${g.amo.length}</span>`,...(g.amo||[]).slice(0,3).map(r=>r.responsible?`<span class="pill">${esc(r.responsible)}</span>`:''),mainCity?`<span class="pill">${esc(mainCity)}</span>`:'',mainRegion?`<span class="pill">${esc(mainRegion)}</span>`:''].filter(Boolean).join('');
-  const rows = [...g.max.map(r=>renderRowForReport('max', g.phone, r, imageMap)), ...g.amo.map(r=>renderRowForReport('amo', g.phone, r, imageMap))].join('');
-  return `<article class="match"><div class="match-head"><div class="head-main"><div class="head-line"><div class="phone">☎ ${esc(g.phone)}</div><div class="head-title">${esc(mainName || 'ФИО не найдено')}</div></div><div class="head-sub"><span>нормализованный телефон / один блок совпадения</span>${mainCity?`<span>${esc(mainCity)}</span>`:''}${mainRegion?`<span>${esc(mainRegion)}</span>`:''}</div></div><div class="head-meta">${chips}</div></div><div class="tablebox"><table><colgroup><col class="source-cell"><col class="id-cell"><col class="phone-cell"><col class="fio-cell"><col class="mop-cell"><col class="city-cell"><col class="date-cell"><col class="date-cell"><col class="date-cell"><col class="link-cell"><col class="comment-cell"></colgroup><thead><tr><th>Источник</th><th>ID / сообщение</th><th>Телефон</th><th>ФИО клиента</th><th>МОП</th><th>Город</th><th>Визит анкеты</th><th>Визит CRM</th><th>Создание CRM</th><th>Анкета</th><th>Комментарий</th></tr></thead><tbody>${rows}</tbody></table></div></article>`;
+  const rows = [...g.max.map(r=>renderRowForReport('max', rowPhonesInGroup(g,r), r, imageMap)), ...g.amo.map(r=>renderRowForReport('amo', rowPhonesInGroup(g,r), r, imageMap))].join('');
+  return `<article class="match"><div class="match-head"><div class="head-main"><div class="head-line"><div class="phone">☎ ${esc(groupPhonesFormatted(g, ' · '))}</div><div class="head-title">${esc(mainName || 'ФИО не найдено')}</div></div><div class="head-sub"><span>нормализованные телефоны / один блок совпадения</span>${mainCity?`<span>${esc(mainCity)}</span>`:''}${mainRegion?`<span>${esc(mainRegion)}</span>`:''}</div></div><div class="head-meta">${chips}</div></div><div class="tablebox"><table><colgroup><col class="source-cell"><col class="id-cell"><col class="phone-cell"><col class="fio-cell"><col class="mop-cell"><col class="city-cell"><col class="date-cell"><col class="date-cell"><col class="date-cell"><col class="link-cell"><col class="comment-cell"></colgroup><thead><tr><th>Источник</th><th>ID / сообщение</th><th>Телефон</th><th>ФИО клиента</th><th>МОП</th><th>Город</th><th>Визит анкеты</th><th>Визит CRM</th><th>Создание CRM</th><th>Анкета</th><th>Комментарий</th></tr></thead><tbody>${rows}</tbody></table></div></article>`;
 }
 function renderRowForReport(type, phone, r, imageMap){
   if(type==='max'){
