@@ -209,15 +209,28 @@ test('exporter skips media already owned by an earlier viewport', () => {
 
 test('exporter panel keeps every functional control in the redesigned markup', () => {
   const markup = panelUi.markup();
-  ['maxle-collapse', 'maxle-close', 'maxle-scan', 'maxle-auto', 'maxle-stop', 'maxle-clear', 'maxle-ocr', 'maxle-pick-ocr', 'maxle-ocr-feedback', 'maxle-status', 'maxle-oldest-first', 'maxle-scan-before-export']
+  ['maxle-collapse', 'maxle-close', 'maxle-scan', 'maxle-auto', 'maxle-stop', 'maxle-clear', 'maxle-ocr', 'maxle-pick-ocr', 'maxle-ocr-file', 'maxle-ocr-feedback', 'maxle-status', 'maxle-oldest-first', 'maxle-scan-before-export']
     .forEach((id) => assert.match(markup, new RegExp(`id="${id}"`)));
   ['json', 'txt', 'html', 'csv', 'zip']
     .forEach((format) => assert.match(markup, new RegExp(`data-maxle-export="${format}"`)));
   assert.match(markup, />1<\/span>[\s\S]*Собрать чат/);
   assert.match(markup, />2<\/span>[\s\S]*Запустить обработку/);
   assert.match(markup, /Выбрать ZIP для OCR/);
+  assert.match(markup, /id="maxle-ocr-file"[^>]+type="file"[^>]+accept="\.zip,application\/zip"[^>]+hidden/);
   assert.match(markup, /Только скачать ZIP/);
   assert.match(markup, /Бочаров Юлиан · 2026/);
+});
+
+test('existing ZIP button opens the browser file dialog synchronously', () => {
+  const input = {
+    value: 'old-selection.zip',
+    clicks: 0,
+    click() { this.clicks += 1; }
+  };
+  assert.equal(panelUi.openFileDialog(input), true);
+  assert.equal(input.value, '');
+  assert.equal(input.clicks, 1);
+  assert.equal(panelUi.openFileDialog(null), false);
 });
 
 test('one-click OCR accepts only exporter blob URLs and archive names', () => {

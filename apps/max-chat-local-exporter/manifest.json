@@ -28,6 +28,7 @@
         "https://web.max.ru/*"
       ],
       "js": [
+        "ocr_bridge_policy.js",
         "message_identity.js",
         "media_identity.js",
         "panel_ui.js",

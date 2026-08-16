@@ -59,7 +59,7 @@ importScripts('ocr_bridge_policy.js');
       });
     } catch (error) {
       if (error?.name === 'AbortError') throw new Error('Локальный OCR-мост не ответил вовремя');
-      throw new Error(`Локальный OCR-мост не запущен или недоступен: ${error?.message || String(error)}`);
+      throw new Error('Локальная OCR-служба недоступна. Установи или обнови пакет LeadBridge KSO и запусти установщик ещё раз');
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
     }
@@ -132,6 +132,7 @@ importScripts('ocr_bridge_policy.js');
     const filename = ocrPolicy.sanitizeArchiveName(message.filename);
     if (!filename) throw new Error('Недопустимое имя OCR-архива');
     if (!ocrPolicy.isTrustedExportBlob(message.url)) throw new Error('Недопустимый источник OCR-архива');
+    if (message.requireBridgeBeforeDownload === true) await assertLocalOcrBridge('run');
 
     const downloadId = await chrome.downloads.download({
       url: message.url,

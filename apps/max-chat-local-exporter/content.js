@@ -1459,29 +1459,58 @@ URL: ${meta.sourceUrl}
     }
   }
 
-  async function pickExistingArchiveForOcr() {
+  function openExistingArchiveDialog() {
+    const input = document.querySelector('#maxle-ocr-file');
+    if (!input) {
+      setOcrFeedback('Не удалось открыть выбор ZIP: обнови расширение на странице chrome://extensions.', 'error');
+      return;
+    }
+    setStatus('Выбери ранее скачанный архив MAX_CHAT_EXPORT_...zip. Повторно собирать чат не нужно.');
+    setOcrFeedback('Выбери готовый ZIP в открывшемся окне Chrome.');
+    MaxExporterPanelUI.openFileDialog(input);
+  }
+
+  async function launchSelectedArchiveForOcr(file) {
     const button = document.querySelector('#maxle-pick-ocr');
     if (button?.disabled) return;
-    if (button) button.disabled = true;
-    setStatus('Выбери ранее скачанный архив MAX_CHAT_EXPORT_...zip. Повторно собирать чат не нужно.');
-    setOcrFeedback('Проверяю OCR-мост и открываю выбор ZIP…');
-    try {
-      const result = await sendMessagePromise({ type: 'MAX_EXPORTER_PICK_AND_OCR' });
-      if (result?.cancelled) {
-        setStatus('Выбор ZIP отменён. Собранный чат и скачанные файлы не изменены.');
-        setOcrFeedback('Выбор ZIP отменён. OCR не запускался.');
-        return;
-      }
-      if (!result?.ok) throw new Error(result?.error || 'Локальный OCR-мост недоступен');
-      const message = `OCR запущен из готового архива.\nАрхив: ${result.archive || 'MAX_CHAT_EXPORT_...zip'}\nРезультат: ${result.outputDir || 'LeadBridgeKSO/ocr_results'}`;
+    const originalFilename = String(file?.name || '').trim();
+    if (!file || !originalFilename) return;
+    const filename = MaxExporterOcrPolicy.sanitizeArchiveName(originalFilename);
+    if (!filename) {
+      const message = 'Выбран неподходящий файл. Нужен ZIP с именем MAX_CHAT_EXPORT_...zip.';
       setStatus(message);
-      setOcrFeedback(message, 'success');
-      startOcrMonitor();
+      setOcrFeedback(message, 'error');
+      return;
+    }
+    if (!Number(file.size)) {
+      const message = 'Выбранный ZIP пуст. OCR не запущен.';
+      setStatus(message);
+      setOcrFeedback(message, 'error');
+      return;
+    }
+
+    if (button) button.disabled = true;
+    setStatus(`ZIP выбран: ${filename}\nПроверяю локальную OCR-службу…`);
+    setOcrFeedback(`ZIP выбран: ${filename}\nПроверяю локальную OCR-службу…`);
+    let blobUrl = '';
+    try {
+      blobUrl = URL.createObjectURL(file);
+      const result = await sendMessagePromise({
+        type: 'MAX_EXPORTER_DOWNLOAD_AND_OCR',
+        url: blobUrl,
+        filename,
+        requireBridgeBeforeDownload: true
+      });
+      if (!result?.ok) throw new Error(result?.error || 'Локальная OCR-служба недоступна');
+      const message = `ZIP принят: ${filename}\nChrome сохранит рабочую копию и автоматически запустит OCR.`;
+      setStatus(message);
+      setOcrFeedback(message);
     } catch (error) {
       const message = `OCR не запущен.\n${error?.message || String(error)}`;
-      setStatus(`${message}\nПереустанови актуальный пакет LeadBridge KSO.`);
+      setStatus(message);
       setOcrFeedback(message, 'error');
     } finally {
+      if (blobUrl) setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
       if (button) button.disabled = false;
     }
   }
@@ -1585,7 +1614,15 @@ URL: ${meta.sourceUrl}
       if (document.querySelector('#maxle-scan-before-export')?.checked) captureMessages();
       downloadStructuredZip(true);
     });
-    panel.querySelector('#maxle-pick-ocr').addEventListener('click', () => pickExistingArchiveForOcr());
+    panel.querySelector('#maxle-pick-ocr').addEventListener('click', () => openExistingArchiveDialog());
+    panel.querySelector('#maxle-ocr-file').addEventListener('change', (event) => {
+      const file = event.currentTarget?.files?.[0];
+      if (file) launchSelectedArchiveForOcr(file);
+    });
+    panel.querySelector('#maxle-ocr-file').addEventListener('cancel', () => {
+      setStatus('Выбор ZIP отменён. Собранный чат и скачанные файлы не изменены.');
+      setOcrFeedback('Выбор ZIP отменён. OCR не запускался.');
+    });
     panel.querySelectorAll('[data-maxle-export]').forEach((button) => {
       button.addEventListener('click', () => {
         if (document.querySelector('#maxle-scan-before-export')?.checked) captureMessages();
