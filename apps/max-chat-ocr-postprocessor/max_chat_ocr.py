@@ -657,16 +657,18 @@ def ocr_attachment(
                 if len(text2.strip()) > len(text.strip()):
                     text = text2
             raw_txt_path.write_text(text, encoding="utf-8")
+            structured = extract_structured_form(text)
+            structured_phones = structured.get("normalized", {}).get("all_phones_norm", [])
             return AttachmentOCR(
                 attachment_index=attachment_index,
                 original_path=rel_path,
                 file_name=file_name,
                 ocr_text=text,
-                phones=extract_phones(text),
+                phones=list(structured_phones) if isinstance(structured_phones, list) else [],
                 names=extract_names(text),
                 status="ok",
                 raw_ocr_path=str(raw_txt_path.relative_to(out_dir)),
-                structured=extract_structured_form(text),
+                structured=structured,
             )
         except Exception as exc:
             err = str(exc)
@@ -758,11 +760,41 @@ def find_first_phone_near(lines: List[str], *needles: str) -> str:
     for i, line in enumerate(lines):
         norm = line.lower().replace("ё", "е")
         if all(n in norm for n in needles_norm):
-            window = "\n".join(lines[max(0, i-1): min(len(lines), i+2)])
-            phones = extract_phones(window)
-            if phones:
-                return phones[0]
+            for candidate in [line, compact_spaces(" ".join(lines[i: min(len(lines), i+2)]))]:
+                phones = extract_phones(candidate)
+                if phones:
+                    return phones[0]
     return ""
+
+
+def extract_form_phones(lines: List[str]) -> List[str]:
+    phone_label = re.compile(
+        r"(?:мобил|сотов|контактн|рабоч).{0,24}(?:телефон|номер)|"
+        r"(?:телефон|тел\.).{0,24}(?:за[её]мщик|клиент|контакт|супруг|родствен|работ)|"
+        r"(?:^|\s)(?:телефон|тел\.)(?:\s|:|№|$)",
+        flags=re.IGNORECASE,
+    )
+    blocked_label = re.compile(
+        r"паспорт|серия|инн|снилс|номер\s+документа|код\s+подразделения",
+        flags=re.IGNORECASE,
+    )
+    phones: List[str] = []
+    for index, line in enumerate(lines):
+        if not phone_label.search(line) or blocked_label.search(line):
+            continue
+        found = extract_phones(line)
+        if not found:
+            for offset in (1, 2):
+                if index + offset >= len(lines):
+                    break
+                next_line = lines[index + offset]
+                if blocked_label.search(next_line):
+                    break
+                found = extract_phones(compact_spaces(f"{line} {next_line}"))
+                if found:
+                    break
+        phones = merge_unique([*phones, *found])
+    return phones
 
 
 def extract_passport_data(lines: List[str], text: str) -> Dict[str, str]:
@@ -872,7 +904,7 @@ def extract_structured_form(text: str) -> Dict[str, Any]:
     raw_payment = find_line_value(lines, "Желаемый", "платеж")
     raw_income = find_line_value(lines, "Общий", "доход")
 
-    all_phones = merge_unique(extract_phones(joined))
+    all_phones = extract_form_phones(lines)
     if mobile_phone:
         all_phones = merge_unique([mobile_phone, *all_phones])
     if work_phone:

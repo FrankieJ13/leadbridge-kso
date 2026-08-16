@@ -1207,6 +1207,7 @@ function collectObjectPhones(obj){
     if(o==null) return;
     if(typeof o==='string' || typeof o==='number'){
       const p=path.toLowerCase(); const s=String(o);
+      if(p.includes('all_phones') || p.includes('all phones') || p.includes('phone_list') || p.includes('phone_numbers')) return;
       if(p.includes('phone') || p.includes('телефон') || p.includes('mobile') || p.includes('contact') || /^phone:\d+/.test(s)) vals.push(s);
       return;
     }
@@ -1214,6 +1215,32 @@ function collectObjectPhones(obj){
     if(typeof o==='object') Object.keys(o).slice(0,200).forEach(k=>walk(o[k], path+' '+k));
   }
   walk(obj); return vals;
+}
+function collectObjectIdentifiers(obj){
+  const vals=[];
+  function walk(o, path=''){
+    if(vals.length>80 || o==null) return;
+    if(typeof o==='string' || typeof o==='number'){
+      const p=path.toLowerCase();
+      if(!p.includes('phone') && /(passport|паспорт|inn|инн|snils|снилс|document|документ|series|серия)/i.test(p)) vals.push(String(o));
+      return;
+    }
+    if(Array.isArray(o)){ o.slice(0,30).forEach((v,idx)=>walk(v, path+' '+idx)); return; }
+    if(typeof o==='object') Object.keys(o).slice(0,200).forEach(k=>walk(o[k], path+' '+k));
+  }
+  walk(obj); return vals;
+}
+function ocrIdentifierValues(text){
+  const lines=String(text||'').split(/\r?\n/), vals=[];
+  const label=/(паспорт|серия|инн|снилс|номер\s+документа|код\s+подразделения)/i;
+  const phoneLabel=/(телефон|мобил|сотов|контактн)/i;
+  lines.forEach((line,index)=>{
+    if(!label.test(line)) return;
+    vals.push(line);
+    const next=lines[index+1] || '';
+    if(next && !phoneLabel.test(next)) vals.push(next);
+  });
+  return vals;
 }
 function normalizeMaxItem(item, i){
   const ocrAtt = item._ocr_attachment || {};
@@ -1230,7 +1257,7 @@ function normalizeMaxItem(item, i){
     : (item.form?.match_keys || item.match_keys || item.matchKeys || []);
 
   const phoneVals=[];
-  ['mobile_phone_norm','phone_norm','borrower_phone_norm','mobile_phone','phone','borrower_phone','contact_phone','work_phone'].forEach(k=>{
+  ['mobile_phone_norm','phone_norm','borrower_phone_norm','contact_person_phone_norm','work_phone_norm','mobile_phone','phone','borrower_phone','contact_phone','contact_person_phone','work_phone'].forEach(k=>{
     if(norm[k]) phoneVals.push(norm[k]);
     if(fields[k]) phoneVals.push(fields[k]);
     if(!isOcrAttachment && item[k]) phoneVals.push(item[k]);
@@ -1241,17 +1268,12 @@ function normalizeMaxItem(item, i){
   phoneVals.push(...collectObjectPhones(fields));
 
   if(isOcrAttachment){
-    // НЕ сужаем матчинг только до «мобильного телефона заемщика».
-    // В реальных анкетах номер может стоять в блоке супруга/семейного положения,
-    // контактных лиц, комментарии или OCR-тексте. Сужение убивало совпадения.
-    // Но берём данные строго из КОНКРЕТНОГО OCR-вложения, а не из всего сообщения,
-    // чтобы превью не перескакивало на соседнюю картинку того же сообщения.
+    // Номера из структурированных телефонных полей остаются приоритетными.
+    // Сырой OCR просматриваем только возле телефонных подписей: полный текст анкеты
+    // содержит паспорт, ИНН и другие последовательности, похожие на номер телефона.
     phoneVals.push(...collectObjectPhones(norm));
-    // Не сканируем весь объект ocrAtt целиком: в нём у некоторых экспортов может лежать текст сообщения MAX,
-    // из-за чего телефон из комментария ошибочно привязывался к случайной картинке этого же сообщения.
-    // Для OCR-картинки берём только её структурированные поля/нормализацию/сырой OCR-текст.
     const ocrText = [ocrAtt.text, ocrAtt.ocr_text, ocrAtt.raw_text, ocrAtt.raw_ocr, ocrAtt.plain_text, fields.ocr_text, fields.raw_ocr].filter(Boolean).join('\n');
-    phoneVals.push(ocrText);
+    phoneVals.push(...LeadBridgeSecurity.extractPhonesNearLabels(ocrText));
   } else if(isTextMessage){
     // Обычное текстовое сообщение MAX — отдельный источник без attachment_path.
     phoneVals.push([item.bodyText,item.body_text,item.message_text,item.messageText,item.chat_message,item.text,item.comment,item.source_message,item.reply?.text].filter(Boolean).join(' '));
@@ -1260,6 +1282,14 @@ function normalizeMaxItem(item, i){
   }
 
   let phones = uniquePhones(phoneVals);
+  if(isOcrAttachment){
+    const ocrText = [ocrAtt.text, ocrAtt.ocr_text, ocrAtt.raw_text, ocrAtt.raw_ocr, ocrAtt.plain_text, fields.ocr_text, fields.raw_ocr].filter(Boolean).join('\n');
+    phones = LeadBridgeSecurity.excludeIdentifierPhones(phones, [
+      ...collectObjectIdentifiers(fields),
+      ...collectObjectIdentifiers(norm),
+      ...ocrIdentifierValues(ocrText)
+    ]);
+  }
   if(!phones.length && !isOcrAttachment){
     const maybeText = [item.bodyText,item.message_text,item.text,item.ocr_text,item.raw_ocr,fields.ocr_text,fields.raw_ocr].filter(Boolean).join('\n');
     phones = uniquePhones([maybeText]);
@@ -1407,22 +1437,6 @@ function normalizeMaxCsvRow(parsed,row,i){
   const versionStatus = rowGet(parsed,row,['version_status','versionStatus','Статус версии'],[]);
   const sourceKind = attachmentPath ? 'анкета' : 'сообщение';
   return {source:'max', sourceKind, raw:row, phones, phoneNames:{}, fullName, messageIndex, messageDate, messageDateMs:dateKey(messageDate), messageUrl, comment, reply:'', attachmentPath, versionStatus};
-}
-function extractPrimaryPhonesFromOcrText(text){
-  const t = String(text || '');
-  if(!t) return [];
-  const lines = t.split(/\r?\n/);
-  const hits = [];
-  const primaryLabel = /(мобильн(?:ый|ого)?\s+телефон|телефон\s+заемщик|телефон\s+клиент|сотов(?:ый|ого)?|осн(?:овной)?\s+телефон)/i;
-  const badLabel = /(контактн|знаком|родствен|супруг|рабоч|работодател|организац|кем\s+приход|фио\s*,?\s*тел)/i;
-  for(let i=0;i<lines.length;i++){
-    const line = lines[i] || '';
-    if(primaryLabel.test(line) && !badLabel.test(line)){
-      const chunk = [line, lines[i+1] || '', lines[i+2] || ''].join(' ');
-      hits.push(...extractPhonesFromText(chunk));
-    }
-  }
-  return [...new Set(hits)];
 }
 function uniquePhones(vals){
   const set=new Set();
@@ -1755,6 +1769,41 @@ function formatPhoneForCard(phone){
   if(digits.length !== 10) return String(phone || '');
   return `8 ${digits.slice(0,3)} ${digits.slice(3,6)}-${digits.slice(6,8)}-${digits.slice(8)}`;
 }
+function phoneCopyValue(phone){
+  const normalized = normalizePhone(phone);
+  return normalized ? `8${normalized}` : String(phone || '').replace(/\s+/g,' ').trim();
+}
+function legacyCopyText(text){
+  const input = document.createElement('textarea');
+  input.value = text;
+  input.setAttribute('readonly','');
+  input.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+  document.body.appendChild(input);
+  input.select();
+  const copied = document.execCommand('copy');
+  input.remove();
+  if(!copied) throw new Error('copy command failed');
+}
+async function copyCardPhone(phone, control){
+  const value = phoneCopyValue(phone);
+  if(!value) return;
+  try{
+    if(navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(value);
+    else legacyCopyText(value);
+    control.classList.add('copied');
+    control.title = 'Скопировано';
+    control.setAttribute('aria-label', `Номер ${formatPhoneForCard(phone)} скопирован`);
+    setNotice(`Номер ${formatPhoneForCard(phone)} скопирован.`);
+    setTimeout(()=>{
+      if(!control.isConnected) return;
+      control.classList.remove('copied');
+      control.title = 'Скопировать номер';
+      control.setAttribute('aria-label', `Скопировать номер ${formatPhoneForCard(phone)}`);
+    }, 1400);
+  }catch(_){
+    setNotice('Не удалось скопировать номер. Проверь доступ браузера к буферу обмена.', true);
+  }
+}
 function groupPhones(g){
   return LeadBridgeMatching.groupPhonePresentation(g).matched;
 }
@@ -1847,8 +1896,8 @@ function renderGroup(g, idx){
   const deal = (g.amo || [])[0] || null;
   const dealsBtn = renderDealsToggle(g, groupId);
   const dealsPanel = renderDealsPanel(g, groupId);
-  const matchedPhones = groupPhones(g).map(phone=>`<strong class="compact-phone compact-phone-matched" title="Совпавший номер">${esc(formatPhoneForCard(phone))}</strong>`).join('');
-  const additionalPhones = groupAdditionalPhones(g).map(phone=>`<span class="compact-phone compact-phone-additional" title="Другой номер из этой анкеты">${esc(formatPhoneForCard(phone))}</span>`).join('');
+  const matchedPhones = groupPhones(g).map(phone=>`<button class="compact-phone compact-phone-matched phone-copy" type="button" data-action="copy-phone" data-phone="${escAttr(phone)}" title="Скопировать совпавший номер" aria-label="Скопировать номер ${escAttr(formatPhoneForCard(phone))}">${esc(formatPhoneForCard(phone))}</button>`).join('');
+  const additionalPhones = groupAdditionalPhones(g).map(phone=>`<button class="compact-phone compact-phone-additional phone-copy" type="button" data-action="copy-phone" data-phone="${escAttr(phone)}" title="Скопировать другой номер из этой анкеты" aria-label="Скопировать номер ${escAttr(formatPhoneForCard(phone))}">${esc(formatPhoneForCard(phone))}</button>`).join('');
   return `<article class="match compact-match" data-phone="${esc(g.phone)}">
     <div class="compact-match-main">
       <div class="compact-phone-block"><span class="compact-phone-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.69 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.33 1.85.56 2.81.69A2 2 0 0 1 22 16.9z"/></svg></span><span class="compact-phone-list">${matchedPhones}${additionalPhones}</span></div>
@@ -2261,6 +2310,7 @@ function initActions(){
     else if(action === 'cancel-amo-online') cancelAmoOnlineSnapshot();
     else if(action === 'pick-file') $(control.dataset.target)?.click();
     else if(action === 'show-more') showMoreResults();
+    else if(action === 'copy-phone') void copyCardPhone(control.dataset.phone || '', control);
     else if(action === 'toggle-deals') toggleDealsPanel(control.dataset.groupId);
     else if(action === 'open-match-details') openMatchDetails(control.dataset.phone || '');
     else if(action === 'open-preview') openAnketaPreview(control.dataset.path || '');

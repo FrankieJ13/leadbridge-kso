@@ -35,6 +35,33 @@
     return [...phones];
   }
 
+  function extractPhonesNearLabels(value) {
+    const lines = String(value ?? '').split(/\r?\n/);
+    const phones = new Set();
+    const phoneLabel = /(?:мобил|сотов|контактн|рабоч)[^\n]{0,24}(?:телефон|номер)|(?:телефон|тел\.)[^\n]{0,24}(?:за[её]мщик|клиент|контакт|супруг|родствен|работ)|(?:^|\s)(?:телефон|тел\.)(?:\s|:|№|$)/i;
+    const blockedLabel = /паспорт|серия|инн|снилс|номер\s+документа|код\s+подразделения/i;
+    for (let index = 0; index < lines.length; index += 1) {
+      const labelLine = lines[index] || '';
+      if (!phoneLabel.test(labelLine) || blockedLabel.test(labelLine)) continue;
+      const own = extractPhonesFromText(labelLine);
+      own.forEach((phone) => phones.add(phone));
+      if (own.length) continue;
+      for (let offset = 1; offset <= 2 && index + offset < lines.length; offset += 1) {
+        const nextLine = lines[index + offset] || '';
+        if (blockedLabel.test(nextLine)) break;
+        const found = extractPhonesFromText(`${labelLine} ${nextLine}`);
+        found.forEach((phone) => phones.add(phone));
+        if (found.length) break;
+      }
+    }
+    return [...phones];
+  }
+
+  function excludeIdentifierPhones(phones, identifierValues) {
+    const blocked = new Set((identifierValues || []).map(normalizePhone).filter(Boolean));
+    return [...new Set(phones || [])].filter((phone) => !blocked.has(normalizePhone(phone)));
+  }
+
   function spreadsheetSafe(value) {
     if (value === null || value === undefined) return '';
     if (typeof value === 'number' && Number.isFinite(value)) return String(value);
@@ -84,8 +111,10 @@
     CACHE_NAMESPACE,
     cacheKeysToDelete,
     csvCell,
+    excludeIdentifierPhones,
     escapeHtml,
     extractPhonesFromText,
+    extractPhonesNearLabels,
     hostnameMatches,
     normalizePhone,
     safeHttpsUrl,

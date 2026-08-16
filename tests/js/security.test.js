@@ -20,6 +20,24 @@ test('normalizePhone accepts Russian phone formats and rejects long identifiers'
   assert.deepEqual(security.extractPhonesFromText('ИНН 1234567890; паспорт 4510 123456'), []);
 });
 
+test('OCR phone extraction requires phone labels and rejects document identifiers', () => {
+  const text = [
+    'Паспорт',
+    '8 692 095-10-05',
+    'Серия и номер документа',
+    '8 951 151-87-74',
+    'Мобильный телефон',
+    '8 906 950-87-19',
+    'Контактное лицо, телефон',
+    '8 922 183-70-57'
+  ].join('\n');
+  assert.deepEqual(security.extractPhonesNearLabels(text), ['9069508719', '9221837057']);
+  assert.deepEqual(
+    security.excludeIdentifierPhones(['9069508719', '4510123456'], ['4510 123456']),
+    ['9069508719']
+  );
+});
+
 test('CSV parser handles delimiter, quotes and multiline cells', () => {
   const parsed = csv.parseCsv('name;phone;note\r\n"Иванов; И.И.";"+7 912 345-67-89";"строка 1\nстрока 2"');
   assert.equal(parsed.delimiter, ';');

@@ -121,6 +121,22 @@ class OcrSecurityTests(unittest.TestCase):
         self.assertEqual(ocr.spreadsheet_safe(-12), -12)
         self.assertEqual(ocr.spreadsheet_safe("89123456789"), "89123456789")
 
+    def test_form_phone_extraction_ignores_passport_like_numbers(self) -> None:
+        text = """Паспорт
+8 692 095-10-05
+Серия и номер документа
+8 951 151-87-74
+Мобильный телефон
+8 906 950-87-19
+Контактное лицо, телефон
+8 922 183-70-57
+"""
+        form = ocr.extract_structured_form(text)
+        self.assertEqual(
+            form["normalized"]["all_phones_norm"],
+            ["79069508719", "79221837057"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
