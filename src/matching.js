@@ -79,6 +79,14 @@
     return result;
   }
 
+  function groupPhonePresentation(group) {
+    const matched = [...new Set((group && group.phones || [group && group.phone]).filter(Boolean))];
+    const matchedSet = new Set(matched);
+    const formPhones = [...new Set((group && group.max || []).flatMap((row) => row && row.phones || []).filter(Boolean))];
+    const additional = formPhones.filter((phone) => !matchedSet.has(phone));
+    return {matched, additional, all: [...matched, ...additional]};
+  }
+
   function mergeGroupsBySelectedDeal(groups) {
     const result = [];
     const byDeal = new Map();
@@ -139,5 +147,5 @@
     };
   }
 
-  return { basicMatch, clientNamePresentation, groupByExactPhone, mergeDealRows, mergeGroupsBySelectedDeal, normalizeName, splitClientNames };
+  return { basicMatch, clientNamePresentation, groupByExactPhone, groupPhonePresentation, mergeDealRows, mergeGroupsBySelectedDeal, normalizeName, splitClientNames };
 }));

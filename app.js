@@ -1646,7 +1646,7 @@ function applyFilters(){
   groups = LeadBridgeMatching.mergeGroupsBySelectedDeal(groups).map(enrichFilteredGroup);
   if(q){
     groups = groups.filter(g=>lowerKey([
-      ...(g.phones || [g.phone]),
+      ...LeadBridgeMatching.groupPhonePresentation(g).all,
       ...g.max.map(r=>[r.fullName,r.messageIndex,r.comment,r.messageUrl].join(' ')),
       ...g.amo.map(r=>[r.id,r.fullName,r.responsible,r.city,r.region,r.comment].join(' '))
     ].join(' ')).includes(q));
@@ -1756,7 +1756,10 @@ function formatPhoneForCard(phone){
   return `8 ${digits.slice(0,3)} ${digits.slice(3,6)}-${digits.slice(6,8)}-${digits.slice(8)}`;
 }
 function groupPhones(g){
-  return [...new Set((g && g.phones || [g && g.phone]).filter(Boolean))];
+  return LeadBridgeMatching.groupPhonePresentation(g).matched;
+}
+function groupAdditionalPhones(g){
+  return LeadBridgeMatching.groupPhonePresentation(g).additional;
 }
 function groupPhonesRaw(g, separator='; '){
   return groupPhones(g).join(separator);
@@ -1844,9 +1847,11 @@ function renderGroup(g, idx){
   const deal = (g.amo || [])[0] || null;
   const dealsBtn = renderDealsToggle(g, groupId);
   const dealsPanel = renderDealsPanel(g, groupId);
+  const matchedPhones = groupPhones(g).map(phone=>`<strong class="compact-phone compact-phone-matched" title="Совпавший номер">${esc(formatPhoneForCard(phone))}</strong>`).join('');
+  const additionalPhones = groupAdditionalPhones(g).map(phone=>`<span class="compact-phone compact-phone-additional" title="Другой номер из этой анкеты">${esc(formatPhoneForCard(phone))}</span>`).join('');
   return `<article class="match compact-match" data-phone="${esc(g.phone)}">
     <div class="compact-match-main">
-      <div class="compact-phone-block"><span class="compact-phone-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.69 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.33 1.85.56 2.81.69A2 2 0 0 1 22 16.9z"/></svg></span><span class="compact-phone-list">${groupPhones(g).map(phone=>`<strong class="compact-phone">${esc(formatPhoneForCard(phone))}</strong>`).join('')}</span></div>
+      <div class="compact-phone-block"><span class="compact-phone-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.69 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.33 1.85.56 2.81.69A2 2 0 0 1 22 16.9z"/></svg></span><span class="compact-phone-list">${matchedPhones}${additionalPhones}</span></div>
       <div class="compact-identity">
         <div class="compact-identity-line"><span class="compact-client-name">${esc(names.primaryName || 'ФИО не найдено')}</span>${names.needsReview?`<span class="compact-review-label">${esc(names.reviewLabel)}</span>`:''}</div>
         ${names.amoLine?`<div class="compact-amo-name"><span>amoCRM:</span> ${esc(names.amoLine)}</div>`:''}

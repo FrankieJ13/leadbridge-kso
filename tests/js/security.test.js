@@ -209,3 +209,17 @@ test('phone groups with the same selected amoCRM deal merge into one card', () =
   ]);
   assert.equal(separate.length, 2);
 });
+
+test('card phone presentation accents matches and keeps other form phones secondary', () => {
+  const phones = matching.groupPhonePresentation({
+    phone: '9069508719',
+    phones: ['9069508719'],
+    max: [
+      {phones: ['9069508719', '9221837057', '9000000011']},
+      {phones: ['9221837057', '9000000022']}
+    ]
+  });
+  assert.deepEqual(phones.matched, ['9069508719']);
+  assert.deepEqual(phones.additional, ['9221837057', '9000000011', '9000000022']);
+  assert.deepEqual(phones.all, ['9069508719', '9221837057', '9000000011', '9000000022']);
+});
