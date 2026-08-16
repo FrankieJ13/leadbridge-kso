@@ -101,6 +101,7 @@
           <button class="maxle-pick-ocr" id="maxle-pick-ocr" type="button">${icon('fileArchive')}<span>Выбрать ZIP для OCR</span></button>
           <button class="maxle-download-only" data-maxle-export="zip" type="button">${icon('fileArchive')}<span>Только скачать ZIP</span></button>
         </div>
+        <div class="maxle-ocr-feedback" id="maxle-ocr-feedback" role="status" aria-live="assertive" hidden></div>
         <div class="maxle-section-title">Или один файл</div>
         <div class="maxle-format-grid">
           ${format('json', 'database', 'json')}

@@ -37,42 +37,71 @@ importScripts('ocr_bridge_policy.js');
     return item;
   }
 
-  function notifyOcrStatus(tabId, text, kind = 'info') {
+  function notifyOcrStatus(tabId, text, kind = 'info', monitor = false) {
     if (!Number.isInteger(tabId)) return;
     chrome.tabs.sendMessage(tabId, {
       type: 'MAX_EXPORTER_OCR_STATUS',
       text,
-      kind
+      kind,
+      monitor
     }).catch(() => {});
   }
 
-  async function callLocalOcrBridge(request) {
-    const response = await fetch(request.url, {
-      ...request.options,
-      targetAddressSpace: 'local'
-    });
+  async function callLocalOcrBridge(request, timeoutMs = 0) {
+    const controller = new AbortController();
+    const timeoutId = timeoutMs > 0 ? setTimeout(() => controller.abort(), timeoutMs) : 0;
+    let response;
+    try {
+      response = await fetch(request.url, {
+        ...request.options,
+        signal: controller.signal,
+        targetAddressSpace: 'local'
+      });
+    } catch (error) {
+      if (error?.name === 'AbortError') throw new Error('Локальный OCR-мост не ответил вовремя');
+      throw new Error(`Локальный OCR-мост не запущен или недоступен: ${error?.message || String(error)}`);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || !payload.ok) {
+      if (response.status === 404) throw new Error('Установлена старая версия OCR-моста без этой функции');
       throw new Error(payload.error || `OCR-мост вернул HTTP ${response.status}`);
     }
     return payload;
   }
 
+  async function assertLocalOcrBridge(capability) {
+    const health = await callLocalOcrBridge(ocrPolicy.ocrHealthRequest(), 3500);
+    const capabilities = Array.isArray(health.capabilities) ? health.capabilities : [];
+    if (Number(health.apiVersion || 0) < 2 || !capabilities.includes(capability)) {
+      throw new Error('OCR-мост устарел. Переустанови актуальный пакет LeadBridge KSO, чтобы перезапустить его');
+    }
+    return health;
+  }
+
   async function launchLocalOcr(filename) {
-    return callLocalOcrBridge(ocrPolicy.ocrRequest(filename));
+    await assertLocalOcrBridge('run');
+    return callLocalOcrBridge(ocrPolicy.ocrRequest(filename), 8000);
   }
 
   async function pickAndLaunchLocalOcr(sender) {
     if (!policy.isTrustedSender(sender, chrome.runtime.id)) throw new Error('Недоверенный источник запроса');
+    await assertLocalOcrBridge('pick-and-run');
     return callLocalOcrBridge(ocrPolicy.ocrPickRequest());
   }
 
-  async function processCompletedOcrDownload(downloadId) {
+  async function processCompletedOcrDownload(downloadId, pendingRetries = 0) {
     if (processingDownloads.has(downloadId)) return;
     processingDownloads.add(downloadId);
     try {
       const pending = await takePendingDownload(downloadId);
-      if (!pending) return;
+      if (!pending) {
+        if (pendingRetries > 0) {
+          setTimeout(() => processCompletedOcrDownload(downloadId, pendingRetries - 1).catch(() => {}), 250);
+        }
+        return;
+      }
       const [download] = await chrome.downloads.search({ id: downloadId });
       if (!download || download.state !== 'complete' || !download.filename) {
         notifyOcrStatus(pending.tabId, 'Архив не был сохранён. OCR не запущен.', 'error');
@@ -83,7 +112,8 @@ importScripts('ocr_bridge_policy.js');
         notifyOcrStatus(
           pending.tabId,
           `OCR запущен.\nАрхив: ${pending.filename}\nРезультат появится в ${result.outputDir || 'LeadBridgeKSO/ocr_results'}.`,
-          'success'
+          'success',
+          true
         );
       } catch (error) {
         notifyOcrStatus(
@@ -118,6 +148,11 @@ importScripts('ocr_bridge_policy.js');
     const [download] = await chrome.downloads.search({ id: downloadId });
     if (download?.state === 'complete') processCompletedOcrDownload(downloadId);
     return { ok: true, downloadId, message: 'Архив сохраняется. После загрузки OCR запустится автоматически.' };
+  }
+
+  async function queryLocalOcrStatus(sender) {
+    if (!policy.isTrustedSender(sender, chrome.runtime.id)) throw new Error('Недоверенный источник запроса');
+    return callLocalOcrBridge(ocrPolicy.ocrStatusRequest(), 3500);
   }
 
   function uint8ToBase64(bytes) {
@@ -199,6 +234,13 @@ importScripts('ocr_bridge_policy.js');
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type === 'MAX_EXPORTER_OCR_STATUS_QUERY') {
+      queryLocalOcrStatus(sender)
+        .then(sendResponse)
+        .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
+      return true;
+    }
+
     if (message?.type === 'MAX_EXPORTER_PICK_AND_OCR') {
       pickAndLaunchLocalOcr(sender)
         .then(sendResponse)
@@ -243,7 +285,7 @@ importScripts('ocr_bridge_policy.js');
 
   chrome.downloads.onChanged.addListener((delta) => {
     if (delta.state?.current === 'complete') {
-      processCompletedOcrDownload(delta.id).catch(() => {});
+      processCompletedOcrDownload(delta.id, 5).catch(() => {});
       return;
     }
     if (delta.state?.current === 'interrupted') {

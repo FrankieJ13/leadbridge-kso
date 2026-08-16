@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MAX Exporter Panel Preview</title>
-  <link rel="stylesheet" href="../../apps/max-chat-local-exporter/content.css?v=ocr2">
+  <link rel="stylesheet" href="../../apps/max-chat-local-exporter/content.css?v=ocr3">
   <style>
     html, body { min-height: 100%; margin: 0; }
     body {
@@ -15,8 +15,8 @@
   </style>
 </head>
 <body>
-  <script src="../../apps/max-chat-local-exporter/panel_ui.js?v=ocr2"></script>
-  <script src="../../apps/max-chat-local-exporter/panel_motion.js?v=ocr2"></script>
+  <script src="../../apps/max-chat-local-exporter/panel_ui.js?v=ocr3"></script>
+  <script src="../../apps/max-chat-local-exporter/panel_motion.js?v=ocr3"></script>
   <script>
     const panel = document.createElement('aside');
     panel.id = 'max-local-exporter-panel';
@@ -24,6 +24,12 @@
     panel.innerHTML = MaxExporterPanelUI.markup();
     document.body.appendChild(panel);
     MaxExporterPanelMotion.install(panel);
+    if (new URLSearchParams(location.search).get('feedback') === 'error') {
+      const feedback = document.getElementById('maxle-ocr-feedback');
+      feedback.hidden = false;
+      feedback.dataset.kind = 'error';
+      feedback.textContent = 'OCR не запущен.\nЛокальный OCR-мост устарел. Переустанови актуальный пакет LeadBridge KSO.';
+    }
   </script>
 </body>
 </html>

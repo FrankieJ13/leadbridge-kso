@@ -42,6 +42,18 @@ def request_shutdown() -> None:
         pass
 
 
+def stop_running_bridge() -> bool:
+    if not is_ready():
+        return True
+    print("Restarting the existing LeadBridge OCR Bridge...")
+    request_shutdown()
+    for _ in range(30):
+        if not is_ready():
+            return True
+        time.sleep(0.1)
+    return False
+
+
 def windows_pythonw() -> Path:
     current = Path(sys.executable).resolve()
     candidate = current.with_name("pythonw.exe")
@@ -138,9 +150,9 @@ def main() -> int:
     if not bridge.is_file():
         print(f"OCR bridge script not found: {bridge}", file=sys.stderr)
         return 2
-    if is_ready():
-        print("LeadBridge OCR Bridge is already running.")
-        return 0
+    if not stop_running_bridge():
+        print("The previous LeadBridge OCR Bridge did not stop.", file=sys.stderr)
+        return 2
 
     system = platform.system().lower()
     if system == "windows":

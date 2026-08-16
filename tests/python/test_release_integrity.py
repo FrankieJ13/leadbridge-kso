@@ -77,6 +77,23 @@ class ReleaseIntegrityTests(unittest.TestCase):
             self.assertFalse(old_dmg.exists())
             self.assertFalse(old_zip.exists())
 
+    def test_download_urls_are_cache_busted_by_build_commit(self) -> None:
+        downloads = {
+            "tools": {"windows": {"download_url": "releases/packages/windows.zip"}},
+            "full_project": {"download_url": "releases/packages/full.zip"},
+        }
+
+        release.add_download_cache_bust(downloads, "1234567890abcdef")
+
+        self.assertEqual(
+            downloads["tools"]["windows"]["download_url"],
+            "releases/packages/windows.zip?build=1234567890ab",
+        )
+        self.assertEqual(
+            downloads["full_project"]["download_url"],
+            "releases/packages/full.zip?build=1234567890ab",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

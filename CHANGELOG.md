@@ -20,6 +20,8 @@
 - Kept the generated Windows EXE as a local ignored artifact, excluded from GitHub manifests and nested release ZIPs.
 - Added a loopback-only OCR bridge so the MAX exporter can save a new ZIP and start local OCR in one action.
 - Added «Выбрать ZIP для OCR» to restart OCR from an already downloaded MAX archive without scanning or exporting the chat again.
+- Fixed OCR bridge upgrades so installers stop the previous process and start the newly copied version.
+- Fixed a completed-download race that could leave one-click OCR pending, and added visible progress/completion/error diagnostics below the OCR controls.
 
 ## v8.2.09.1733
 

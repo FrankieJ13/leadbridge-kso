@@ -260,6 +260,17 @@ def download_entry(label: str, filename: str, installer: str | None = None) -> d
     return entry
 
 
+def add_download_cache_bust(downloads: dict[str, object], commit: str) -> None:
+    cache_key = commit[:12] if commit and commit != "unknown" else APP_VERSION.lstrip("v")
+    for group in downloads.values():
+        if not isinstance(group, dict):
+            continue
+        entries = [group] if "download_url" in group else list(group.values())
+        for entry in entries:
+            if isinstance(entry, dict) and isinstance(entry.get("download_url"), str):
+                entry["download_url"] = f"{entry['download_url']}?build={cache_key}"
+
+
 def build_manifest(outputs: list[Path], commit: str) -> dict[str, object]:
     artifacts = artifact_metadata(outputs)
 
@@ -300,6 +311,7 @@ def build_manifest(outputs: list[Path], commit: str) -> dict[str, object]:
         downloads["native_apps"] = native_apps
     if full_project in artifacts:
         downloads["full_project"] = with_integrity(download_entry("LeadBridge KSO — полный проект", full_project))
+    add_download_cache_bust(downloads, commit)
     return {
         "app_version": APP_VERSION,
         "package_version": PACKAGE_VERSION,

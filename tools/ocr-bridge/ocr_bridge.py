@@ -21,6 +21,7 @@ from typing import Any
 HOST = "127.0.0.1"
 PORT = 17848
 BRIDGE_HEADER = "leadbridge-kso-ocr-v1"
+BRIDGE_API_VERSION = 2
 MAX_REQUEST_BYTES = 64 * 1024
 MAX_ARCHIVE_BYTES = 16 * 1024 * 1024 * 1024
 ARCHIVE_RE = re.compile(
@@ -187,6 +188,9 @@ class OcrJobManager:
         self.root = root
         self.lock = threading.Lock()
         self.process: subprocess.Popen[bytes] | None = None
+        self.archive: Path | None = None
+        self.output_dir: Path | None = None
+        self.log_path: Path | None = None
 
     def launch(self, archive: Path) -> dict[str, Any]:
         with self.lock:
@@ -213,6 +217,9 @@ class OcrJobManager:
                     start_new_session=os.name != "nt",
                     close_fds=True,
                 )
+            self.archive = archive
+            self.output_dir = output_dir
+            self.log_path = log_path
 
             return {
                 "ok": True,
@@ -221,6 +228,37 @@ class OcrJobManager:
                 "outputDir": str(output_dir),
                 "logFile": str(log_path),
             }
+
+    def status(self) -> dict[str, Any]:
+        with self.lock:
+            if not self.process:
+                return {"ok": True, "state": "idle", "active": False}
+            exit_code = self.process.poll()
+            state = "running" if exit_code is None else "completed" if exit_code == 0 else "failed"
+            payload: dict[str, Any] = {
+                "ok": True,
+                "state": state,
+                "active": exit_code is None,
+                "exitCode": exit_code,
+                "archive": self.archive.name if self.archive else "",
+                "outputDir": str(self.output_dir) if self.output_dir else "",
+                "logFile": str(self.log_path) if self.log_path else "",
+            }
+            if state == "failed" and self.log_path:
+                payload["error"] = self.last_error_line(self.log_path)
+            return payload
+
+    @staticmethod
+    def last_error_line(log_path: Path) -> str:
+        try:
+            with log_path.open("rb") as log_file:
+                log_file.seek(0, os.SEEK_END)
+                size = log_file.tell()
+                log_file.seek(max(0, size - 8192))
+                lines = log_file.read().decode("utf-8", errors="replace").splitlines()
+            return next((line.strip()[:500] for line in reversed(lines) if line.strip()), "OCR завершился с ошибкой")
+        except OSError:
+            return "OCR завершился с ошибкой; журнал недоступен"
 
 
 class OcrBridgeHandler(BaseHTTPRequestHandler):
@@ -248,11 +286,30 @@ class OcrBridgeHandler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self) -> None:  # noqa: N802
-        if self.path != "/health":
+        if self.path not in {"/health", "/status"}:
             self.send_json(404, {"ok": False, "error": "not found"})
             return
+        if self.path == "/status":
+            if self.headers.get("X-LeadBridge-Bridge") != BRIDGE_HEADER:
+                self.send_json(403, {"ok": False, "error": "OCR bridge authorization failed"})
+                return
+            origin = self.headers.get("Origin", "").strip()
+            if origin and not self.extension_origin():
+                self.send_json(403, {"ok": False, "error": "web pages cannot read OCR status"})
+                return
+            self.send_json(200, self.manager.status())
+            return
         active = bool(self.manager.process and self.manager.process.poll() is None)
-        self.send_json(200, {"ok": True, "service": "LeadBridge OCR Bridge", "active": active})
+        self.send_json(
+            200,
+            {
+                "ok": True,
+                "service": "LeadBridge OCR Bridge",
+                "apiVersion": BRIDGE_API_VERSION,
+                "capabilities": ["run", "pick-and-run", "status"],
+                "active": active,
+            },
+        )
 
     def do_OPTIONS(self) -> None:  # noqa: N802
         origin = self.extension_origin()

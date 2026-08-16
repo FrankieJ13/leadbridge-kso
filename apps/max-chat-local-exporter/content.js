@@ -829,6 +829,54 @@
     if (el) el.textContent = text;
   }
 
+  function setOcrFeedback(text, kind = 'info') {
+    const el = document.querySelector('#maxle-ocr-feedback');
+    if (!el) return;
+    el.textContent = String(text || '');
+    el.dataset.kind = kind;
+    el.hidden = !text;
+  }
+
+  let ocrMonitorTimer = 0;
+
+  function stopOcrMonitor() {
+    if (ocrMonitorTimer) clearTimeout(ocrMonitorTimer);
+    ocrMonitorTimer = 0;
+  }
+
+  async function pollOcrStatus() {
+    const result = await sendMessagePromise({ type: 'MAX_EXPORTER_OCR_STATUS_QUERY' });
+    if (!result?.ok) {
+      stopOcrMonitor();
+      setOcrFeedback(`Не удалось получить статус OCR.\n${result?.error || 'Локальный мост недоступен'}`, 'error');
+      return;
+    }
+    if (result.state === 'running') {
+      setOcrFeedback(`OCR выполняется…\nАрхив: ${result.archive || 'MAX_CHAT_EXPORT_...zip'}`);
+      ocrMonitorTimer = setTimeout(() => pollOcrStatus(), 2500);
+      return;
+    }
+    stopOcrMonitor();
+    if (result.state === 'completed') {
+      const message = `OCR завершён.\nРезультат: ${result.outputDir || 'LeadBridgeKSO/ocr_results'}`;
+      setStatus(message);
+      setOcrFeedback(message, 'success');
+      return;
+    }
+    if (result.state === 'failed') {
+      const message = `OCR завершился с ошибкой${Number.isInteger(result.exitCode) ? ` (код ${result.exitCode})` : ''}.\n${result.error || 'Открой журнал OCR в папке LeadBridgeKSO/logs.'}`;
+      setStatus(message);
+      setOcrFeedback(message, 'error');
+      return;
+    }
+    setOcrFeedback('OCR сейчас не выполняется.', 'error');
+  }
+
+  function startOcrMonitor() {
+    stopOcrMonitor();
+    ocrMonitorTimer = setTimeout(() => pollOcrStatus(), 800);
+  }
+
   function orderedRecords() {
     const oldestFirst = document.querySelector('#maxle-oldest-first')?.checked ?? true;
     return Array.from(state.records.values()).sort((a, b) => {
@@ -1308,9 +1356,11 @@ URL: ${meta.sourceUrl}
     if (!state.records.size) captureMessages();
     if (!state.records.size) {
       setStatus('Не нашёл сообщений. Открой конкретный чат и попробуй ещё раз.');
+      if (runOcr) setOcrFeedback('OCR не запущен: в панели пока нет собранных сообщений.', 'error');
       return;
     }
 
+    if (runOcr) setOcrFeedback('Готовлю ZIP. После скачивания проверю локальный OCR-мост…');
     setButtonsRunning(true);
     try {
       const records = cloneRecordsForExport();
@@ -1389,9 +1439,13 @@ URL: ${meta.sourceUrl}
         setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
         if (!launch?.ok) {
           downloadBlob(zip, filename);
-          setStatus(`Архив создан и скачан, но OCR не запущен.\n${launch?.error || 'Фоновый модуль недоступен'}\nПереустанови пакет LeadBridge KSO.`);
+          const message = `Архив скачан, но OCR не запущен.\n${launch?.error || 'Фоновый модуль недоступен'}`;
+          setStatus(`${message}\nПереустанови пакет LeadBridge KSO.`);
+          setOcrFeedback(message, 'error');
         } else {
-          setStatus(launch.message || 'Архив сохраняется. После загрузки OCR запустится автоматически.');
+          const message = launch.message || 'Архив сохраняется. После загрузки OCR запустится автоматически.';
+          setStatus(message);
+          setOcrFeedback(message);
         }
       } else {
         downloadBlob(zip, filename);
@@ -1399,6 +1453,7 @@ URL: ${meta.sourceUrl}
       }
     } catch (error) {
       setStatus(`Ошибка ZIP: ${error?.message || String(error)}`);
+      if (runOcr) setOcrFeedback(`Ошибка подготовки ZIP: ${error?.message || String(error)}`, 'error');
     } finally {
       setButtonsRunning(false);
     }
@@ -1409,16 +1464,23 @@ URL: ${meta.sourceUrl}
     if (button?.disabled) return;
     if (button) button.disabled = true;
     setStatus('Выбери ранее скачанный архив MAX_CHAT_EXPORT_...zip. Повторно собирать чат не нужно.');
+    setOcrFeedback('Проверяю OCR-мост и открываю выбор ZIP…');
     try {
       const result = await sendMessagePromise({ type: 'MAX_EXPORTER_PICK_AND_OCR' });
       if (result?.cancelled) {
         setStatus('Выбор ZIP отменён. Собранный чат и скачанные файлы не изменены.');
+        setOcrFeedback('Выбор ZIP отменён. OCR не запускался.');
         return;
       }
       if (!result?.ok) throw new Error(result?.error || 'Локальный OCR-мост недоступен');
-      setStatus(`OCR запущен из готового архива.\nАрхив: ${result.archive || 'MAX_CHAT_EXPORT_...zip'}\nРезультат появится в ${result.outputDir || 'LeadBridgeKSO/ocr_results'}.`);
+      const message = `OCR запущен из готового архива.\nАрхив: ${result.archive || 'MAX_CHAT_EXPORT_...zip'}\nРезультат: ${result.outputDir || 'LeadBridgeKSO/ocr_results'}`;
+      setStatus(message);
+      setOcrFeedback(message, 'success');
+      startOcrMonitor();
     } catch (error) {
-      setStatus(`Не удалось запустить OCR из готового ZIP.\n${error?.message || String(error)}\nПереустанови актуальный пакет LeadBridge KSO.`);
+      const message = `OCR не запущен.\n${error?.message || String(error)}`;
+      setStatus(`${message}\nПереустанови актуальный пакет LeadBridge KSO.`);
+      setOcrFeedback(message, 'error');
     } finally {
       if (button) button.disabled = false;
     }
@@ -1519,6 +1581,7 @@ URL: ${meta.sourceUrl}
     panel.querySelector('#maxle-stop').addEventListener('click', () => stopAutoScroll());
     panel.querySelector('#maxle-clear').addEventListener('click', () => clearRecords());
     panel.querySelector('#maxle-ocr').addEventListener('click', () => {
+      setOcrFeedback('Начинаю подготовку архива для OCR…');
       if (document.querySelector('#maxle-scan-before-export')?.checked) captureMessages();
       downloadStructuredZip(true);
     });
@@ -1538,6 +1601,8 @@ URL: ${meta.sourceUrl}
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === 'MAX_EXPORTER_OCR_STATUS') {
       setStatus(String(message.text || 'Статус OCR обновлён.'));
+      setOcrFeedback(String(message.text || 'Статус OCR обновлён.'), message.kind || 'info');
+      if (message.monitor) startOcrMonitor();
       sendResponse({ ok: true });
       return false;
     }

@@ -442,6 +442,23 @@
 .maxle-download-only .maxle-icon,
 .maxle-pick-ocr .maxle-icon { width: 10px; height: 10px; flex: 0 0 10px; }
 
+.maxle-ocr-feedback {
+  margin-top: 4px;
+  padding: 5px 6px;
+  color: #c9d6ee;
+  font-size: 7.5px;
+  line-height: 1.3;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: rgba(24, 39, 70, 0.92);
+  border: 1px solid rgba(72, 126, 243, 0.68);
+  border-radius: 7px;
+}
+
+.maxle-ocr-feedback[hidden] { display: none !important; }
+.maxle-ocr-feedback[data-kind="success"] { color: #c9f9df; background: rgba(20, 75, 56, 0.78); border-color: rgba(53, 212, 148, 0.72); }
+.maxle-ocr-feedback[data-kind="error"] { color: #ffd7dc; background: rgba(91, 29, 43, 0.82); border-color: rgba(255, 83, 105, 0.78); }
+
 .maxle-note {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

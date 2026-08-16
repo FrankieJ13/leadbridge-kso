@@ -14,6 +14,12 @@ assert SPEC and SPEC.loader
 bridge = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(bridge)
 
+INSTALLER_PATH = ROOT / "tools" / "ocr-bridge" / "install_bridge.py"
+INSTALLER_SPEC = importlib.util.spec_from_file_location("install_ocr_bridge", INSTALLER_PATH)
+assert INSTALLER_SPEC and INSTALLER_SPEC.loader
+bridge_installer = importlib.util.module_from_spec(INSTALLER_SPEC)
+INSTALLER_SPEC.loader.exec_module(bridge_installer)
+
 
 class OcrBridgeTests(unittest.TestCase):
     def test_archive_path_accepts_only_exporter_zip(self):
@@ -59,10 +65,54 @@ class OcrBridgeTests(unittest.TestCase):
             self.assertEqual(output, root / "ocr_results")
             self.assertTrue(output.is_dir())
 
+    def test_job_status_reports_failure_from_local_log(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log_path = Path(tmp) / "ocr.log"
+            log_path.write_text("starting\narchive is broken\n", encoding="utf-8")
+            manager = bridge.OcrJobManager(Path(tmp))
+            manager.process = mock.Mock()
+            manager.process.poll.return_value = 3
+            manager.archive = Path(tmp) / "MAX_CHAT_EXPORT_1msg_0att_16-08-26_14-30.zip"
+            manager.output_dir = Path(tmp) / "ocr_results"
+            manager.log_path = log_path
+
+            status = manager.status()
+
+            self.assertEqual(status["state"], "failed")
+            self.assertEqual(status["exitCode"], 3)
+            self.assertEqual(status["error"], "archive is broken")
+
     def test_bridge_security_contract_blocks_web_origins(self):
         self.assertEqual(bridge.BRIDGE_HEADER, "leadbridge-kso-ocr-v1")
+        self.assertEqual(bridge.BRIDGE_API_VERSION, 2)
         self.assertIsNotNone(bridge.EXTENSION_ORIGIN_RE.fullmatch("chrome-extension://abcdefghijklmnopabcdefghijklmnop"))
         self.assertIsNone(bridge.EXTENSION_ORIGIN_RE.fullmatch("https://web.max.ru"))
+
+    def test_health_advertises_current_ocr_capabilities(self):
+        handler = object.__new__(bridge.OcrBridgeHandler)
+        handler.path = "/health"
+        handler.manager = mock.Mock()
+        handler.manager.process = None
+        handler.send_json = mock.Mock()
+
+        handler.do_GET()
+
+        status, payload = handler.send_json.call_args.args
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["apiVersion"], 2)
+        self.assertEqual(payload["capabilities"], ["run", "pick-and-run", "status"])
+
+    def test_status_endpoint_requires_bridge_header(self):
+        handler = object.__new__(bridge.OcrBridgeHandler)
+        handler.path = "/status"
+        handler.headers = {}
+        handler.manager = mock.Mock()
+        handler.send_json = mock.Mock()
+
+        handler.do_GET()
+
+        handler.send_json.assert_called_once_with(403, {"ok": False, "error": "OCR bridge authorization failed"})
+        handler.manager.status.assert_not_called()
 
     def test_native_picker_dispatches_by_operating_system(self):
         expected = Path("/tmp/MAX_CHAT_EXPORT_1msg_0att_16-08-26_14-30.zip")
@@ -94,6 +144,19 @@ class OcrBridgeTests(unittest.TestCase):
 
         handler.send_json.assert_called_once_with(200, {"ok": True, "cancelled": True})
         manager.launch.assert_not_called()
+
+    def test_installer_restarts_an_existing_bridge_after_update(self):
+        with mock.patch.object(bridge_installer, "is_ready", side_effect=[True, True, False]):
+            with mock.patch.object(bridge_installer, "request_shutdown") as shutdown:
+                with mock.patch.object(bridge_installer.time, "sleep"):
+                    self.assertTrue(bridge_installer.stop_running_bridge())
+        shutdown.assert_called_once_with()
+
+    def test_installer_does_not_stop_when_bridge_is_absent(self):
+        with mock.patch.object(bridge_installer, "is_ready", return_value=False):
+            with mock.patch.object(bridge_installer, "request_shutdown") as shutdown:
+                self.assertTrue(bridge_installer.stop_running_bridge())
+        shutdown.assert_not_called()
 
 
 if __name__ == "__main__":
