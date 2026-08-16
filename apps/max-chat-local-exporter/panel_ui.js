@@ -8,6 +8,7 @@
   const ICONS = {
     arrowUp: '<path d="m18 15-6-6-6 6"/><path d="M12 19V9"/>',
     check: '<path d="m5 12 4 4L19 6"/>',
+    chevronDown: '<path d="m6 9 6 6 6-6"/>',
     chevronsUp: '<path d="m17 11-5-5-5 5"/><path d="m17 18-5-5-5 5"/>',
     database: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
     fileArchive: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><path d="M14 2v6h6M10 12h4M10 16h4M12 12v4"/>',
@@ -54,7 +55,10 @@
             <span class="maxle-subtitle">Экспортируй чат MAX в удобном формате</span>
           </span>
         </div>
-        <button class="maxle-close" id="maxle-close" type="button" title="Скрыть" aria-label="Скрыть панель">${icon('x')}</button>
+        <span class="maxle-header-actions">
+          <button class="maxle-collapse" id="maxle-collapse" type="button" title="Свернуть" aria-label="Свернуть панель" aria-expanded="true">${icon('chevronDown')}</button>
+          <button class="maxle-close" id="maxle-close" type="button" title="Скрыть" aria-label="Скрыть панель">${icon('x')}</button>
+        </span>
       </div>
       <div class="maxle-body">
         <div class="maxle-action-grid">

@@ -11,7 +11,7 @@
   z-index: 2147483647;
   right: 12px;
   bottom: 12px;
-  width: 390px;
+  width: 360px;
   max-width: calc(100vw - 24px);
   max-height: calc(100vh - 24px);
   color: #f7f9ff;
@@ -43,24 +43,31 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 14px 14px 12px;
+  gap: 10px;
+  padding: 12px 12px 10px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
+
+#max-local-exporter-panel[data-dragging="true"] .maxle-header { cursor: grabbing; }
 
 .maxle-brand {
   display: flex;
   align-items: center;
+  flex: 1 1 auto;
   min-width: 0;
-  gap: 11px;
+  gap: 9px;
+  overflow: hidden;
 }
 
 .maxle-brandmark {
   position: relative;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
   color: #eef2ff;
   background: #11152b;
   border: 1px solid rgba(137, 76, 255, 0.66);
@@ -71,8 +78,8 @@
 .maxle-brandmark::before {
   content: "";
   position: absolute;
-  width: 27px;
-  height: 23px;
+  width: 24px;
+  height: 21px;
   border-radius: 15px 15px 15px 5px;
   background: linear-gradient(135deg, #4cc6ff, #8659ff 58%, #ca65ff);
   box-shadow: 0 5px 16px rgba(91, 91, 255, 0.42);
@@ -90,11 +97,14 @@
 .maxle-brand-copy > * {
   display: block;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .maxle-title {
   color: #f8f9ff;
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 780;
   line-height: 1.15;
 }
@@ -122,12 +132,20 @@
 
 #max-local-exporter-panel button:disabled { cursor: not-allowed; }
 
+.maxle-header-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 5px;
+}
+
+.maxle-collapse,
 .maxle-close {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
   padding: 0;
   background: rgba(137, 151, 181, 0.15);
   border: 1px solid rgba(139, 157, 196, 0.1) !important;
@@ -135,11 +153,14 @@
   transition: background-color 160ms ease, transform 160ms ease;
 }
 
+.maxle-collapse:hover,
 .maxle-close:hover { background: rgba(164, 179, 211, 0.25); }
+.maxle-collapse:active,
 .maxle-close:active { transform: scale(0.95); }
-.maxle-close .maxle-icon { width: 20px; height: 20px; }
+.maxle-collapse .maxle-icon { width: 18px; height: 18px; transition: transform 160ms ease; }
+.maxle-close .maxle-icon { width: 18px; height: 18px; }
 
-.maxle-body { padding: 0 14px 14px; }
+.maxle-body { padding: 0 12px 12px; }
 
 .maxle-action-grid {
   display: grid;
@@ -149,11 +170,11 @@
 
 .maxle-action {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-columns: 36px minmax(0, 1fr);
   align-items: center;
-  min-height: 76px;
-  gap: 9px;
-  padding: 11px !important;
+  min-height: 68px;
+  gap: 7px;
+  padding: 9px !important;
   text-align: left;
   background: rgba(22, 32, 57, 0.92);
   border: 1px solid var(--maxle-border) !important;
@@ -187,8 +208,8 @@
 .maxle-action-icon {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   color: #f7f9ff;
   background: rgba(124, 151, 255, 0.16);
   border: 1px solid rgba(173, 190, 255, 0.08);
@@ -197,7 +218,7 @@
 
 .maxle-primary .maxle-action-icon { background: rgba(255, 255, 255, 0.17); }
 .maxle-danger .maxle-action-icon { color: #ff5a67; background: rgba(195, 43, 61, 0.26); }
-.maxle-action-icon .maxle-icon { width: 24px; height: 24px; }
+.maxle-action-icon .maxle-icon { width: 21px; height: 21px; }
 
 .maxle-action-copy strong,
 .maxle-action-copy small {
@@ -205,8 +226,8 @@
   min-width: 0;
 }
 
-.maxle-action-copy strong { font-size: 14px; font-weight: 760; line-height: 1.2; }
-.maxle-action-copy small { margin-top: 3px; color: #aeb9d1; font-size: 11px; line-height: 1.25; }
+.maxle-action-copy strong { font-size: 12px; font-weight: 760; line-height: 1.2; }
+.maxle-action-copy small { margin-top: 2px; color: #aeb9d1; font-size: 10px; line-height: 1.2; }
 .maxle-primary .maxle-action-copy small { color: rgba(255, 255, 255, 0.78); }
 
 .maxle-status-shell {
@@ -295,7 +316,7 @@
   display: grid;
   grid-template-columns: 30px minmax(0, 1fr);
   align-items: center;
-  min-height: 54px;
+  min-height: 50px;
   gap: 6px;
   padding: 7px !important;
   text-align: left;
@@ -322,7 +343,7 @@
 .maxle-format-html .maxle-format-icon { color: #f79a4c; background: rgba(213, 105, 43, 0.16); }
 .maxle-format-csv .maxle-format-icon { color: #43d9f8; background: rgba(22, 161, 201, 0.16); }
 .maxle-format strong, .maxle-format small { display: block; }
-.maxle-format strong { font-size: 12px; line-height: 1.1; }
+.maxle-format strong { font-size: 11px; line-height: 1.1; }
 .maxle-format small { margin-top: 2px; color: #8f9bb7; font-size: 9px; line-height: 1; }
 
 .maxle-zip {
@@ -330,8 +351,8 @@
   grid-template-columns: 40px minmax(0, 1fr);
   align-items: center;
   width: 100%;
-  min-height: 58px;
-  gap: 10px;
+  min-height: 54px;
+  gap: 8px;
   margin-top: 8px;
   padding: 9px 13px !important;
   text-align: left;
@@ -357,13 +378,13 @@
 
 .maxle-zip-icon .maxle-icon { width: 22px; height: 22px; }
 .maxle-zip strong, .maxle-zip small { display: block; }
-.maxle-zip strong { font-size: 14px; font-weight: 770; line-height: 1.2; }
-.maxle-zip small { margin-top: 3px; color: rgba(255, 255, 255, 0.77); font-size: 11px; line-height: 1.2; }
+.maxle-zip strong { font-size: 13px; font-weight: 770; line-height: 1.2; }
+.maxle-zip small { margin-top: 2px; color: rgba(255, 255, 255, 0.77); font-size: 10px; line-height: 1.2; }
 
 .maxle-note {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 78px;
-  min-height: 100px;
+  min-height: 92px;
   gap: 10px;
   margin-top: 8px;
   padding: 12px;
@@ -377,7 +398,7 @@
 .maxle-note-copy { display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: start; gap: 8px; }
 .maxle-note-shield { color: #35d494; }
 .maxle-note-shield .maxle-icon { width: 20px; height: 20px; }
-.maxle-note p { margin: 0; font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+.maxle-note p { margin: 0; font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
 
 .maxle-note-art { position: relative; align-self: end; width: 78px; height: 68px; opacity: 0.9; transform: scale(0.68); transform-origin: right bottom; }
 
@@ -424,6 +445,57 @@
 .maxle-art-message { top: 1px; right: 9px; color: #e9f4ff; background: linear-gradient(145deg, #175fc6, #349cff); transform: rotate(7deg); }
 .maxle-art-link { top: 30px; right: -1px; width: 31px; height: 31px; color: #9a89ff; background: #122048; border: 1px solid rgba(126, 112, 255, 0.58); }
 .maxle-art-link .maxle-icon { width: 20px; height: 20px; }
+
+#max-local-exporter-panel[data-collapsed="true"] {
+  width: 280px;
+  overflow: hidden;
+}
+
+#max-local-exporter-panel[data-collapsed="true"] .maxle-header {
+  padding: 8px;
+}
+
+#max-local-exporter-panel[data-collapsed="true"] .maxle-body,
+#max-local-exporter-panel[data-collapsed="true"] .maxle-subtitle {
+  display: none;
+}
+
+#max-local-exporter-panel[data-collapsed="true"] .maxle-brand {
+  gap: 8px;
+}
+
+#max-local-exporter-panel[data-collapsed="true"] .maxle-brandmark {
+  width: 32px;
+  height: 32px;
+  flex-basis: 32px;
+  border-radius: 10px;
+}
+
+#max-local-exporter-panel[data-collapsed="true"] .maxle-brandmark::before {
+  width: 20px;
+  height: 18px;
+}
+
+#max-local-exporter-panel[data-collapsed="true"] .maxle-brandmark .maxle-icon {
+  width: 14px;
+  height: 14px;
+}
+
+#max-local-exporter-panel[data-collapsed="true"] .maxle-title {
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+#max-local-exporter-panel[data-collapsed="true"] .maxle-collapse,
+#max-local-exporter-panel[data-collapsed="true"] .maxle-close {
+  width: 30px;
+  height: 30px;
+  flex-basis: 30px;
+}
+
+#max-local-exporter-panel[data-collapsed="true"] .maxle-collapse .maxle-icon {
+  transform: rotate(180deg);
+}
 
 @media (max-width: 560px) {
   #max-local-exporter-panel { right: 8px; bottom: 8px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); border-radius: 20px; }

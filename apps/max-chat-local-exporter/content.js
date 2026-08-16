@@ -1474,6 +1474,7 @@ URL: ${meta.sourceUrl}
     panel.innerHTML = MaxExporterPanelUI.markup();
 
     document.documentElement.appendChild(panel);
+    MaxExporterPanelMotion.install(panel);
 
     panel.querySelector('#maxle-close').addEventListener('click', () => { panel.dataset.hidden = 'true'; });
     panel.querySelector('#maxle-scan').addEventListener('click', () => captureMessages());

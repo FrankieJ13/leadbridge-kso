@@ -16,6 +16,7 @@ const exporterPolicy = require('../../apps/max-chat-local-exporter/url_policy.js
 const messageIdentity = require('../../apps/max-chat-local-exporter/message_identity.js');
 const mediaIdentity = require('../../apps/max-chat-local-exporter/media_identity.js');
 const panelUi = require('../../apps/max-chat-local-exporter/panel_ui.js');
+const panelMotion = require('../../apps/max-chat-local-exporter/panel_motion.js');
 
 test('normalizePhone accepts Russian phone formats and rejects long identifiers', () => {
   assert.equal(security.normalizePhone('8 (912) 345-67-89'), '9123456789');
@@ -207,10 +208,16 @@ test('exporter skips media already owned by an earlier viewport', () => {
 
 test('exporter panel keeps every functional control in the redesigned markup', () => {
   const markup = panelUi.markup();
-  ['maxle-close', 'maxle-scan', 'maxle-auto', 'maxle-stop', 'maxle-clear', 'maxle-status', 'maxle-oldest-first', 'maxle-scan-before-export']
+  ['maxle-collapse', 'maxle-close', 'maxle-scan', 'maxle-auto', 'maxle-stop', 'maxle-clear', 'maxle-status', 'maxle-oldest-first', 'maxle-scan-before-export']
     .forEach((id) => assert.match(markup, new RegExp(`id="${id}"`)));
   ['json', 'txt', 'html', 'csv', 'zip']
     .forEach((format) => assert.match(markup, new RegExp(`data-maxle-export="${format}"`)));
+});
+
+test('exporter panel movement stays inside the visible tab area', () => {
+  assert.deepEqual(panelMotion.clampPosition(-100, -50, 360, 600, 1280, 900), {left: 8, top: 8});
+  assert.deepEqual(panelMotion.clampPosition(1200, 800, 360, 600, 1280, 900), {left: 912, top: 292});
+  assert.deepEqual(panelMotion.clampPosition(50, 40, 500, 700, 390, 640), {left: 8, top: 8});
 });
 
 test('online amoCRM request keeps token out of URL and restricts Apps Script redirects', () => {

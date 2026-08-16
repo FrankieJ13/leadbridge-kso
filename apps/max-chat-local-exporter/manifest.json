@@ -28,6 +28,7 @@
         "message_identity.js",
         "media_identity.js",
         "panel_ui.js",
+        "panel_motion.js",
         "content.js"
       ],
       "css": [
